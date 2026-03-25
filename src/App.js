@@ -15,6 +15,7 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // Écran de chargement pro
   useEffect(() => {
     setTimeout(() => setLoading(false), 1500);
   }, []);
@@ -37,7 +38,7 @@ export default function App() {
     <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row font-sans text-gray-800">
       {/* HEADER MOBILE */}
       <div className="md:hidden bg-[#800020] text-white p-4 flex justify-between items-center sticky top-0 z-50 shadow-md">
-        <img src=https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg alt="Hakimi Plus" className="h-8 bg-white p-1 rounded" onError={(e) => { e.target.onerror = null; e.target.outerHTML = '<span class="font-black text-xl italic uppercase">HAKIMI PLUS</span>'; }} />
+        <img src={LOGO_URL} alt="Hakimi Plus" className="h-8 bg-white p-1 rounded" onError={(e) => { e.target.onerror = null; e.target.outerHTML = '<span class="font-black text-xl italic uppercase">HAKIMI PLUS</span>'; }} />
         <button onClick={() => setMenuOpen(!menuOpen)} className="text-2xl">☰</button>
       </div>
 
@@ -96,7 +97,7 @@ const NavBtn = ({ active, onClick, children }) => (
 );
 
 // ==========================================
-// 1. MODULE VENTE 
+// 1. MODULE VENTE (CORRIGÉ : STOCK FIXÉ)
 // ==========================================
 const ModuleVente = ({ mode }) => {
   const [panier, setPanier] = useState([]);
@@ -192,11 +193,13 @@ const ModuleVente = ({ mode }) => {
         <input placeholder="🔍 Rechercher un produit..." className="p-4 mb-4 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#800020] text-lg w-full" onChange={e => setSearch(e.target.value)} disabled={venteValidee} autoFocus />
         <div className="grid grid-cols-2 gap-2 overflow-y-auto pr-1 custom-scrollbar">
           {produits.filter(p => p.nom.toLowerCase().includes(search.toLowerCase())).map(p => (
-            /* CORRECTION ICI : Ajout du mot "relative" */
-            <button key={p.id} onClick={() => ajouter(p)} disabled={venteValidee} className="relative p-3 border border-gray-200 rounded-xl text-left bg-white hover:border-[#800020] hover:shadow-md transition group">
-              <p className="font-bold text-gray-800 text-xs uppercase truncate pr-8 group-hover:text-[#800020]">{p.nom}</p>
-              <p className="text-red-600 font-black mt-1">{p.prix_vente.toLocaleString()} Ar</p>
-              <span className="absolute top-2 right-2 bg-gray-100 text-gray-500 px-2 py-1 rounded text-[9px] font-black">STK: {p.stock_actuel}</span>
+            /* CORRECTION DÉFINITIVE ICI : Adieu "absolute", bonjour "flex" */
+            <button key={p.id} onClick={() => ajouter(p)} disabled={venteValidee} className="flex flex-col justify-between p-3 border border-gray-200 rounded-xl text-left bg-white hover:border-[#800020] hover:shadow-md transition group h-full min-h-[80px]">
+              <div className="flex justify-between items-start w-full gap-1 mb-1">
+                <p className="font-bold text-gray-800 text-xs uppercase truncate pr-1 group-hover:text-[#800020]">{p.nom}</p>
+                <span className="bg-gray-100 text-gray-500 px-2 py-0.5 rounded text-[9px] font-black whitespace-nowrap shrink-0">STK: {p.stock_actuel}</span>
+              </div>
+              <p className="text-red-600 font-black text-sm">{p.prix_vente.toLocaleString()} Ar</p>
             </button>
           ))}
         </div>
