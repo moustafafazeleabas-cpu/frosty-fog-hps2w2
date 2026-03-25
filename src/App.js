@@ -7,7 +7,7 @@ const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJI
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // 🛑 TON LOGO EST ICI : Assure-toi d'avoir un fichier logo.png dans ton dossier public ou src
-const LOGO_URL = "./logo.png"; 
+const LOGO_URL = "https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg"; 
 
 export default function App() {
   const [user, setUser] = useState(null);
