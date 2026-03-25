@@ -225,7 +225,7 @@ const ModuleVente = ({ mode }) => {
             </div>
           )}
 
-          <div className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+          <div className="space-y-2 max-h-40 overflow-y-auto pr-2 mt-2 custom-scrollbar">
             {panier.length === 0 && <p className={`text-center italic mt-6 ${mode==='devis' ? 'text-gray-400' : 'text-white/50'}`}>Panier vide</p>}
             {panier.map((item, i) => (
               <div key={i} className={`flex justify-between items-center p-3 rounded-xl border-l-4 ${mode === 'devis' ? 'bg-gray-50 border-[#800020]' : 'bg-white/10 border-white'}`}>
@@ -265,166 +265,7 @@ const ModuleVente = ({ mode }) => {
 };
 
 // ==========================================
-// 2. DASHBOARD (AVEC DEPENSES MOIS & ANNEE)
-// ==========================================
-const AdminDashboard = () => {
-  const [ventes, setVentes] = useState([]); 
-  const [depenses, setDepenses] = useState([]); 
-  const [produits, setProduits] = useState([]);
-  
-  useEffect(() => { 
-    const loadData = async () => { 
-      const v = await supabase.from('historique_ventes').select('*'); 
-      const d = await supabase.from('depenses').select('*'); 
-      const p = await supabase.from('produits').select('nom, fournisseur_nom'); 
-      setVentes(v.data || []); setDepenses(d.data || []); setProduits(p.data || []); 
-    }; 
-    loadData(); 
-  }, []);
-
-  const now = new Date(); 
-  const getVentesFiltrees = (daysOffset) => ventes.filter(v => (now - new Date(v.date_vente)) / (1000 * 60 * 60 * 24) <= daysOffset);
-  const caJour = getVentesFiltrees(1).reduce((acc, v) => acc + v.montant_total, 0); 
-  const caHebdo = getVentesFiltrees(7).reduce((acc, v) => acc + v.montant_total, 0);
-  
-  const ventesMois = ventes.filter(v => new Date(v.date_vente).getMonth() === now.getMonth() && new Date(v.date_vente).getFullYear() === now.getFullYear()); 
-  const caMois = ventesMois.reduce((acc, v) => acc + v.montant_total, 0);
-  const beneficeBrutMois = ventesMois.reduce((acc, v) => acc + (v.benefice_total || 0), 0); 
-  
-  // Dépenses
-  const depensesMois = depenses.filter(d => new Date(d.date_depense).getMonth() === now.getMonth() && new Date(d.date_depense).getFullYear() === now.getFullYear()).reduce((acc, d) => acc + d.montant, 0); 
-  const depensesAnnee = depenses.filter(d => new Date(d.date_depense).getFullYear() === now.getFullYear()).reduce((acc, d) => acc + d.montant, 0); 
-  
-  const beneficeNet = beneficeBrutMois - depensesMois;
-  
-  let counts = {}; 
-  ventes.forEach(v => { if(!v.articles_liste) return; v.articles_liste.split(', ').forEach(itemStr => { const match = itemStr.match(/^(\d+)x\s+(.+)$/); if(match) counts[match[2]] = (counts[match[2]] || 0) + parseInt(match[1]); }); });
-  const topProducts = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([nom, qte]) => { const pInfo = produits.find(p => p.nom === nom); return { nom, qte, fournisseur: pInfo ? pInfo.fournisseur_nom : 'Inconnu' }; });
-  
-  return (
-    <div className="space-y-6 max-w-6xl mx-auto">
-      <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[#800020] border-b-2 border-gray-200 pb-2">Tableau de Bord</h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-          <p className="text-xs font-bold text-gray-400 uppercase">Marge Brute (Mois)</p>
-          <p className="text-2xl md:text-3xl font-black text-gray-800 mt-2">{beneficeBrutMois.toLocaleString()} Ar</p>
-        </div>
-        <div className="bg-red-50 p-6 rounded-3xl shadow-sm border border-red-100">
-          <p className="text-xs font-bold text-red-600 uppercase">Charges ce Mois</p>
-          <p className="text-2xl md:text-3xl font-black text-red-700 mt-2">- {depensesMois.toLocaleString()} Ar</p>
-          <div className="mt-3 pt-3 border-t border-red-200">
-            <p className="text-[10px] font-bold text-red-500 uppercase">Total Année en cours</p>
-            <p className="text-sm font-black text-red-800">- {depensesAnnee.toLocaleString()} Ar</p>
-          </div>
-        </div>
-        <div className={`p-6 rounded-3xl shadow-md text-white ${beneficeNet >= 0 ? 'bg-green-700' : 'bg-red-700'}`}>
-          <p className="text-xs font-bold text-white/80 uppercase">BÉNÉFICE NET (Mois)</p>
-          <p className="text-3xl md:text-4xl font-black tracking-tighter mt-2">{beneficeNet.toLocaleString()} Ar</p>
-        </div>
-      </div>
-      <div className="bg-white p-6 rounded-3xl shadow-sm border-t-4 border-[#800020] overflow-x-auto">
-        <h3 className="font-black text-[#800020] uppercase text-xs mb-4">Chiffre d'Affaires</h3>
-        <div className="flex justify-between min-w-[400px]">
-          <div><p className="text-[10px] uppercase font-bold text-gray-400">Aujourd'hui</p><p className="font-black text-lg">{caJour.toLocaleString()}</p></div>
-          <div><p className="text-[10px] uppercase font-bold text-gray-400">Cette semaine</p><p className="font-black text-lg">{caHebdo.toLocaleString()}</p></div>
-          <div><p className="text-[10px] uppercase font-bold text-gray-400">Ce mois</p><p className="font-black text-xl text-[#800020]">{caMois.toLocaleString()}</p></div>
-        </div>
-      </div>
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-        <h3 className="font-black text-gray-400 uppercase text-xs mb-4">Top 5 Ventes</h3>
-        <div className="grid gap-2">
-          {topProducts.map((p, idx) => (
-            <div key={idx} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl border border-gray-100">
-              <div className="flex items-center gap-3">
-                <span className="bg-[#800020] text-white w-6 h-6 rounded-full flex items-center justify-center font-black text-[10px]">#{idx+1}</span>
-                <div><p className="font-black text-gray-800 uppercase text-xs">{p.nom}</p><p className="text-[9px] text-gray-500 font-bold uppercase mt-0.5">🚚 {p.fournisseur}</p></div>
-              </div>
-              <p className="font-black text-sm text-gray-800">{p.qte}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ==========================================
-// 3. JOURNAL VENTES (AVEC EXPORT EXCEL)
-// ==========================================
-const ModuleHistorique = () => {
-  const [ventes, setVentes] = useState([]); 
-  const [dateFiltre, setDateFiltre] = useState("");
-  
-  useEffect(() => { 
-    const load = async () => { 
-      let q = supabase.from('historique_ventes').select('*').order('date_vente', { ascending: false }); 
-      if (dateFiltre) q = q.gte('date_vente', `${dateFiltre}T00:00:00`).lte('date_vente', `${dateFiltre}T23:59:59`); 
-      const { data } = await q; setVentes(data || []); 
-    }; 
-    load(); 
-  }, [dateFiltre]);
-
-  // Fonction Export EXCEL (CSV Français)
-  const exporterExcel = () => {
-    // Entêtes avec points-virgules pour Excel FR
-    const headers = ["Date", "Type de Vente", "Client", "Articles", "Montant Total (Ar)", "Benefice (Ar)"];
-    
-    const csvContent = [
-      headers.join(";"),
-      ...ventes.map(v => [
-        new Date(v.date_vente).toLocaleString('fr-FR'),
-        v.type_vente,
-        v.client_nom,
-        `"${v.articles_liste}"`, // Guillemets pour éviter de casser les colonnes s'il y a des virgules dans la liste
-        v.montant_total,
-        v.benefice_total || 0
-      ].join(";"))
-    ].join("\n");
-
-    // Création du fichier et téléchargement forcé
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' }); // \uFEFF pour l'encodage des accents
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `Hakimi_Export_Ventes_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b-2 border-[#800020] pb-2">
-        <h2 className="text-2xl font-black uppercase text-[#800020]">Historique</h2>
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <input type="date" className="p-2 bg-white border rounded-xl font-bold text-xs w-full md:w-auto" onChange={e => setDateFiltre(e.target.value)} />
-          <button onClick={exporterExcel} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase shadow-md whitespace-nowrap transition">
-            📊 Export Excel
-          </button>
-        </div>
-      </div>
-      <div className="space-y-3">
-        {ventes.map(v => (
-          <div key={v.id} className="bg-white p-4 rounded-xl shadow-sm border flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${v.type_vente === 'CRÉDIT' ? 'bg-red-100 text-red-700' : (v.type_vente === 'FACTURE' ? 'bg-[#800020] text-white' : 'bg-gray-100 text-gray-600')}`}>{v.type_vente}</span>
-                <span className="text-[10px] text-gray-400 font-bold">{new Date(v.date_vente).toLocaleDateString()} {new Date(v.date_vente).toLocaleTimeString()}</span>
-              </div>
-              <p className="font-black text-gray-800 uppercase text-sm">{v.client_nom}</p>
-              <p className="text-[10px] text-gray-500 mt-1 line-clamp-2">🛒 {v.articles_liste}</p>
-            </div>
-            <p className="text-lg font-black text-[#800020]">{parseFloat(v.montant_total).toLocaleString()} Ar</p>
-          </div>
-        ))}
-        {ventes.length === 0 && <p className="text-center text-gray-400 italic mt-10">Aucune vente trouvée.</p>}
-      </div>
-    </div>
-  );
-};
-
-// ==========================================
-// AUTRES MODULES 
+// 2. STOCK (Bordeaux & Blanc)
 // ==========================================
 const AdminStock = () => {
   const [produits, setProduits] = useState([]);
@@ -684,17 +525,8 @@ const ModuleClients = () => {
 
 const LoginScreen = ({ onLogin }) => {
   const [creds, setCreds] = useState({ id: '', mdp: '' });
-  const handle = async (e) => { e.preventDefault(); const { data } = await supabase.from('utilisateurs').select('*').eq('identifiant', creds.id).eq('mot_de_passe', creds.mdp).single(); if (data) onLogin(data); else alert("Identifiants incorrects."); };
+  const handleConnect = async (e) => { e.preventDefault(); const { data } = await supabase.from('utilisateurs').select('*').eq('identifiant', creds.id).eq('mot_de_passe', creds.mdp).single(); if (data) onLogin(data); else alert("Identifiants incorrects."); };
   return (
-    <div className="min-h-screen bg-[#800020] flex items-center justify-center p-4">
-      <form onSubmit={handle} className="bg-white p-8 md:p-12 rounded-[2rem] shadow-2xl w-full max-w-md border-b-[10px] border-red-600">
-        <div className="flex justify-center mb-6"><img src={LOGO_URL} alt="Logo" className="h-16" /></div>
-        <div className="space-y-4">
-          <input type="text" placeholder="Utilisateur" className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:border-[#800020]" onChange={e=>setCreds({...creds, id: e.target.value})} />
-          <input type="password" placeholder="Mot de passe" className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:border-[#800020]" onChange={e=>setCreds({...creds, mdp: e.target.value})} />
-          <button className="w-full bg-[#800020] text-white p-4 rounded-xl font-black mt-6 uppercase hover:bg-red-800 shadow-md">Connexion</button>
-        </div>
-      </form>
-    </div>
+    <div className="min-h-screen bg-[#800020] flex items-center justify-center p-4 rounded-3xl"><form onSubmit={handleConnect} className="bg-white p-8 md:p-12 rounded-[2rem] shadow-2xl w-full max-w-md border-b-[10px] border-red-600"><div className="flex justify-center mb-6"><img src={LOGO_URL} alt="Logo" className="h-16" /></div><div className="space-y-4"><input type="text" placeholder="Identifiant" className="w-full p-4 bg-gray-50 border rounded-xl outline-none focus:border-[#800020]" onChange={e=>setCreds({...creds, id: e.target.value})} /><input type="password" placeholder="Mot de passe" className="w-full p-4 bg-gray-50 border rounded-xl outline-none focus:border-[#800020]" onChange={e=>setCreds({...creds, mdp: e.target.value})} /></div><button className="w-full bg-[#800020] text-white p-4 rounded-xl font-black mt-6 uppercase hover:bg-red-800 shadow-md">Se Connecter</button></form></div>
   );
 };
