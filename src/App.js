@@ -6,7 +6,8 @@ const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || 'https://wblginsktosyp
 const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndibGdpbnNrdG9zeXBibWhtZ2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjU3NTYsImV4cCI6MjA4OTk0MTc1Nn0.pmysPmutGjW2Tw7jFvrBE_0ue2pZmS32Pjncu1Rmr8w';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const LOGO_URL = "https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg"; 
+// 🛑 TON LOGO EST ICI : Assure-toi d'avoir un fichier logo.png dans ton dossier public ou src
+const LOGO_URL = "./logo.png"; 
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -22,7 +23,7 @@ export default function App() {
   if (loading) return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center">
       <div className="w-16 h-16 border-4 border-[#800020] border-t-transparent rounded-full animate-spin mb-4"></div>
-      <p className="text-[#800020] font-black uppercase tracking-tighter animate-pulse text-2xl">HAKIMI PLUS</p>
+      <img src={LOGO_URL} alt="Chargement..." className="h-12 animate-pulse" onError={(e) => e.target.style.display='none'} />
     </div>
   );
 
@@ -37,17 +38,18 @@ export default function App() {
     <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row font-sans text-gray-800">
       {/* HEADER MOBILE */}
       <div className="md:hidden bg-[#800020] text-white p-4 flex justify-between items-center sticky top-0 z-50 shadow-md">
-        <span className="font-black text-xl italic uppercase">HAKIMI PLUS</span>
+        <img src={LOGO_URL} alt="Hakimi Plus" className="h-8 bg-white p-1 rounded" onError={(e) => { e.target.onerror = null; e.target.outerHTML = '<span class="font-black text-xl italic uppercase">HAKIMI PLUS</span>'; }} />
         <button onClick={() => setMenuOpen(!menuOpen)} className="text-2xl">☰</button>
       </div>
 
       {/* MENU LATÉRAL BORDEAUX */}
       <nav className={`${menuOpen ? 'block' : 'hidden'} md:block w-full md:w-72 bg-[#800020] text-white p-6 shadow-2xl flex flex-col justify-between md:sticky md:top-0 md:h-screen overflow-y-auto z-40 transition-all`}>
         <div>
-          <div className="mb-10 hidden md:block text-center border-b border-white/10 pb-6">
-             <h1 className="text-3xl font-black italic tracking-tighter">HAKIMI <span className="text-red-500">PLUS</span></h1>
-             <p className="text-[10px] uppercase font-bold text-white/50 tracking-widest mt-1 text-center">Software Management</p>
+          {/* CORRECTION ICI : Le logo remplace le texte */}
+          <div className="mb-10 hidden md:flex justify-center border-b border-white/10 pb-6">
+             <img src={LOGO_URL} alt="Hakimi Plus" className="max-w-[80%] h-auto bg-white p-2 rounded-xl shadow-inner" onError={(e) => { e.target.onerror = null; e.target.outerHTML = '<h1 class="text-3xl font-black italic tracking-tighter text-center">HAKIMI <span class="text-red-500">PLUS</span></h1>'; }} />
           </div>
+          
           <div className="flex flex-col gap-2">
             <p className="text-[10px] font-black text-white/40 uppercase tracking-widest px-4 mb-1">Menu Principal</p>
             <NavBtn active={view==='caisse'} onClick={()=>changeView('caisse')}>🛒 Caisse Directe</NavBtn>
@@ -150,7 +152,7 @@ const ModuleVente = ({ mode }) => {
     if (mode === 'caisse') {
       const win = window.open('', '', `width=${printSize === '58mm' ? 300 : 400},height=600`);
       win.document.write(`<html><body style="font-family:monospace; width:${printSize}; padding:10px; font-size:12px; margin:0 auto; text-align:center;">
-        <h2 style="margin:0;">HAKIMI PLUS</h2>
+        <img src="${LOGO_URL}" style="max-width:80%; height:auto; margin-bottom:10px;"/>
         <p style="margin:0; font-size:10px;">${new Date().toLocaleString()}</p>
         <hr style="border-top:1px dashed #000;"/>
         ${panier.map(i => `<div style="display:flex; justify-content:space-between; margin:5px 0;"><span>${i.qte}x ${i.nom}</span><span>${(i.prix_vente * i.qte).toLocaleString()}</span></div>`).join('')}
@@ -166,7 +168,7 @@ const ModuleVente = ({ mode }) => {
       
       win.document.write(`<html><body style="font-family:Arial; padding:40px;">
         <div style="display:flex; justify-content:space-between; border-bottom:3px solid #800020; padding-bottom:15px; margin-bottom:20px;">
-          <div><h1 style="color:#800020; margin:0;">HAKIMI PLUS</h1><p style="margin:0; color:#555;">Antananarivo, Mada<br/>Non assujetti à la TVA (0%)</p></div>
+          <div><img src="${LOGO_URL}" style="height:60px; margin-bottom:10px;"/><p style="margin:0; color:#555;">Antananarivo, Mada<br/>Non assujetti à la TVA (0%)</p></div>
           <div style="text-align:right;"><h2 style="margin:0; color:#800020;">${titre}</h2><p>Date : ${new Date().toLocaleDateString()}</p></div>
         </div>
         <div style="margin:30px 0; padding:20px; background:#f9f9f9; border-left:5px solid #800020; border-radius:5px; width:60%;">
@@ -265,14 +267,165 @@ const ModuleVente = ({ mode }) => {
 };
 
 // ==========================================
-// 2. STOCK (Bordeaux & Blanc)
+// 2. DASHBOARD
+// ==========================================
+const AdminDashboard = () => {
+  const [ventes, setVentes] = useState([]); 
+  const [depenses, setDepenses] = useState([]); 
+  const [produits, setProduits] = useState([]);
+  
+  useEffect(() => { 
+    const loadData = async () => { 
+      const v = await supabase.from('historique_ventes').select('*'); 
+      const d = await supabase.from('depenses').select('*'); 
+      const p = await supabase.from('produits').select('nom, fournisseur_nom'); 
+      setVentes(v.data || []); setDepenses(d.data || []); setProduits(p.data || []); 
+    }; 
+    loadData(); 
+  }, []);
+
+  const now = new Date(); 
+  const getVentesFiltrees = (daysOffset) => ventes.filter(v => (now - new Date(v.date_vente)) / (1000 * 60 * 60 * 24) <= daysOffset);
+  const caJour = getVentesFiltrees(1).reduce((acc, v) => acc + v.montant_total, 0); 
+  const caHebdo = getVentesFiltrees(7).reduce((acc, v) => acc + v.montant_total, 0);
+  
+  const ventesMois = ventes.filter(v => new Date(v.date_vente).getMonth() === now.getMonth() && new Date(v.date_vente).getFullYear() === now.getFullYear()); 
+  const caMois = ventesMois.reduce((acc, v) => acc + v.montant_total, 0);
+  const beneficeBrutMois = ventesMois.reduce((acc, v) => acc + (v.benefice_total || 0), 0); 
+  
+  // Dépenses
+  const depensesMois = depenses.filter(d => new Date(d.date_depense).getMonth() === now.getMonth() && new Date(d.date_depense).getFullYear() === now.getFullYear()).reduce((acc, d) => acc + d.montant, 0); 
+  const depensesAnnee = depenses.filter(d => new Date(d.date_depense).getFullYear() === now.getFullYear()).reduce((acc, d) => acc + d.montant, 0); 
+  
+  const beneficeNet = beneficeBrutMois - depensesMois;
+  
+  let counts = {}; 
+  ventes.forEach(v => { if(!v.articles_liste) return; v.articles_liste.split(', ').forEach(itemStr => { const match = itemStr.match(/^(\d+)x\s+(.+)$/); if(match) counts[match[2]] = (counts[match[2]] || 0) + parseInt(match[1]); }); });
+  const topProducts = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([nom, qte]) => { const pInfo = produits.find(p => p.nom === nom); return { nom, qte, fournisseur: pInfo ? pInfo.fournisseur_nom : 'Inconnu' }; });
+  
+  return (
+    <div className="space-y-6 max-w-6xl mx-auto">
+      <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[#800020] border-b-2 border-gray-200 pb-2">Tableau de Bord</h2>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+          <p className="text-xs font-bold text-gray-400 uppercase">Marge Brute (Mois)</p>
+          <p className="text-2xl md:text-3xl font-black text-gray-800 mt-2">{beneficeBrutMois.toLocaleString()} Ar</p>
+        </div>
+        <div className="bg-red-50 p-6 rounded-3xl shadow-sm border border-red-100">
+          <p className="text-xs font-bold text-red-600 uppercase">Charges ce Mois</p>
+          <p className="text-2xl md:text-3xl font-black text-red-700 mt-2">- {depensesMois.toLocaleString()} Ar</p>
+          <div className="mt-3 pt-3 border-t border-red-200">
+            <p className="text-[10px] font-bold text-red-500 uppercase">Total Année en cours</p>
+            <p className="text-sm font-black text-red-800">- {depensesAnnee.toLocaleString()} Ar</p>
+          </div>
+        </div>
+        <div className={`p-6 rounded-3xl shadow-md text-white ${beneficeNet >= 0 ? 'bg-green-700' : 'bg-red-700'}`}>
+          <p className="text-xs font-bold text-white/80 uppercase">BÉNÉFICE NET (Mois)</p>
+          <p className="text-3xl md:text-4xl font-black tracking-tighter mt-2">{beneficeNet.toLocaleString()} Ar</p>
+        </div>
+      </div>
+      <div className="bg-white p-6 rounded-3xl shadow-sm border-t-4 border-[#800020] overflow-x-auto">
+        <h3 className="font-black text-[#800020] uppercase text-xs mb-4">Chiffre d'Affaires</h3>
+        <div className="flex justify-between min-w-[400px]">
+          <div><p className="text-[10px] uppercase font-bold text-gray-400">Aujourd'hui</p><p className="font-black text-lg">{caJour.toLocaleString()}</p></div>
+          <div><p className="text-[10px] uppercase font-bold text-gray-400">Cette semaine</p><p className="font-black text-lg">{caHebdo.toLocaleString()}</p></div>
+          <div><p className="text-[10px] uppercase font-bold text-gray-400">Ce mois</p><p className="font-black text-xl text-[#800020]">{caMois.toLocaleString()}</p></div>
+        </div>
+      </div>
+      <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+        <h3 className="font-black text-gray-400 uppercase text-xs mb-4">Top 5 Ventes</h3>
+        <div className="grid gap-2">
+          {topProducts.map((p, idx) => (
+            <div key={idx} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl border border-gray-100">
+              <div className="flex items-center gap-3">
+                <span className="bg-[#800020] text-white w-6 h-6 rounded-full flex items-center justify-center font-black text-[10px]">#{idx+1}</span>
+                <div><p className="font-black text-gray-800 uppercase text-xs">{p.nom}</p><p className="text-[9px] text-gray-500 font-bold uppercase mt-0.5">🚚 {p.fournisseur}</p></div>
+              </div>
+              <p className="font-black text-sm text-gray-800">{p.qte}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// 3. JOURNAL VENTES
+// ==========================================
+const ModuleHistorique = () => {
+  const [ventes, setVentes] = useState([]); 
+  const [dateFiltre, setDateFiltre] = useState("");
+  
+  useEffect(() => { 
+    const load = async () => { 
+      let q = supabase.from('historique_ventes').select('*').order('date_vente', { ascending: false }); 
+      if (dateFiltre) q = q.gte('date_vente', `${dateFiltre}T00:00:00`).lte('date_vente', `${dateFiltre}T23:59:59`); 
+      const { data } = await q; setVentes(data || []); 
+    }; 
+    load(); 
+  }, [dateFiltre]);
+
+  const exporterExcel = () => {
+    const headers = ["Date", "Type de Vente", "Client", "Articles", "Montant Total (Ar)", "Benefice (Ar)"];
+    const csvContent = [
+      headers.join(";"),
+      ...ventes.map(v => [
+        new Date(v.date_vente).toLocaleString('fr-FR'),
+        v.type_vente,
+        v.client_nom,
+        `"${v.articles_liste}"`,
+        v.montant_total,
+        v.benefice_total || 0
+      ].join(";"))
+    ].join("\n");
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' }); 
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Hakimi_Export_Ventes_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+  };
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b-2 border-[#800020] pb-2">
+        <h2 className="text-2xl font-black uppercase text-[#800020]">Historique</h2>
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <input type="date" className="p-2 bg-white border rounded-xl font-bold text-xs w-full md:w-auto" onChange={e => setDateFiltre(e.target.value)} />
+          <button onClick={exporterExcel} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase shadow-md whitespace-nowrap transition">
+            📊 Export Excel
+          </button>
+        </div>
+      </div>
+      <div className="space-y-3">
+        {ventes.map(v => (
+          <div key={v.id} className="bg-white p-4 rounded-xl shadow-sm border flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${v.type_vente === 'CRÉDIT' ? 'bg-red-100 text-red-700' : (v.type_vente === 'FACTURE' ? 'bg-[#800020] text-white' : 'bg-gray-100 text-gray-600')}`}>{v.type_vente}</span>
+                <span className="text-[10px] text-gray-400 font-bold">{new Date(v.date_vente).toLocaleDateString()} {new Date(v.date_vente).toLocaleTimeString()}</span>
+              </div>
+              <p className="font-black text-gray-800 uppercase text-sm">{v.client_nom}</p>
+              <p className="text-[10px] text-gray-500 mt-1 line-clamp-2">🛒 {v.articles_liste}</p>
+            </div>
+            <p className="text-lg font-black text-[#800020]">{parseFloat(v.montant_total).toLocaleString()} Ar</p>
+          </div>
+        ))}
+        {ventes.length === 0 && <p className="text-center text-gray-400 italic mt-10">Aucune vente trouvée.</p>}
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// AUTRES MODULES
 // ==========================================
 const AdminStock = () => {
   const [produits, setProduits] = useState([]);
   const [fours, setFours] = useState([]);
   const [historique, setHistorique] = useState([]);
   const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', stock: '', fournisseur: '' });
-  
   const [reapproProd, setReapproProd] = useState(null);
   const [reapproForm, setReapproForm] = useState({ qte: '', prix_a: '', prix_v: '', marge: '' });
   const [showHistoProd, setShowHistoProd] = useState(null); 
@@ -525,8 +678,17 @@ const ModuleClients = () => {
 
 const LoginScreen = ({ onLogin }) => {
   const [creds, setCreds] = useState({ id: '', mdp: '' });
-  const handleConnect = async (e) => { e.preventDefault(); const { data } = await supabase.from('utilisateurs').select('*').eq('identifiant', creds.id).eq('mot_de_passe', creds.mdp).single(); if (data) onLogin(data); else alert("Identifiants incorrects."); };
+  const handle = async (e) => { e.preventDefault(); const { data } = await supabase.from('utilisateurs').select('*').eq('identifiant', creds.id).eq('mot_de_passe', creds.mdp).single(); if (data) onLogin(data); else alert("Identifiants incorrects."); };
   return (
-    <div className="min-h-screen bg-[#800020] flex items-center justify-center p-4 rounded-3xl"><form onSubmit={handleConnect} className="bg-white p-8 md:p-12 rounded-[2rem] shadow-2xl w-full max-w-md border-b-[10px] border-red-600"><div className="flex justify-center mb-6"><img src={LOGO_URL} alt="Logo" className="h-16" /></div><div className="space-y-4"><input type="text" placeholder="Identifiant" className="w-full p-4 bg-gray-50 border rounded-xl outline-none focus:border-[#800020]" onChange={e=>setCreds({...creds, id: e.target.value})} /><input type="password" placeholder="Mot de passe" className="w-full p-4 bg-gray-50 border rounded-xl outline-none focus:border-[#800020]" onChange={e=>setCreds({...creds, mdp: e.target.value})} /></div><button className="w-full bg-[#800020] text-white p-4 rounded-xl font-black mt-6 uppercase hover:bg-red-800 shadow-md">Se Connecter</button></form></div>
+    <div className="min-h-screen bg-[#800020] flex items-center justify-center p-4">
+      <form onSubmit={handle} className="bg-white p-8 md:p-12 rounded-[2rem] shadow-2xl w-full max-w-md border-b-[10px] border-red-600">
+        <div className="flex justify-center mb-6"><img src={LOGO_URL} alt="Logo" className="h-16" onError={(e) => { e.target.onerror = null; e.target.outerHTML = '<h2 class="text-center text-4xl font-black italic text-gray-800 uppercase tracking-tighter">HAKIMI PLUS</h2>'; }} /></div>
+        <div className="space-y-4">
+          <input type="text" placeholder="Utilisateur" className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:border-[#800020]" onChange={e=>setCreds({...creds, id: e.target.value})} />
+          <input type="password" placeholder="Mot de passe" className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:border-[#800020]" onChange={e=>setCreds({...creds, mdp: e.target.value})} />
+          <button className="w-full bg-[#800020] text-white p-4 rounded-xl font-black mt-6 uppercase hover:bg-red-800 shadow-md">Connexion</button>
+        </div>
+      </form>
+    </div>
   );
 };
