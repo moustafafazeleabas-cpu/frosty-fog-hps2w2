@@ -6,7 +6,7 @@ const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || 'https://wblginsktosyp
 const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndibGdpbnNrdG9zeXBibWhtZ2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjU3NTYsImV4cCI6MjA4OTk0MTc1Nn0.pmysPmutGjW2Tw7jFvrBE_0ue2pZmS32Pjncu1Rmr8w';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// 🛑 TON LOGO EST ICI : Assure-toi d'avoir un fichier logo.png dans ton dossier public ou src
+// 🛑 COLLE LE LIEN DE TON LOGO IMGBB ENTRE LES GUILLEMETS CI-DESSOUS :
 const LOGO_URL = "https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg"; 
 
 export default function App() {
@@ -15,7 +15,6 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Écran de chargement pro
   useEffect(() => {
     setTimeout(() => setLoading(false), 1500);
   }, []);
@@ -38,14 +37,13 @@ export default function App() {
     <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row font-sans text-gray-800">
       {/* HEADER MOBILE */}
       <div className="md:hidden bg-[#800020] text-white p-4 flex justify-between items-center sticky top-0 z-50 shadow-md">
-        <img src={LOGO_URL} alt="Hakimi Plus" className="h-8 bg-white p-1 rounded" onError={(e) => { e.target.onerror = null; e.target.outerHTML = '<span class="font-black text-xl italic uppercase">HAKIMI PLUS</span>'; }} />
+        <img src=https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg alt="Hakimi Plus" className="h-8 bg-white p-1 rounded" onError={(e) => { e.target.onerror = null; e.target.outerHTML = '<span class="font-black text-xl italic uppercase">HAKIMI PLUS</span>'; }} />
         <button onClick={() => setMenuOpen(!menuOpen)} className="text-2xl">☰</button>
       </div>
 
       {/* MENU LATÉRAL BORDEAUX */}
       <nav className={`${menuOpen ? 'block' : 'hidden'} md:block w-full md:w-72 bg-[#800020] text-white p-6 shadow-2xl flex flex-col justify-between md:sticky md:top-0 md:h-screen overflow-y-auto z-40 transition-all`}>
         <div>
-          {/* CORRECTION ICI : Le logo remplace le texte */}
           <div className="mb-10 hidden md:flex justify-center border-b border-white/10 pb-6">
              <img src={LOGO_URL} alt="Hakimi Plus" className="max-w-[80%] h-auto bg-white p-2 rounded-xl shadow-inner" onError={(e) => { e.target.onerror = null; e.target.outerHTML = '<h1 class="text-3xl font-black italic tracking-tighter text-center">HAKIMI <span class="text-red-500">PLUS</span></h1>'; }} />
           </div>
@@ -152,7 +150,8 @@ const ModuleVente = ({ mode }) => {
     if (mode === 'caisse') {
       const win = window.open('', '', `width=${printSize === '58mm' ? 300 : 400},height=600`);
       win.document.write(`<html><body style="font-family:monospace; width:${printSize}; padding:10px; font-size:12px; margin:0 auto; text-align:center;">
-        <img src="${LOGO_URL}" style="max-width:80%; height:auto; margin-bottom:10px;"/>
+        <img src="${LOGO_URL}" style="max-width:80%; height:auto; margin-bottom:10px;" onerror="this.style.display='none'"/>
+        <h2 style="margin:0;">HAKIMI PLUS</h2>
         <p style="margin:0; font-size:10px;">${new Date().toLocaleString()}</p>
         <hr style="border-top:1px dashed #000;"/>
         ${panier.map(i => `<div style="display:flex; justify-content:space-between; margin:5px 0;"><span>${i.qte}x ${i.nom}</span><span>${(i.prix_vente * i.qte).toLocaleString()}</span></div>`).join('')}
@@ -168,7 +167,7 @@ const ModuleVente = ({ mode }) => {
       
       win.document.write(`<html><body style="font-family:Arial; padding:40px;">
         <div style="display:flex; justify-content:space-between; border-bottom:3px solid #800020; padding-bottom:15px; margin-bottom:20px;">
-          <div><img src="${LOGO_URL}" style="height:60px; margin-bottom:10px;"/><p style="margin:0; color:#555;">Antananarivo, Mada<br/>Non assujetti à la TVA (0%)</p></div>
+          <div><img src="${LOGO_URL}" style="height:60px; margin-bottom:10px;" onerror="this.style.display='none'"/><p style="margin:0; color:#555;">Antananarivo, Mada<br/>Non assujetti à la TVA (0%)</p></div>
           <div style="text-align:right;"><h2 style="margin:0; color:#800020;">${titre}</h2><p>Date : ${new Date().toLocaleDateString()}</p></div>
         </div>
         <div style="margin:30px 0; padding:20px; background:#f9f9f9; border-left:5px solid #800020; border-radius:5px; width:60%;">
@@ -193,7 +192,8 @@ const ModuleVente = ({ mode }) => {
         <input placeholder="🔍 Rechercher un produit..." className="p-4 mb-4 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#800020] text-lg w-full" onChange={e => setSearch(e.target.value)} disabled={venteValidee} autoFocus />
         <div className="grid grid-cols-2 gap-2 overflow-y-auto pr-1 custom-scrollbar">
           {produits.filter(p => p.nom.toLowerCase().includes(search.toLowerCase())).map(p => (
-            <button key={p.id} onClick={() => ajouter(p)} disabled={venteValidee} className="p-3 border border-gray-200 rounded-xl text-left bg-white hover:border-[#800020] hover:shadow-md transition group">
+            /* CORRECTION ICI : Ajout du mot "relative" */
+            <button key={p.id} onClick={() => ajouter(p)} disabled={venteValidee} className="relative p-3 border border-gray-200 rounded-xl text-left bg-white hover:border-[#800020] hover:shadow-md transition group">
               <p className="font-bold text-gray-800 text-xs uppercase truncate pr-8 group-hover:text-[#800020]">{p.nom}</p>
               <p className="text-red-600 font-black mt-1">{p.prix_vente.toLocaleString()} Ar</p>
               <span className="absolute top-2 right-2 bg-gray-100 text-gray-500 px-2 py-1 rounded text-[9px] font-black">STK: {p.stock_actuel}</span>
