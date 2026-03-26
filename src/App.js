@@ -6,7 +6,7 @@ const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || 'https://wblginsktosyp
 const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndibGdpbnNrdG9zeXBibWhtZ2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjU3NTYsImV4cCI6MjA4OTk0MTc1Nn0.pmysPmutGjW2Tw7jFvrBE_0ue2pZmS32Pjncu1Rmr8w';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const LOGO_URL = "https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg"; // <-- N'oublie pas ton lien ImgBB ici
+const LOGO_URL = "https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg"; // 
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -116,7 +116,7 @@ const NavBtn = ({ active, onClick, children }) => (
 );
 
 // ==========================================
-// 1. MODULE VENTE (AVEC REMISES)
+// 1. MODULE VENTE (CORRIGÉ BUG ÉCRAN BLANC)
 // ==========================================
 const ModuleVente = ({ mode }) => {
   const [panier, setPanier] = useState([]);
@@ -126,7 +126,7 @@ const ModuleVente = ({ mode }) => {
   const [selectedClient, setSelectedClient] = useState("");
   const [echeance, setEcheance] = useState("");
   const [printSize, setPrintSize] = useState('58mm');
-  const [remiseGlobale, setRemiseGlobale] = useState(0); // En pourcentage
+  const [remiseGlobale, setRemiseGlobale] = useState(0); 
   const [venteValidee, setVenteValidee] = useState(false);
 
   useEffect(() => {
@@ -140,22 +140,23 @@ const ModuleVente = ({ mode }) => {
     load(); setPanier([]); setVenteValidee(false); setRemiseGlobale(0);
   }, [mode]);
 
-  // Calculs financiers
+  // CALCULS FINANCIERS SÉCURISÉS (Déplacés au niveau global du composant)
   const totalBrut = panier.reduce((acc, i) => acc + (i.prix_vente * i.qte), 0);
   const totalRemiseArticles = panier.reduce((acc, i) => acc + ((i.remise_montant || 0) * i.qte), 0);
   const totalApresRemiseArticles = totalBrut - totalRemiseArticles;
-  const montantRemiseGlobale = totalApresRemiseArticles * ((remiseGlobale || 0) / 100);
-  const totalNet = totalApresRemiseArticles - montantRemiseGlobale;
+  const montantRemiseGlobale = totalApresRemiseArticles * ((parseFloat(remiseGlobale) || 0) / 100);
   
-  // Bénéfice : (Prix Vente - Remise Article - Prix Achat) * qte, puis on enlève le % global
-  const beneficeArticles = panier.reduce((acc, i) => acc + ((i.prix_vente - (i.remise_montant || 0) - i.prix_achat) * i.qte), 0);
+  const totalNet = totalApresRemiseArticles - montantRemiseGlobale;
+  const totalRemisesEnAr = totalRemiseArticles + montantRemiseGlobale; // <- LE CORRECTIF EST ICI !
+  
+  const beneficeArticles = panier.reduce((acc, i) => acc + ((i.prix_vente - (i.remise_montant || 0) - (i.prix_achat || 0)) * i.qte), 0);
   const beneficeNet = beneficeArticles - montantRemiseGlobale;
 
   const ajouter = (p) => {
     if (venteValidee) return;
     const ex = panier.find(i => i.id === p.id);
     if (ex) setPanier(panier.map(i => i.id === p.id ? { ...i, qte: i.qte + 1 } : i));
-    else setPanier([...panier, { ...p, qte: 1, remise_montant: 0 }]); // Ajout champ remise
+    else setPanier([...panier, { ...p, qte: 1, remise_montant: 0 }]); 
   };
 
   const updateRemiseArticle = (id, val) => {
@@ -168,7 +169,6 @@ const ModuleVente = ({ mode }) => {
     if (mode !== 'caisse' && !selectedClient) return alert("Client requis");
     if (mode === 'admin_credit' && !echeance) return alert("Échéance requise");
     
-    // Création du JSON pour l'historique détaillé
     const detailsObj = {
       heure: new Date().toLocaleTimeString(),
       remise_globale_pourcent: parseFloat(remiseGlobale) || 0,
@@ -179,7 +179,6 @@ const ModuleVente = ({ mode }) => {
     };
 
     const strArticles = panier.map(i => `${i.qte}x ${i.nom}`).join(', ');
-    const totalRemisesEnAr = totalRemiseArticles + montantRemiseGlobale;
 
     if (mode === 'devis') {
       await supabase.from('devis').insert([{ client_nom: selectedClient, articles_liste: strArticles, montant_total: totalNet }]);
@@ -201,7 +200,7 @@ const ModuleVente = ({ mode }) => {
     setVenteValidee(true);
   };
 
-  const imprimer = () => { /* Logique d'impression standard conservée */ alert("Impression lancée (Simulation)"); };
+  const imprimer = () => { /* Reste de l'impression... */ alert("Impression (Simulation)"); };
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 h-full">
@@ -259,7 +258,7 @@ const ModuleVente = ({ mode }) => {
                 {!venteValidee && (
                   <div className="mt-2 flex items-center justify-between border-t border-white/10 pt-2">
                     <span className="text-[9px] uppercase font-bold opacity-60">Remise / pièce (Ar):</span>
-                    <input type="number" className="w-20 p-1 text-right text-xs bg-black/20 rounded outline-none" value={item.remise_montant || ''} onChange={e => updateRemiseArticle(item.id, e.target.value)} placeholder="0" />
+                    <input type="number" className="w-20 p-1 text-right text-xs bg-black/20 rounded outline-none text-white placeholder-white/30" value={item.remise_montant || ''} onChange={e => updateRemiseArticle(item.id, e.target.value)} placeholder="0" />
                   </div>
                 )}
               </div>
@@ -278,17 +277,17 @@ const ModuleVente = ({ mode }) => {
           <div className="flex justify-between items-end mb-4">
             <div className="flex flex-col">
               <span className="font-bold uppercase text-[10px] opacity-70">Total Net à payer</span>
-              {(totalRemiseArticles > 0 || remiseGlobale > 0) && <span className="text-[10px] text-green-300 font-bold tracking-wider">ÉCONOMIE: {(totalRemisesEnAr || (totalBrut-totalNet)).toLocaleString()} Ar</span>}
+              {totalRemisesEnAr > 0 && <span className="text-[10px] text-green-300 font-bold tracking-wider">ÉCONOMIE: {totalRemisesEnAr.toLocaleString()} Ar</span>}
             </div>
             <span className={`text-3xl font-black tracking-tighter ${mode==='devis' ? 'text-[#800020]' : 'text-white'}`}>{totalNet.toLocaleString()} Ar</span>
           </div>
           
           {!venteValidee ? (
-            <button onClick={valider} className={`w-full p-4 rounded-xl font-black uppercase text-sm shadow-lg transition ${mode === 'devis' ? 'bg-[#800020] text-white' : 'bg-white text-[#800020]'}`}>{mode === 'devis' ? 'Générer Devis' : 'Valider'}</button>
+            <button onClick={valider} className={`w-full p-4 rounded-xl font-black uppercase text-sm shadow-lg transition ${mode === 'devis' ? 'bg-[#800020] text-white hover:bg-[#5a0016]' : 'bg-white text-[#800020] hover:bg-gray-200'}`}>{mode === 'devis' ? 'Générer Devis' : 'Valider'}</button>
           ) : (
             <div className="flex gap-2">
-              <button onClick={imprimer} className="flex-1 p-3 rounded-xl font-black uppercase bg-green-600 text-white shadow-lg">🖨️ Ticket</button>
-              <button onClick={() => {setPanier([]); setVenteValidee(false); setRemiseGlobale(0);}} className="flex-1 p-3 rounded-xl font-bold uppercase border border-white/50 text-white hover:bg-white/10">Nouveau</button>
+              <button onClick={imprimer} className="flex-1 p-3 rounded-xl font-black uppercase bg-green-600 text-white shadow-lg hover:bg-green-700">🖨️ Ticket</button>
+              <button onClick={() => {setPanier([]); setVenteValidee(false); setRemiseGlobale(0); setSelectedClient(mode==='caisse' ? "Vente à un utilisateur" : "");}} className="flex-1 p-3 rounded-xl font-bold uppercase border border-white/50 text-white hover:bg-white/10">Nouveau</button>
             </div>
           )}
         </div>
@@ -442,10 +441,8 @@ const ModuleCloture = ({ user }) => {
 
   const loadData = async () => {
     const todayStart = new Date().toISOString().split('T')[0] + "T00:00:00.000Z";
-    // Ventes Cash
     const v = await supabase.from('historique_ventes').select('montant_total').gte('date_vente', todayStart).eq('type_vente', 'CASH');
     const cash = v.data?.reduce((acc, x) => acc + x.montant_total, 0) || 0;
-    // Sorties Caisse
     const s = await supabase.from('sorties_caisse').select('*').gte('date_sortie', todayStart);
     const sumSorties = s.data?.reduce((acc, x) => acc + x.montant, 0) || 0;
     
@@ -543,7 +540,7 @@ const ModuleCloture = ({ user }) => {
 };
 
 // ==========================================
-// 5. CLIENTS, FOURNISSEURS & CRÉDITS (AVEC WHATSAPP)
+// 5. CLIENTS, FOURNISSEURS & CRÉDITS 
 // ==========================================
 const ModuleClients = () => {
   const [list, setList] = useState([]); 
@@ -751,7 +748,7 @@ const AdminStock = () => {
         </table>
       </div>
 
-      {/* Modals Réappro/Histo... (Logique préservée, allégée visuellement pour place) */}
+      {/* Modals Réappro/Histo... */}
       {reapproProd && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-6 rounded-3xl w-full max-w-md"><h2 className="text-lg font-black uppercase text-[#800020] mb-4">Réappro : {reapproProd.nom}</h2>
