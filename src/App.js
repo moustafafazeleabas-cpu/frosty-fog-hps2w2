@@ -6,13 +6,16 @@ const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || 'https://wblginsktosyp
 const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndibGdpbnNrdG9zeXBibWhtZ2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjU3NTYsImV4cCI6MjA4OTk0MTc1Nn0.pmysPmutGjW2Tw7jFvrBE_0ue2pZmS32Pjncu1Rmr8w';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const LOGO_URL = "https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg"; // 
+// 🛑 COLLE LE LIEN DE TON LOGO IMGBB ENTRE LES GUILLEMETS CI-DESSOUS :
+const LOGO_URL = "https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg"; 
 
-// --- FONCTION GLOBALE ANTI-CRASH POUR LES NOMBRES ---
-const formatAr = (val) => {
+// --- 🛡️ FONCTIONS GLOBALES ANTI-CRASH MATHÉMATIQUES ---
+const safeNum = (val) => {
+  if (val === null || val === undefined || val === '') return 0;
   const n = Number(val);
-  return isNaN(n) ? "0" : n.toLocaleString();
+  return isNaN(n) ? 0 : n;
 };
+const formatAr = (val) => safeNum(val).toLocaleString('fr-FR');
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -122,7 +125,7 @@ const NavBtn = ({ active, onClick, children }) => (
 );
 
 // ==========================================
-// 1. MODULE VENTE (SÉCURISÉ + IMPRESSION PRO)
+// 1. MODULE VENTE (BOUCLIER ANTI-CRASH)
 // ==========================================
 const ModuleVente = ({ mode }) => {
   const [panier, setPanier] = useState([]);
@@ -146,26 +149,30 @@ const ModuleVente = ({ mode }) => {
     load(); setPanier([]); setVenteValidee(false); setRemiseGlobale("");
   }, [mode]);
 
-  // CALCULS FINANCIERS SÉCURISÉS
-  const totalBrut = panier.reduce((acc, i) => acc + (Number(i.prix_vente) * Number(i.qte)), 0);
-  const totalRemiseArticles = panier.reduce((acc, i) => acc + ((Number(i.remise_montant) || 0) * Number(i.qte)), 0);
+  // CALCULS FINANCIERS - 100% SÉCURISÉS AVEC safeNum()
+  const totalBrut = panier.reduce((acc, i) => acc + (safeNum(i.prix_vente) * safeNum(i.qte)), 0);
+  const totalRemiseArticles = panier.reduce((acc, i) => acc + (safeNum(i.remise_montant) * safeNum(i.qte)), 0);
   const totalApresRemiseArticles = totalBrut - totalRemiseArticles;
-  const montantRemiseGlobale = totalApresRemiseArticles * ((Number(remiseGlobale) || 0) / 100);
+  const montantRemiseGlobale = totalApresRemiseArticles * (safeNum(remiseGlobale) / 100);
   
   const totalNet = totalApresRemiseArticles - montantRemiseGlobale;
   const totalRemisesEnAr = totalRemiseArticles + montantRemiseGlobale;
   
-  const beneficeArticles = panier.reduce((acc, i) => acc + ((Number(i.prix_vente) - (Number(i.remise_montant) || 0) - (Number(i.prix_achat) || 0)) * Number(i.qte)), 0);
+  const beneficeArticles = panier.reduce((acc, i) => acc + ((safeNum(i.prix_vente) - safeNum(i.remise_montant) - safeNum(i.prix_achat)) * safeNum(i.qte)), 0);
   const beneficeNet = beneficeArticles - montantRemiseGlobale;
 
   const ajouter = (p) => {
     if (venteValidee) return;
     const ex = panier.find(i => i.id === p.id);
-    if (ex) setPanier(panier.map(i => i.id === p.id ? { ...i, qte: i.qte + 1 } : i));
-    else setPanier([...panier, { ...p, qte: 1, remise_montant: "" }]); 
+    if (ex) {
+      setPanier(panier.map(i => i.id === p.id ? { ...i, qte: safeNum(i.qte) + 1 } : i));
+    } else {
+      setPanier([...panier, { ...p, qte: 1, remise_montant: "" }]); 
+    }
   };
 
   const updateRemiseArticle = (id, val) => {
+    // On sauvegarde exactement ce que l'utilisateur tape (même si c'est vide), le safeNum() gèrera le reste
     setPanier(panier.map(i => i.id === id ? { ...i, remise_montant: val } : i));
   };
 
@@ -176,26 +183,29 @@ const ModuleVente = ({ mode }) => {
     
     const detailsObj = {
       heure: new Date().toLocaleTimeString(),
-      remise_globale_pourcent: Number(remiseGlobale) || 0,
+      remise_globale_pourcent: safeNum(remiseGlobale),
       articles: panier.map(i => ({
-        nom: i.nom, qte: i.qte, prix_unitaire: i.prix_vente, remise_unitaire_ar: Number(i.remise_montant) || 0,
-        total_ligne: (Number(i.prix_vente) - (Number(i.remise_montant) || 0)) * i.qte
+        nom: i.nom, 
+        qte: safeNum(i.qte), 
+        prix_unitaire: safeNum(i.prix_vente), 
+        remise_unitaire_ar: safeNum(i.remise_montant),
+        total_ligne: (safeNum(i.prix_vente) - safeNum(i.remise_montant)) * safeNum(i.qte)
       }))
     };
 
-    const strArticles = panier.map(i => `${i.qte}x ${i.nom}`).join(', ');
+    const strArticles = panier.map(i => `${safeNum(i.qte)}x ${i.nom}`).join(', ');
 
     if (mode === 'devis') {
       await supabase.from('devis').insert([{ client_nom: selectedClient, articles_liste: strArticles, montant_total: totalNet }]);
       setVenteValidee(true); return;
     }
     
-    for (let item of panier) { await supabase.rpc('decrement_stock', { row_id: item.id, amount: item.qte }); }
+    for (let item of panier) { await supabase.rpc('decrement_stock', { row_id: item.id, amount: safeNum(item.qte) }); }
     
     await supabase.from('historique_ventes').insert([{
       type_vente: mode.replace('admin_', '').toUpperCase(), client_nom: selectedClient,
       articles_liste: strArticles, montant_total: totalNet, benefice_total: beneficeNet,
-      remise_globale_pourcent: Number(remiseGlobale) || 0, total_remise_ar: totalRemisesEnAr,
+      remise_globale_pourcent: safeNum(remiseGlobale), total_remise_ar: totalRemisesEnAr,
       details_json: detailsObj
     }]);
 
@@ -205,15 +215,11 @@ const ModuleVente = ({ mode }) => {
     setVenteValidee(true);
   };
 
-  // LA FONCTION D'IMPRESSION COMPLÈTE ET SÉCURISÉE AVEC FORMATAGE A4 ET ANTI ABOUT:BLANK
+  // IMPRESSION PROPRE ET ANTI-BLANK
   const imprimer = () => { 
     if (mode === 'caisse') {
       const win = window.open('', '', `width=${printSize === '58mm' ? 300 : 400},height=600`);
-      
-      if (!win) {
-          alert("⚠️ Votre navigateur a bloqué l'impression. Veuillez autoriser les Pop-ups pour ce site.");
-          return;
-      }
+      if (!win) { alert("⚠️ Votre navigateur a bloqué l'impression. Veuillez autoriser les Pop-ups."); return; }
 
       win.document.write(`
         <html>
@@ -229,7 +235,7 @@ const ModuleVente = ({ mode }) => {
           <h2 style="margin:0;">HAKIMI PLUS</h2>
           <p style="margin:0; font-size:10px;">${new Date().toLocaleString()}</p>
           <hr style="border-top:1px dashed #000;"/>
-          ${panier.map(i => `<div style="display:flex; justify-content:space-between; margin:5px 0;"><span>${i.qte}x ${i.nom}</span><span>${formatAr((Number(i.prix_vente) - (Number(i.remise_montant)||0)) * i.qte)}</span></div>`).join('')}
+          ${panier.map(i => `<div style="display:flex; justify-content:space-between; margin:5px 0;"><span>${safeNum(i.qte)}x ${i.nom}</span><span>${formatAr((safeNum(i.prix_vente) - safeNum(i.remise_montant)) * safeNum(i.qte))}</span></div>`).join('')}
           <hr style="border-top:1px dashed #000;"/>
           <h3 style="text-align:right; margin:5px 0;">TOTAL: ${formatAr(totalNet)} Ar</h3>
           ${totalRemisesEnAr > 0 ? `<p style="text-align:right; font-size:10px; margin:0;">(Dont remise : ${formatAr(totalRemisesEnAr)} Ar)</p>` : ''}
@@ -238,13 +244,9 @@ const ModuleVente = ({ mode }) => {
       `);
       win.document.close(); setTimeout(() => { win.print(); win.close(); }, 800);
     } else {
-      const cData = clients.find(c => c.nom === selectedClient) || { nom: selectedClient, raison_fiscale: '', adresse: '' };
+      const cData = clients.find(c => c.nom === selectedClient) || { nom: selectedClient, raison_fiscale: '', adresse: '', telephone: '' };
       const win = window.open('', '', 'width=800,height=900');
-      
-      if (!win) {
-          alert("⚠️ Votre navigateur a bloqué l'impression. Veuillez autoriser les Pop-ups pour ce site.");
-          return;
-      }
+      if (!win) { alert("⚠️ Votre navigateur a bloqué l'impression. Veuillez autoriser les Pop-ups."); return; }
 
       let titre = mode === 'devis' ? 'PROFORMA / DEVIS' : (mode === 'admin_credit' ? 'FACTURE À CRÉDIT' : 'FACTURE');
       
@@ -253,9 +255,8 @@ const ModuleVente = ({ mode }) => {
         <head>
           <title>${titre} - Hakimi Plus</title>
           <style>
-            /* Cette partie CSS bloque les textes parasites du navigateur et gère le A4 */
             @media print {
-              @page { margin: 0; size: auto; } /* Enlève about:blank */
+              @page { margin: 0; size: auto; }
               body { margin: 1cm; }
             }
             body { font-family: Arial, sans-serif; font-size: 13px; color: #333; }
@@ -291,9 +292,9 @@ const ModuleVente = ({ mode }) => {
             <tbody>
               ${panier.map(i => `<tr>
                 <td>${i.nom}</td>
-                <td>${i.qte}</td>
-                <td>${formatAr(Number(i.prix_vente) - (Number(i.remise_montant)||0))}</td>
-                <td style="text-align:right;">${formatAr((Number(i.prix_vente) - (Number(i.remise_montant)||0)) * i.qte)} Ar</td>
+                <td>${safeNum(i.qte)}</td>
+                <td>${formatAr(safeNum(i.prix_vente) - safeNum(i.remise_montant))}</td>
+                <td style="text-align:right;">${formatAr((safeNum(i.prix_vente) - safeNum(i.remise_montant)) * safeNum(i.qte))} Ar</td>
               </tr>`).join('')}
             </tbody>
           </table>
@@ -358,18 +359,18 @@ const ModuleVente = ({ mode }) => {
                   <span className="truncate uppercase font-bold text-xs w-1/3">{item.nom}</span>
                   {!venteValidee ? (
                     <div className="flex items-center gap-2">
-                      <button onClick={() => setPanier(panier.map(x => x.id === item.id ? {...x, qte: Math.max(1, x.qte-1)} : x))} className="w-6 h-6 rounded bg-white/20 font-black">-</button>
-                      <span className="font-black text-sm w-4 text-center">{item.qte}</span>
-                      <button onClick={() => setPanier(panier.map(x => x.id === item.id ? {...x, qte: x.qte+1} : x))} className="w-6 h-6 rounded bg-white/20 font-black">+</button>
+                      <button onClick={() => setPanier(panier.map(x => x.id === item.id ? {...x, qte: Math.max(1, safeNum(x.qte)-1)} : x))} className="w-6 h-6 rounded bg-white/20 font-black">-</button>
+                      <span className="font-black text-sm w-4 text-center">{safeNum(item.qte)}</span>
+                      <button onClick={() => setPanier(panier.map(x => x.id === item.id ? {...x, qte: safeNum(x.qte)+1} : x))} className="w-6 h-6 rounded bg-white/20 font-black">+</button>
                     </div>
-                  ) : (<span className="font-black opacity-60">Qté: {item.qte}</span>)}
-                  <span className="font-black">{formatAr((Number(item.prix_vente) - (Number(item.remise_montant)||0)) * item.qte)}</span>
+                  ) : (<span className="font-black opacity-60">Qté: {safeNum(item.qte)}</span>)}
+                  <span className="font-black">{formatAr((safeNum(item.prix_vente) - safeNum(item.remise_montant)) * safeNum(item.qte))}</span>
                 </div>
-                {/* Option Remise Unitaire sécurisée */}
+                {/* Option Remise Unitaire */}
                 {!venteValidee && (
                   <div className="mt-2 flex items-center justify-between border-t border-white/10 pt-2">
                     <span className="text-[9px] uppercase font-bold opacity-60">Remise / pièce (Ar):</span>
-                    <input type="number" className="w-20 p-1 text-right text-xs bg-black/20 rounded outline-none text-white placeholder-white/30" value={item.remise_montant} onChange={e => updateRemiseArticle(item.id, e.target.value)} placeholder="0" />
+                    <input type="number" min="0" className="w-20 p-1 text-right text-xs bg-black/20 rounded outline-none text-white placeholder-white/30" value={item.remise_montant !== undefined ? item.remise_montant : ""} onChange={e => updateRemiseArticle(item.id, e.target.value)} placeholder="0" />
                   </div>
                 )}
               </div>
@@ -382,7 +383,7 @@ const ModuleVente = ({ mode }) => {
           {!venteValidee && panier.length > 0 && (
              <div className="flex justify-between items-center mb-3">
                <span className="text-xs font-bold uppercase opacity-70">Remise Globale (%) :</span>
-               <input type="number" className="w-16 p-1 text-center text-sm font-black text-black rounded outline-none" value={remiseGlobale} onChange={e => setRemiseGlobale(e.target.value)} placeholder="0" />
+               <input type="number" min="0" className="w-16 p-1 text-center text-sm font-black text-black rounded outline-none" value={remiseGlobale !== undefined ? remiseGlobale : ""} onChange={e => setRemiseGlobale(e.target.value)} placeholder="0" />
              </div>
           )}
           <div className="flex justify-between items-end mb-4">
@@ -397,7 +398,6 @@ const ModuleVente = ({ mode }) => {
             <button onClick={valider} className={`w-full p-4 rounded-xl font-black uppercase text-sm shadow-lg transition ${mode === 'devis' ? 'bg-[#800020] text-white hover:bg-[#5a0016]' : 'bg-white text-[#800020] hover:bg-gray-200'}`}>{mode === 'devis' ? 'Générer Devis' : 'Valider'}</button>
           ) : (
             <div className="flex gap-2">
-              {/* CORRECTION DU BOUTON ICI */}
               <button onClick={imprimer} className="flex-1 p-3 rounded-xl font-black uppercase bg-green-600 text-white shadow-lg hover:bg-green-700">
                 🖨️ {mode === 'caisse' ? 'Imprimer Ticket' : (mode === 'devis' ? 'Imprimer Devis' : 'Imprimer Facture')}
               </button>
@@ -555,9 +555,9 @@ const ModuleCloture = ({ user }) => {
   const loadData = async () => {
     const todayStart = new Date().toISOString().split('T')[0] + "T00:00:00.000Z";
     const v = await supabase.from('historique_ventes').select('montant_total').gte('date_vente', todayStart).eq('type_vente', 'CASH');
-    const cash = v.data?.reduce((acc, x) => acc + Number(x.montant_total), 0) || 0;
+    const cash = v.data?.reduce((acc, x) => acc + safeNum(x.montant_total), 0) || 0;
     const s = await supabase.from('sorties_caisse').select('*').gte('date_sortie', todayStart);
-    const sumSorties = s.data?.reduce((acc, x) => acc + Number(x.montant), 0) || 0;
+    const sumSorties = s.data?.reduce((acc, x) => acc + safeNum(x.montant), 0) || 0;
     
     setSortiesListe(s.data || []);
     setTotalSorties(sumSorties);
@@ -567,8 +567,8 @@ const ModuleCloture = ({ user }) => {
 
   const validerCloture = async () => {
     if (montantDeclare === '') return alert("Saisissez le montant compté.");
-    const ecart = Number(montantDeclare) - caAttendu;
-    await supabase.from('cloture_caisse').insert([{ utilisateur: user.identifiant, montant_attendu: caAttendu, montant_declare: Number(montantDeclare), ecart: ecart }]);
+    const ecart = safeNum(montantDeclare) - caAttendu;
+    await supabase.from('cloture_caisse').insert([{ utilisateur: user.identifiant, montant_attendu: caAttendu, montant_declare: safeNum(montantDeclare), ecart: ecart }]);
     setClotureOk(true);
   };
 
@@ -588,7 +588,7 @@ const ModuleCloture = ({ user }) => {
       }
     }
 
-    await supabase.from('sorties_caisse').insert([{ utilisateur: user.identifiant, motif: formSortie.motif, montant: Number(formSortie.montant), photo_url: publicUrl }]);
+    await supabase.from('sorties_caisse').insert([{ utilisateur: user.identifiant, motif: formSortie.motif, montant: safeNum(formSortie.montant), photo_url: publicUrl }]);
     setFormSortie({ motif: '', montant: '', fichier: null });
     setUploading(false); loadData(); alert("Sortie enregistrée !");
   };
@@ -642,7 +642,7 @@ const ModuleCloture = ({ user }) => {
         ) : (
           <div className="bg-green-50 border border-green-500 p-8 rounded-2xl mt-4">
             <h3 className="text-xl font-black text-green-700 uppercase mb-2">Caisse Clôturée ! ✅</h3>
-            <p className="font-bold text-gray-600 text-sm">Écart constaté : <span className={Number(montantDeclare) - caAttendu === 0 ? 'text-green-600' : 'text-red-600 font-black'}>{formatAr(Number(montantDeclare) - caAttendu)} Ar</span></p>
+            <p className="font-bold text-gray-600 text-sm">Écart constaté : <span className={safeNum(montantDeclare) - caAttendu === 0 ? 'text-green-600' : 'text-red-600 font-black'}>{formatAr(safeNum(montantDeclare) - caAttendu)} Ar</span></p>
           </div>
         )}
       </div>
@@ -805,25 +805,25 @@ const AdminStock = () => {
   const saveNouveau = async (e) => { 
     e.preventDefault(); 
     if(!form.fournisseur) return alert("Fournisseur obligatoire"); // Sécurité
-    await supabase.from('produits').insert([{ nom: form.nom, prix_achat: Number(form.prix_a)||0, prix_vente: Number(form.prix_v)||0, marge_pourcent: Number(form.marge)||0, stock_actuel: Number(form.stock)||0, fournisseur_nom: form.fournisseur }]); 
-    await supabase.from('historique_stock').insert([{ produit_nom: form.nom, quantite: Number(form.stock)||0, prix_achat: Number(form.prix_a)||0 }]);
+    await supabase.from('produits').insert([{ nom: form.nom, prix_achat: safeNum(form.prix_a)||0, prix_vente: safeNum(form.prix_v)||0, marge_pourcent: safeNum(form.marge)||0, stock_actuel: safeNum(form.stock)||0, fournisseur_nom: form.fournisseur }]); 
+    await supabase.from('historique_stock').insert([{ produit_nom: form.nom, quantite: safeNum(form.stock)||0, prix_achat: safeNum(form.prix_a)||0 }]);
     setForm({ nom:'', prix_a:'', prix_v:'', marge:'', stock:'', fournisseur:'' }); load(); 
   };
   
-  const handleAchat = (val) => { const pa = Number(val)||0; const pv = Number(form.prix_v)||0; let m = form.marge; if(pa>0 && pv>0) m = (((pv-pa)/pa)*100).toFixed(2); setForm(prev => ({...prev, prix_a: val, marge: m})); };
-  const handleVente = (val) => { const pv = Number(val)||0; const pa = Number(form.prix_a)||0; let m = form.marge; if(pa>0 && pv>0) m = (((pv-pa)/pa)*100).toFixed(2); setForm(prev => ({...prev, prix_v: val, marge: m})); };
-  const handleMarge = (val) => { const m = Number(val)||0; const pa = Number(form.prix_a)||0; let pv = form.prix_v; if(pa>0) pv = Math.round(pa*(1+(m/100))); setForm(prev => ({...prev, marge: val, prix_v: pv})); };
+  const handleAchat = (val) => { const pa = safeNum(val)||0; const pv = safeNum(form.prix_v)||0; let m = form.marge; if(pa>0 && pv>0) m = (((pv-pa)/pa)*100).toFixed(2); setForm(prev => ({...prev, prix_a: val, marge: m})); };
+  const handleVente = (val) => { const pv = safeNum(val)||0; const pa = safeNum(form.prix_a)||0; let m = form.marge; if(pa>0 && pv>0) m = (((pv-pa)/pa)*100).toFixed(2); setForm(prev => ({...prev, prix_v: val, marge: m})); };
+  const handleMarge = (val) => { const m = safeNum(val)||0; const pa = safeNum(form.prix_a)||0; let pv = form.prix_v; if(pa>0) pv = Math.round(pa*(1+(m/100))); setForm(prev => ({...prev, marge: val, prix_v: pv})); };
 
   const saveReappro = async (e) => {
     e.preventDefault();
-    await supabase.from('produits').update({ stock_actuel: reapproProd.stock_actuel + Number(reapproForm.qte), prix_achat: Number(reapproForm.prix_a), prix_vente: Number(reapproForm.prix_v), marge_pourcent: Number(reapproForm.marge) }).eq('id', reapproProd.id);
-    await supabase.from('historique_stock').insert([{ produit_nom: reapproProd.nom, quantite: Number(reapproForm.qte), prix_achat: Number(reapproForm.prix_a) }]);
+    await supabase.from('produits').update({ stock_actuel: reapproProd.stock_actuel + safeNum(reapproForm.qte), prix_achat: safeNum(reapproForm.prix_a), prix_vente: safeNum(reapproForm.prix_v), marge_pourcent: safeNum(reapproForm.marge) }).eq('id', reapproProd.id);
+    await supabase.from('historique_stock').insert([{ produit_nom: reapproProd.nom, quantite: safeNum(reapproForm.qte), prix_achat: safeNum(reapproForm.prix_a) }]);
     setReapproProd(null); load();
   };
 
-  const handleRAchat = (val) => { const pa = Number(val)||0; const pv = Number(reapproForm.prix_v)||0; let m = reapproForm.marge; if(pa>0 && pv>0) m = (((pv-pa)/pa)*100).toFixed(2); setReapproForm(prev => ({...prev, prix_a: val, marge: m})); };
-  const handleRVente = (val) => { const pv = Number(val)||0; const pa = Number(reapproForm.prix_a)||0; let m = reapproForm.marge; if(pa>0 && pv>0) m = (((pv-pa)/pa)*100).toFixed(2); setReapproForm(prev => ({...prev, prix_v: val, marge: m})); };
-  const handleRMarge = (val) => { const m = Number(val)||0; const pa = Number(reapproForm.prix_a)||0; let pv = reapproForm.prix_v; if(pa>0) pv = Math.round(pa*(1+(m/100))); setReapproForm(prev => ({...prev, marge: val, prix_v: pv})); };
+  const handleRAchat = (val) => { const pa = safeNum(val)||0; const pv = safeNum(reapproForm.prix_v)||0; let m = reapproForm.marge; if(pa>0 && pv>0) m = (((pv-pa)/pa)*100).toFixed(2); setReapproForm(prev => ({...prev, prix_a: val, marge: m})); };
+  const handleRVente = (val) => { const pv = safeNum(val)||0; const pa = safeNum(reapproForm.prix_a)||0; let m = reapproForm.marge; if(pa>0 && pv>0) m = (((pv-pa)/pa)*100).toFixed(2); setReapproForm(prev => ({...prev, prix_v: val, marge: m})); };
+  const handleRMarge = (val) => { const m = safeNum(val)||0; const pa = safeNum(reapproForm.prix_a)||0; let pv = reapproForm.prix_v; if(pa>0) pv = Math.round(pa*(1+(m/100))); setReapproForm(prev => ({...prev, marge: val, prix_v: pv})); };
 
   return (
     <div className="space-y-8 relative">
@@ -878,7 +878,7 @@ const AdminStock = () => {
 const AdminDashboard = () => {
   const [ventes, setVentes] = useState([]); const [depenses, setDepenses] = useState([]); const [produits, setProduits] = useState([]);
   useEffect(() => { const load = async () => { setVentes((await supabase.from('historique_ventes').select('*')).data || []); setDepenses((await supabase.from('depenses').select('*')).data || []); setProduits((await supabase.from('produits').select('nom, fournisseur_nom')).data || []); }; load(); }, []);
-  const now = new Date(); const caMois = ventes.filter(v => new Date(v.date_vente).getMonth() === now.getMonth()).reduce((acc, v) => acc + Number(v.montant_total), 0); const depMois = depenses.filter(d => new Date(d.date_depense).getMonth() === now.getMonth()).reduce((acc, d) => acc + Number(d.montant), 0); const benBrutMois = ventes.filter(v => new Date(v.date_vente).getMonth() === now.getMonth()).reduce((acc, v) => acc + Number(v.benefice_total||0), 0);
+  const now = new Date(); const caMois = ventes.filter(v => new Date(v.date_vente).getMonth() === now.getMonth()).reduce((acc, v) => acc + safeNum(v.montant_total), 0); const depMois = depenses.filter(d => new Date(d.date_depense).getMonth() === now.getMonth()).reduce((acc, d) => acc + safeNum(d.montant), 0); const benBrutMois = ventes.filter(v => new Date(v.date_vente).getMonth() === now.getMonth()).reduce((acc, v) => acc + safeNum(v.benefice_total||0), 0);
   return (
     <div className="space-y-6 max-w-5xl mx-auto"><h2 className="text-2xl font-black uppercase text-[#800020]">Tableau de Bord</h2><div className="grid grid-cols-1 md:grid-cols-3 gap-4"><div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100"><p className="text-xs font-bold text-gray-400 uppercase">CA du Mois</p><p className="text-2xl font-black">{formatAr(caMois)} Ar</p></div><div className="bg-red-50 p-6 rounded-2xl shadow-sm border border-red-100"><p className="text-xs font-bold text-red-600 uppercase">Charges Mois</p><p className="text-2xl font-black text-red-700">-{formatAr(depMois)} Ar</p></div><div className="bg-green-700 text-white p-6 rounded-2xl shadow-sm"><p className="text-xs font-bold text-white/80 uppercase">Bénéfice Net</p><p className="text-2xl font-black">{formatAr(benBrutMois - depMois)} Ar</p></div></div></div>
   );
@@ -887,7 +887,7 @@ const AdminDashboard = () => {
 const ModuleDepenses = () => {
   const [depenses, setDepenses] = useState([]); const [form, setForm] = useState({ desc: '', montant: '', date: new Date().toISOString().split('T')[0] });
   const load = async () => { setDepenses((await supabase.from('depenses').select('*').order('date_depense', { ascending: false })).data || []); }; useEffect(() => { load(); }, []);
-  const save = async (e) => { e.preventDefault(); await supabase.from('depenses').insert([{ description: form.desc, montant: Number(form.montant), date_depense: form.date }]); setForm({ ...form, desc: '', montant: '' }); load(); };
+  const save = async (e) => { e.preventDefault(); await supabase.from('depenses').insert([{ description: form.desc, montant: safeNum(form.montant), date_depense: form.date }]); setForm({ ...form, desc: '', montant: '' }); load(); };
   return (
     <div className="max-w-4xl mx-auto space-y-6"><form onSubmit={save} className="bg-white p-6 rounded-3xl shadow-sm grid grid-cols-1 md:grid-cols-4 gap-3 border-t-4 border-[#800020]"><input placeholder="Dépense" className="p-3 bg-gray-50 border rounded-xl md:col-span-2" value={form.desc} onChange={e=>setForm({...form, desc: e.target.value})} required /><input type="number" placeholder="Montant" className="p-3 bg-red-50 text-red-600 font-bold border rounded-xl" value={form.montant} onChange={e=>setForm({...form, montant: e.target.value})} required /><button className="bg-[#800020] text-white p-3 rounded-xl font-black">Ajouter</button></form><div className="space-y-2">{depenses.map(d => (<div key={d.id} className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-red-600 flex justify-between"><p className="font-bold text-sm uppercase">{d.description}</p><p className="font-black text-red-600">-{formatAr(d.montant)}</p></div>))}</div></div>
   );
