@@ -6,52 +6,27 @@ const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || 'https://wblginsktosyp
 const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndibGdpbnNrdG9zeXBibWhtZ2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjU3NTYsImV4cCI6MjA4OTk0MTc1Nn0.pmysPmutGjW2Tw7jFvrBE_0ue2pZmS32Pjncu1Rmr8w';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const LOGO_URL = "https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg"; // <-- N'oublie pas ton lien ImgBB ici
+const LOGO_URL = "https://i.ibb.co/METS-TON-LIEN-ICI.png"; // <-- N'oublie pas ton lien ImgBB ici
 
 const CATEGORIES_PRODUITS = ["Huile", "Épicerie Indienne", "Produits surgelés", "Boissons & Eaux", "Papeterie", "Produits ménagers", "Informatique", "Épicerie pratique", "Cosmétique", "Quincaillerie", "Divers"];
 
 // --- 🛡️ BOUCLIERS ANTI-CRASH GLOBAUX ---
-const safeNum = (val) => { 
-  if (val === null || val === undefined || val === '') return 0; 
-  const n = Number(val); 
-  return isNaN(n) ? 0 : n; 
-};
+const safeNum = (val) => { if (val === null || val === undefined || val === '') return 0; const n = Number(val); return isNaN(n) ? 0 : n; };
 const formatAr = (val) => safeNum(val).toLocaleString('fr-FR');
-const formatDate = (dateStr) => { 
-  if (!dateStr) return '-'; 
-  const d = new Date(dateStr); 
-  return isNaN(d.getTime()) ? '-' : d.toLocaleDateString('fr-FR'); 
-};
-const formatDateTime = (dateStr) => { 
-  if (!dateStr) return '-'; 
-  const d = new Date(dateStr); 
-  return isNaN(d.getTime()) ? '-' : d.toLocaleString('fr-FR'); 
-};
-const formatHeureMessage = (dateStr) => { 
-  if (!dateStr) return '-'; 
-  const d = new Date(dateStr); 
-  return isNaN(d.getTime()) ? '-' : `le ${d.toLocaleDateString('fr-FR')} à ${d.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}`; 
-};
+const formatDate = (dateStr) => { if (!dateStr) return '-'; const d = new Date(dateStr); return isNaN(d.getTime()) ? '-' : d.toLocaleDateString('fr-FR'); };
+const formatDateTime = (dateStr) => { if (!dateStr) return '-'; const d = new Date(dateStr); return isNaN(d.getTime()) ? '-' : d.toLocaleString('fr-FR'); };
+const formatHeureMessage = (dateStr) => { if (!dateStr) return '-'; const d = new Date(dateStr); return isNaN(d.getTime()) ? '-' : `le ${d.toLocaleDateString('fr-FR')} à ${d.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}`; };
 
 // --- 🖨️ MOTEUR D'IMPRESSION PARTAGÉ ---
 const lancerImpression = (type, data, params) => {
   const win = window.open('', '', type === 'caisse' ? 'width=350,height=600' : 'width=800,height=900');
-  if (!win) { 
-    alert("⚠️ Votre navigateur a bloqué l'impression. Veuillez autoriser les Pop-ups."); 
-    return; 
-  }
+  if (!win) { alert("⚠️ Votre navigateur a bloqué l'impression. Veuillez autoriser les Pop-ups."); return; }
 
   const dateDoc = formatDateTime(data.date || new Date());
 
   if (type === 'caisse') {
     win.document.write(`
-      <html><head>
-        <title>Ticket de Caisse</title>
-        <style>
-          @media print { @page { margin: 0; } body { margin: 0; } } 
-          body { font-family: monospace; width: ${data.printSize || '58mm'}; padding: 10px; font-size: 12px; margin: 0 auto; text-align: center; }
-        </style>
-      </head>
+      <html><head><style>@media print { @page { margin: 0; } body { margin: 0; } } body { font-family: monospace; width: ${data.printSize || '58mm'}; padding: 10px; font-size: 12px; margin: 0 auto; text-align: center; }</style></head>
       <body>
         <img src="${LOGO_URL}" style="max-width:80%; height:auto; margin-bottom:5px;" onerror="this.style.display='none'"/>
         <h2 style="margin:0;">${params.nom_entreprise || 'HAKIMI PLUS'}</h2>
@@ -64,10 +39,7 @@ const lancerImpression = (type, data, params) => {
           ${data.panier.map(i => `
             <tr>
               <td style="width:15%; font-weight:bold; vertical-align:top;">${safeNum(i.qte)}x</td>
-              <td style="width:50%; vertical-align:top;">
-                ${(i.nom||'').substring(0,15)}<br/>
-                <span style="font-size:9px;">[${i.categorie || 'Divers'}]</span>
-              </td>
+              <td style="width:50%; vertical-align:top;">${(i.nom||'').substring(0,15)}<br/><span style="font-size:9px;">[${i.categorie || 'Divers'}]</span></td>
               <td style="width:35%; text-align:right; vertical-align:top;">${formatAr((safeNum(i.prix_vente) - safeNum(i.remise_montant)) * safeNum(i.qte))}</td>
             </tr>
           `).join('')}
@@ -80,14 +52,9 @@ const lancerImpression = (type, data, params) => {
       </body></html>
     `);
   } else {
-    let titre = 'FACTURE'; 
-    if (type === 'devis') titre = 'PROFORMA / DEVIS'; 
-    if (type === 'admin_credit') titre = 'FACTURE À CRÉDIT';
-    
+    let titre = 'FACTURE'; if (type === 'devis') titre = 'PROFORMA / DEVIS'; if (type === 'admin_credit') titre = 'FACTURE À CRÉDIT';
     win.document.write(`
-      <html><head>
-        <title>${titre}</title>
-        <style>
+      <html><head><style>
           @media print { @page { margin: 0; size: auto; } body { margin: 1cm; } } 
           body { font-family: Arial, sans-serif; font-size: 13px; color: #333; } 
           table { width: 100%; border-collapse: collapse; margin-top: 15px; } 
@@ -96,8 +63,7 @@ const lancerImpression = (type, data, params) => {
           .header-flex { display: flex; justify-content: space-between; border-bottom: 2px solid #800020; padding-bottom: 15px; margin-bottom: 15px; } 
           .client-box { background-color: #f9f9f9; border-left: 4px solid #800020; padding: 15px; width: 50%; margin-bottom: 20px; } 
           .total-line { font-size: 20px; font-weight: bold; color: #800020; text-align: right; margin-top: 20px; }
-        </style>
-      </head>
+        </style></head>
       <body>
         <div class="header-flex">
           <div>
@@ -141,6 +107,9 @@ const lancerImpression = (type, data, params) => {
   win.document.close(); setTimeout(() => { win.print(); }, 800);
 };
 
+// ==========================================
+// APP PRINCIPALE
+// ==========================================
 export default function App() {
   const [user, setUser] = useState(() => { 
     const savedUser = localStorage.getItem('hakimi_user'); 
@@ -406,7 +375,7 @@ const NavBtn = ({ active, onClick, disabled, children }) => (
 );
 
 // ==========================================
-// ADMIN UTILISATEURS (COMPTES ET ACCÈS)
+// ADMIN UTILISATEURS
 // ==========================================
 const AdminUtilisateurs = ({ currentUser, onUpdateSession }) => {
   const [users, setUsers] = useState([]);
@@ -486,7 +455,78 @@ const AdminUtilisateurs = ({ currentUser, onUpdateSession }) => {
 };
 
 // ==========================================
-// MODULE VENTE
+// MODULE MESSAGERIE (NOUVEAU)
+// ==========================================
+const ModuleMessagerie = ({ user, onMessagesRead }) => {
+  const [messages, setMessages] = useState([]);
+  const [destinataires, setDestinataires] = useState([]);
+  const [form, setForm] = useState({ dest: '', obj: '', msg: '' });
+
+  const load = async () => {
+    // Empêcher l'envoi à soi-même
+    const { data: usersData } = await supabase.from('utilisateurs').select('identifiant').neq('identifiant', user.identifiant);
+    setDestinataires(usersData || []);
+    if(usersData && usersData.length > 0) setForm(prev => ({...prev, dest: usersData[0].identifiant}));
+
+    const { data } = await supabase.from('messagerie').select('*').or(`destinataire.eq.${user.identifiant},expediteur.eq.${user.identifiant}`).order('date_envoi', { ascending: false });
+    setMessages(data || []);
+    
+    // Marquer lu et clear cloche
+    await supabase.from('messagerie').update({ est_lu: true }).eq('destinataire', user.identifiant).eq('est_lu', false);
+    if(onMessagesRead) onMessagesRead();
+  };
+  useEffect(() => { load(); }, []);
+
+  const send = async (e) => {
+    e.preventDefault();
+    if(!form.dest) return alert("Aucun destinataire sélectionné.");
+    await supabase.from('messagerie').insert([{ expediteur: user.identifiant, destinataire: form.dest, objet: form.obj, message: form.msg }]);
+    setForm({ ...form, obj: '', msg: '' }); 
+    load(); 
+    alert("Message envoyé !");
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      <div className="bg-white p-6 rounded-3xl shadow-sm border-t-4 border-[#800020]">
+        <h2 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4">Nouveau Message</h2>
+        <form onSubmit={send} className="space-y-3">
+          <div className="flex gap-3">
+            <select className="p-3 bg-gray-50 border rounded-xl font-bold uppercase text-xs" value={form.dest} onChange={e=>setForm({...form, dest: e.target.value})} required>
+              {destinataires.length === 0 && <option value="">Aucun autre utilisateur</option>}
+              {destinataires.map(d => <option key={d.identifiant} value={d.identifiant}>{d.identifiant}</option>)}
+            </select>
+            <input placeholder="Objet du message..." className="flex-1 p-3 bg-gray-50 border rounded-xl outline-none" value={form.obj} onChange={e=>setForm({...form, obj: e.target.value})} required />
+          </div>
+          <textarea placeholder="Écrivez votre message ici..." className="w-full p-4 bg-gray-50 border rounded-xl outline-none min-h-[100px] resize-none" value={form.msg} onChange={e=>setForm({...form, msg: e.target.value})} required />
+          <button className="bg-[#800020] text-white px-6 py-3 rounded-xl font-black uppercase text-xs shadow-md">Envoyer 🚀</button>
+        </form>
+      </div>
+
+      <div className="space-y-3">
+        {messages.map(m => (
+          <div key={m.id} className={`p-5 rounded-2xl border ${m.expediteur === user.identifiant ? 'bg-gray-50 border-gray-200 ml-8' : 'bg-red-50 border-red-100 mr-8 shadow-sm'}`}>
+            <div className="flex justify-between items-start mb-2">
+              <div>
+                <span className={`text-[10px] font-black uppercase px-2 py-1 rounded ${m.expediteur === user.identifiant ? 'bg-gray-200 text-gray-600' : 'bg-red-600 text-white'}`}>
+                  {m.expediteur === user.identifiant ? 'Moi' : m.expediteur} 
+                  {m.expediteur === user.identifiant && ` ➔ ${m.destinataire}`}
+                </span>
+                <span className="text-[10px] text-gray-400 font-bold ml-2">{formatHeureMessage(m.date_envoi)}</span>
+              </div>
+            </div>
+            <p className="font-black text-gray-800 text-sm mb-1">{m.objet}</p>
+            <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{m.message}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+
+// ==========================================
+// MODULE VENTE (MÉTHODE DDMMYY + CHÈQUE)
 // ==========================================
 const ModuleVente = ({ mode, params, categoriesDb }) => {
   const [panier, setPanier] = useState([]);
@@ -511,14 +551,7 @@ const ModuleVente = ({ mode, params, categoriesDb }) => {
       if (mode !== 'caisse') { setSelectedClient(""); setClients(c.data.filter(i => i.nom !== 'Vente à un utilisateur')); }
       else { setSelectedClient("Vente à un utilisateur"); setClients(c.data); }
     };
-    load(); 
-    setPanier([]); 
-    setVenteReussie(null); 
-    setRemiseGlobale(""); 
-    setMethodePaiement("CASH"); 
-    setSelectedCat(""); 
-    setBanqueCheque(""); 
-    setNumeroCheque("");
+    load(); setPanier([]); setVenteReussie(null); setRemiseGlobale(""); setMethodePaiement("CASH"); setSelectedCat(""); setBanqueCheque(""); setNumeroCheque("");
   }, [mode]);
 
   const totalBrut = panier.reduce((acc, i) => acc + (safeNum(i.prix_vente) * safeNum(i.qte)), 0);
@@ -536,10 +569,7 @@ const ModuleVente = ({ mode, params, categoriesDb }) => {
     if (ex) setPanier(panier.map(i => i.id === p.id ? { ...i, qte: safeNum(i.qte) + 1 } : i));
     else setPanier([...panier, { ...p, qte: 1, remise_montant: "" }]); 
   };
-
-  const updateRemiseArticle = (id, val) => {
-    setPanier(panier.map(i => i.id === id ? { ...i, remise_montant: val } : i));
-  };
+  const updateRemiseArticle = (id, val) => { setPanier(panier.map(i => i.id === id ? { ...i, remise_montant: val } : i)); };
 
   const valider = async () => {
     if (panier.length === 0) return;
@@ -548,18 +578,27 @@ const ModuleVente = ({ mode, params, categoriesDb }) => {
     if (methodePaiement === 'CHEQUE' && !banqueCheque) return alert("Veuillez sélectionner la banque pour le chèque.");
     
     let numero_genere = "";
-    const today = new Date();
-    const dateStr = today.toISOString().split('T')[0];
-    const yy = dateStr.slice(2,4); const mm = dateStr.slice(5,7); const dd = dateStr.slice(8,10);
+    const today = new Date(); 
     
+    // FORMAT DE LA DATE: DDMMYY (Ex: 280326)
+    const dd = String(today.getDate()).padStart(2, '0');
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const yy = String(today.getFullYear()).slice(2, 4);
+    const numDateStr = `${dd}${mm}${yy}`; 
+    
+    // Pour la requête base de données, il faut chercher depuis minuit aujourd'hui
+    const startOfToday = new Date(today);
+    startOfToday.setHours(0, 0, 0, 0);
+    const startIso = startOfToday.toISOString();
+
     if (mode !== 'caisse') {
       const isDevis = mode === 'devis';
       const prefix = isDevis ? 'DV' : 'FA';
       const table = isDevis ? 'devis' : 'historique_ventes';
       const dateCol = isDevis ? 'date_devis' : 'date_vente';
       
-      const { count } = await supabase.from(table).select('*', {count: 'exact', head:true}).gte(dateCol, dateStr);
-      numero_genere = `${prefix}${yy}${mm}${dd}-${String((count || 0) + 1).padStart(3, '0')}`;
+      const { count } = await supabase.from(table).select('*', {count: 'exact', head:true}).gte(dateCol, startIso);
+      numero_genere = `${prefix}${numDateStr}-${String((count || 0) + 1).padStart(3, '0')}`;
     }
 
     const detailsObj = {
@@ -904,7 +943,7 @@ const AdminDashboard = () => {
 };
 
 // ==========================================
-// ADMIN STOCK (AVEC AJOUT DYNAMIQUE DE CATÉGORIES)
+// ADMIN STOCK
 // ==========================================
 const AdminStock = ({ categoriesDb, refreshCategories }) => { 
   const [produits, setProduits] = useState([]);
@@ -1084,7 +1123,7 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
 };
 
 // ==========================================
-// 4. CLÔTURE CAISSE ET JOURNAUX
+// CLÔTURE CAISSE ET JOURNAUX
 // ==========================================
 const ModuleCloture = ({ user, onClotureDone }) => {
   const [caCash, setCaCash] = useState(0);
@@ -1301,10 +1340,18 @@ const ModuleJournalDevis = ({ params }) => {
   const transformerFacture = async (d) => {
     if(!window.confirm(`Transformer le devis ${d.numero_devis || 'Sans N°'} en Facture ? Le stock sera déduit.`)) return;
     
-    const today = new Date(); const dateStr = today.toISOString().split('T')[0];
-    const yy = dateStr.slice(2,4); const mm = dateStr.slice(5,7); const dd = dateStr.slice(8,10);
-    const { count } = await supabase.from('historique_ventes').select('*', {count: 'exact', head:true}).gte('date_vente', dateStr);
-    const numFacture = `FA${yy}${mm}${dd}-${String((count || 0) + 1).padStart(3, '0')}`;
+    const today = new Date(); 
+    const dd = String(today.getDate()).padStart(2, '0');
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const yy = String(today.getFullYear()).slice(2, 4);
+    const numDateStr = `${dd}${mm}${yy}`; 
+    
+    const startOfToday = new Date(today);
+    startOfToday.setHours(0, 0, 0, 0);
+    const startIso = startOfToday.toISOString();
+
+    const { count } = await supabase.from('historique_ventes').select('*', {count: 'exact', head:true}).gte('date_vente', startIso);
+    const numFacture = `FA${numDateStr}-${String((count || 0) + 1).padStart(3, '0')}`;
 
     let beneficeTotal = 0;
     if (d.details_json && Array.isArray(d.details_json.articles)) {
@@ -1503,7 +1550,7 @@ const AdminParametres = ({ params, setParams }) => {
         <div><label className="text-xs font-bold text-gray-500 uppercase">Nom de l'entreprise</label><input className="w-full p-3 bg-gray-50 border rounded-xl font-black text-lg outline-none" value={form.nom_entreprise||''} onChange={e=>setForm({...form, nom_entreprise: e.target.value})} required /></div>
         <div><label className="text-xs font-bold text-gray-500 uppercase">Adresse</label><input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.adresse||''} onChange={e=>setForm({...form, adresse: e.target.value})} required /></div>
         <div><label className="text-xs font-bold text-gray-500 uppercase">Contact (Tél)</label><input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.contact||''} onChange={e=>setForm({...form, contact: e.target.value})} /></div>
-        <div><label className="text-xs font-bold text-gray-500 uppercase">NIF / STAT (Ex: NIF: 123 | STAT: 456)</label><input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.nif_stat||''} onChange={e=>setForm({...form, nif_stat: e.target.value})} /></div>
+        <div><label className="text-xs font-bold text-gray-500 uppercase">NIF / STAT</label><input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.nif_stat||''} onChange={e=>setForm({...form, nif_stat: e.target.value})} /></div>
         <div><label className="text-xs font-bold text-gray-500 uppercase">Message de fin de ticket</label><input className="w-full p-3 bg-gray-50 border rounded-xl outline-none italic" value={form.message_ticket||''} onChange={e=>setForm({...form, message_ticket: e.target.value})} /></div>
         <button type="submit" className="w-full bg-[#800020] text-white p-4 rounded-xl font-black uppercase shadow-md mt-4">Enregistrer les modifications</button>
       </form>
