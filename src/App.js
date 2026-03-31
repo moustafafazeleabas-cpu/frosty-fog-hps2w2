@@ -6,27 +6,52 @@ const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || 'https://wblginsktosyp
 const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndibGdpbnNrdG9zeXBibWhtZ2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjU3NTYsImV4cCI6MjA4OTk0MTc1Nn0.pmysPmutGjW2Tw7jFvrBE_0ue2pZmS32Pjncu1Rmr8w';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const LOGO_URL = "https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg"; // 
+const LOGO_URL = "https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg"; // <-- N'oublie pas ton lien ImgBB ici
 
 const CATEGORIES_PRODUITS = ["Huile", "Épicerie Indienne", "Produits surgelés", "Boissons & Eaux", "Papeterie", "Produits ménagers", "Informatique", "Épicerie pratique", "Cosmétique", "Quincaillerie", "Divers"];
 
 // --- 🛡️ BOUCLIERS ANTI-CRASH GLOBAUX ---
-const safeNum = (val) => { if (val === null || val === undefined || val === '') return 0; const n = Number(val); return isNaN(n) ? 0 : n; };
+const safeNum = (val) => { 
+  if (val === null || val === undefined || val === '') return 0; 
+  const n = Number(val); 
+  return isNaN(n) ? 0 : n; 
+};
 const formatAr = (val) => safeNum(val).toLocaleString('fr-FR');
-const formatDate = (dateStr) => { if (!dateStr) return '-'; const d = new Date(dateStr); return isNaN(d.getTime()) ? '-' : d.toLocaleDateString('fr-FR'); };
-const formatDateTime = (dateStr) => { if (!dateStr) return '-'; const d = new Date(dateStr); return isNaN(d.getTime()) ? '-' : d.toLocaleString('fr-FR'); };
-const formatHeureMessage = (dateStr) => { if (!dateStr) return '-'; const d = new Date(dateStr); return isNaN(d.getTime()) ? '-' : `le ${d.toLocaleDateString('fr-FR')} à ${d.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}`; };
+const formatDate = (dateStr) => { 
+  if (!dateStr) return '-'; 
+  const d = new Date(dateStr); 
+  return isNaN(d.getTime()) ? '-' : d.toLocaleDateString('fr-FR'); 
+};
+const formatDateTime = (dateStr) => { 
+  if (!dateStr) return '-'; 
+  const d = new Date(dateStr); 
+  return isNaN(d.getTime()) ? '-' : d.toLocaleString('fr-FR'); 
+};
+const formatHeureMessage = (dateStr) => { 
+  if (!dateStr) return '-'; 
+  const d = new Date(dateStr); 
+  return isNaN(d.getTime()) ? '-' : `le ${d.toLocaleDateString('fr-FR')} à ${d.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}`; 
+};
 
 // --- 🖨️ MOTEUR D'IMPRESSION PARTAGÉ ---
 const lancerImpression = (type, data, params) => {
   const win = window.open('', '', type === 'caisse' ? 'width=350,height=600' : 'width=800,height=900');
-  if (!win) { alert("⚠️ Votre navigateur a bloqué l'impression. Veuillez autoriser les Pop-ups."); return; }
+  if (!win) { 
+    alert("⚠️ Votre navigateur a bloqué l'impression. Veuillez autoriser les Pop-ups."); 
+    return; 
+  }
 
   const dateDoc = formatDateTime(data.date || new Date());
 
   if (type === 'caisse') {
     win.document.write(`
-      <html><head><style>@media print { @page { margin: 0; } body { margin: 0; } } body { font-family: monospace; width: ${data.printSize || '58mm'}; padding: 10px; font-size: 12px; margin: 0 auto; text-align: center; }</style></head>
+      <html><head>
+        <title>Ticket de Caisse</title>
+        <style>
+          @media print { @page { margin: 0; } body { margin: 0; } } 
+          body { font-family: monospace; width: ${data.printSize || '58mm'}; padding: 10px; font-size: 12px; margin: 0 auto; text-align: center; }
+        </style>
+      </head>
       <body>
         <img src="${LOGO_URL}" style="max-width:80%; height:auto; margin-bottom:5px;" onerror="this.style.display='none'"/>
         <h2 style="margin:0;">${params.nom_entreprise || 'HAKIMI PLUS'}</h2>
@@ -39,7 +64,10 @@ const lancerImpression = (type, data, params) => {
           ${data.panier.map(i => `
             <tr>
               <td style="width:15%; font-weight:bold; vertical-align:top;">${safeNum(i.qte)}x</td>
-              <td style="width:50%; vertical-align:top;">${(i.nom||'').substring(0,15)}<br/><span style="font-size:9px;">[${i.categorie || 'Divers'}]</span></td>
+              <td style="width:50%; vertical-align:top;">
+                ${(i.nom||'').substring(0,15)}<br/>
+                <span style="font-size:9px;">[${i.categorie || 'Divers'}]</span>
+              </td>
               <td style="width:35%; text-align:right; vertical-align:top;">${formatAr((safeNum(i.prix_vente) - safeNum(i.remise_montant)) * safeNum(i.qte))}</td>
             </tr>
           `).join('')}
@@ -52,9 +80,14 @@ const lancerImpression = (type, data, params) => {
       </body></html>
     `);
   } else {
-    let titre = 'FACTURE'; if (type === 'devis') titre = 'PROFORMA / DEVIS'; if (type === 'admin_credit') titre = 'FACTURE À CRÉDIT';
+    let titre = 'FACTURE'; 
+    if (type === 'devis') titre = 'PROFORMA / DEVIS'; 
+    if (type === 'admin_credit') titre = 'FACTURE À CRÉDIT';
+    
     win.document.write(`
-      <html><head><style>
+      <html><head>
+        <title>${titre}</title>
+        <style>
           @media print { @page { margin: 0; size: auto; } body { margin: 1cm; } } 
           body { font-family: Arial, sans-serif; font-size: 13px; color: #333; } 
           table { width: 100%; border-collapse: collapse; margin-top: 15px; } 
@@ -63,7 +96,8 @@ const lancerImpression = (type, data, params) => {
           .header-flex { display: flex; justify-content: space-between; border-bottom: 2px solid #800020; padding-bottom: 15px; margin-bottom: 15px; } 
           .client-box { background-color: #f9f9f9; border-left: 4px solid #800020; padding: 15px; width: 50%; margin-bottom: 20px; } 
           .total-line { font-size: 20px; font-weight: bold; color: #800020; text-align: right; margin-top: 20px; }
-        </style></head>
+        </style>
+      </head>
       <body>
         <div class="header-flex">
           <div>
@@ -107,9 +141,6 @@ const lancerImpression = (type, data, params) => {
   win.document.close(); setTimeout(() => { win.print(); }, 800);
 };
 
-// ==========================================
-// APP PRINCIPALE
-// ==========================================
 export default function App() {
   const [user, setUser] = useState(() => { 
     const savedUser = localStorage.getItem('hakimi_user'); 
@@ -375,7 +406,7 @@ const NavBtn = ({ active, onClick, disabled, children }) => (
 );
 
 // ==========================================
-// ADMIN UTILISATEURS
+// ADMIN UTILISATEURS (COMPTES ET ACCÈS)
 // ==========================================
 const AdminUtilisateurs = ({ currentUser, onUpdateSession }) => {
   const [users, setUsers] = useState([]);
@@ -455,7 +486,7 @@ const AdminUtilisateurs = ({ currentUser, onUpdateSession }) => {
 };
 
 // ==========================================
-// MODULE MESSAGERIE (NOUVEAU)
+// MODULE MESSAGERIE 
 // ==========================================
 const ModuleMessagerie = ({ user, onMessagesRead }) => {
   const [messages, setMessages] = useState([]);
@@ -526,7 +557,7 @@ const ModuleMessagerie = ({ user, onMessagesRead }) => {
 
 
 // ==========================================
-// MODULE VENTE (MÉTHODE DDMMYY + CHÈQUE)
+// MODULE VENTE 
 // ==========================================
 const ModuleVente = ({ mode, params, categoriesDb }) => {
   const [panier, setPanier] = useState([]);
@@ -943,7 +974,7 @@ const AdminDashboard = () => {
 };
 
 // ==========================================
-// ADMIN STOCK
+// ADMIN STOCK (AVEC MODIFICATION DU PRIX)
 // ==========================================
 const AdminStock = ({ categoriesDb, refreshCategories }) => { 
   const [produits, setProduits] = useState([]);
@@ -954,6 +985,10 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
   const [reapproProd, setReapproProd] = useState(null); 
   const [reapproForm, setReapproForm] = useState({ qte: '', prix_a: '', prix_v: '', marge: '', dlc: '' }); 
   const [showHistoProd, setShowHistoProd] = useState(null); 
+
+  // Modal pour Édition Prix
+  const [editProd, setEditProd] = useState(null);
+  const [editForm, setEditForm] = useState({ prix_v: '', marge: '' });
 
   const load = async () => { 
     const p = await supabase.from('produits').select('*').order('nom'); 
@@ -1007,6 +1042,32 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
   const handleRAchat = (val) => { const pa = safeNum(val)||0; const pv = safeNum(reapproForm.prix_v)||0; let m = reapproForm.marge; if(pa>0 && pv>0) m = (((pv-pa)/pa)*100).toFixed(2); setReapproForm(prev => ({...prev, prix_a: val, marge: m})); };
   const handleRVente = (val) => { const pv = safeNum(val)||0; const pa = safeNum(reapproForm.prix_a)||0; let m = reapproForm.marge; if(pa>0 && pv>0) m = (((pv-pa)/pa)*100).toFixed(2); setReapproForm(prev => ({...prev, prix_v: val, marge: m})); };
   const handleRMarge = (val) => { const m = safeNum(val)||0; const pa = safeNum(reapproForm.prix_a)||0; let pv = reapproForm.prix_v; if(pa>0) pv = Math.round(pa*(1+(m/100))); setReapproForm(prev => ({...prev, marge: val, prix_v: pv})); };
+
+  // NOUVEAU: GESTION DE LA MODIFICATION DE PRIX
+  const handleEditVente = (val) => {
+    const pv = safeNum(val) || 0;
+    const pa = safeNum(editProd.prix_achat) || 0;
+    let m = editForm.marge;
+    if (pa > 0 && pv > 0) m = (((pv - pa) / pa) * 100).toFixed(2);
+    setEditForm(prev => ({ ...prev, prix_v: val, marge: m }));
+  };
+  const handleEditMarge = (val) => {
+    const m = safeNum(val) || 0;
+    const pa = safeNum(editProd.prix_achat) || 0;
+    let pv = editForm.prix_v;
+    if (pa > 0) pv = Math.round(pa * (1 + (m / 100)));
+    setEditForm(prev => ({ ...prev, marge: val, prix_v: pv }));
+  };
+  const saveEdit = async (e) => {
+    e.preventDefault();
+    await supabase.from('produits').update({
+      prix_vente: safeNum(editForm.prix_v),
+      marge_pourcent: safeNum(editForm.marge)
+    }).eq('id', editProd.id);
+    setEditProd(null);
+    load();
+    alert("Prix modifié avec succès !");
+  };
 
   const isDlcProche = (dlc) => {
     if(!dlc) return false;
@@ -1073,6 +1134,7 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
                     ) : '-'}
                   </td>
                   <td className="p-4 text-center flex justify-center gap-1">
+                    <button onClick={() => { setEditProd(p); setEditForm({ prix_v: p.prix_vente, marge: p.marge_pourcent }); }} className="bg-blue-600 text-white px-3 py-1 rounded shadow text-[10px] font-bold uppercase">✏️ Prix</button>
                     <button onClick={() => { setReapproProd(p); setReapproForm({ qte: '', prix_a: p.prix_achat, prix_v: p.prix_vente, marge: p.marge_pourcent, dlc: p.date_peremption || '' }); }} className="bg-[#800020] text-white px-3 py-1 rounded shadow text-[10px] font-bold uppercase">Réappro</button>
                     <button onClick={() => setShowHistoProd(p)} className="bg-gray-200 px-3 py-1 rounded shadow text-[10px] font-bold uppercase">Histo</button>
                   </td>
@@ -1083,6 +1145,33 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
         </div>
       </div>
 
+      {/* MODAL MODIFICATION PRIX */}
+      {editProd && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+          <div className="bg-white p-6 rounded-3xl w-full max-w-md">
+            <h2 className="text-lg font-black uppercase text-[#800020] mb-4">Modifier Prix : {editProd.nom}</h2>
+            <p className="text-xs text-gray-500 mb-4">Coût d'achat actuel : {formatAr(editProd.prix_achat)} Ar</p>
+            <form onSubmit={saveEdit} className="space-y-3">
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="text-[10px] font-bold text-red-600 uppercase">Nouveau Prix Vente</label>
+                  <input type="number" className="w-full p-3 border rounded-xl text-red-600 font-bold outline-none" value={editForm.prix_v} onChange={e=>handleEditVente(e.target.value)} required />
+                </div>
+                <div className="flex-1">
+                  <label className="text-[10px] font-bold text-[#800020] uppercase">Marge (%)</label>
+                  <input type="number" step="0.01" className="w-full p-3 border rounded-xl text-[#800020] font-bold outline-none" value={editForm.marge} onChange={e=>handleEditMarge(e.target.value)} />
+                </div>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="button" onClick={()=>setEditProd(null)} className="p-3 bg-gray-100 rounded-xl flex-1 font-bold text-gray-600">Annuler</button>
+                <button type="submit" className="p-3 bg-blue-600 text-white rounded-xl font-bold flex-1 shadow-md">Enregistrer</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL REAPPRO */}
       {reapproProd && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-6 rounded-3xl w-full max-w-md">
@@ -1101,6 +1190,7 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
         </div>
       )}
 
+      {/* MODAL HISTORIQUE */}
       {showHistoProd && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-6 rounded-3xl w-full max-w-md shadow-2xl">
@@ -1550,7 +1640,7 @@ const AdminParametres = ({ params, setParams }) => {
         <div><label className="text-xs font-bold text-gray-500 uppercase">Nom de l'entreprise</label><input className="w-full p-3 bg-gray-50 border rounded-xl font-black text-lg outline-none" value={form.nom_entreprise||''} onChange={e=>setForm({...form, nom_entreprise: e.target.value})} required /></div>
         <div><label className="text-xs font-bold text-gray-500 uppercase">Adresse</label><input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.adresse||''} onChange={e=>setForm({...form, adresse: e.target.value})} required /></div>
         <div><label className="text-xs font-bold text-gray-500 uppercase">Contact (Tél)</label><input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.contact||''} onChange={e=>setForm({...form, contact: e.target.value})} /></div>
-        <div><label className="text-xs font-bold text-gray-500 uppercase">NIF / STAT</label><input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.nif_stat||''} onChange={e=>setForm({...form, nif_stat: e.target.value})} /></div>
+        <div><label className="text-xs font-bold text-gray-500 uppercase">NIF / STAT (Ex: NIF: 123 | STAT: 456)</label><input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.nif_stat||''} onChange={e=>setForm({...form, nif_stat: e.target.value})} /></div>
         <div><label className="text-xs font-bold text-gray-500 uppercase">Message de fin de ticket</label><input className="w-full p-3 bg-gray-50 border rounded-xl outline-none italic" value={form.message_ticket||''} onChange={e=>setForm({...form, message_ticket: e.target.value})} /></div>
         <button type="submit" className="w-full bg-[#800020] text-white p-4 rounded-xl font-black uppercase shadow-md mt-4">Enregistrer les modifications</button>
       </form>
