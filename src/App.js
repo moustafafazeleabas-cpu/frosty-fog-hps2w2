@@ -6,42 +6,32 @@ const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || 'https://wblginsktosyp
 const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndibGdpbnNrdG9zeXBibWhtZ2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjU3NTYsImV4cCI6MjA4OTk0MTc1Nn0.pmysPmutGjW2Tw7jFvrBE_0ue2pZmS32Pjncu1Rmr8w';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const LOGO_URL = "https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg"; // <-- N'oublie pas ton lien ImgBB ici
+const LOGO_URL = "https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg"; // 
 
 const CATEGORIES_PRODUITS = ["Huile", "Épicerie Indienne", "Produits surgelés", "Boissons & Eaux", "Papeterie", "Produits ménagers", "Informatique", "Épicerie pratique", "Cosmétique", "Quincaillerie", "Divers"];
 
 // --- 🛡️ BOUCLIERS ANTI-CRASH GLOBAUX ---
-const safeNum = (val) => { 
-  if (val === null || val === undefined || val === '') return 0; 
-  const n = Number(val); 
-  return isNaN(n) ? 0 : n; 
-};
+const safeNum = (val) => { if (val === null || val === undefined || val === '') return 0; const n = Number(val); return isNaN(n) ? 0 : n; };
 const formatAr = (val) => safeNum(val).toLocaleString('fr-FR');
-const formatDate = (dateStr) => { 
-  if (!dateStr) return '-'; 
-  const d = new Date(dateStr); 
-  return isNaN(d.getTime()) ? '-' : d.toLocaleDateString('fr-FR'); 
-};
-const formatDateTime = (dateStr) => { 
-  if (!dateStr) return '-'; 
-  const d = new Date(dateStr); 
-  return isNaN(d.getTime()) ? '-' : d.toLocaleString('fr-FR'); 
-};
-const formatHeureMessage = (dateStr) => { 
-  if (!dateStr) return '-'; 
-  const d = new Date(dateStr); 
-  return isNaN(d.getTime()) ? '-' : `le ${d.toLocaleDateString('fr-FR')} à ${d.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}`; 
-};
+const formatDate = (dateStr) => { if (!dateStr) return '-'; const d = new Date(dateStr); return isNaN(d.getTime()) ? '-' : d.toLocaleDateString('fr-FR'); };
+const formatDateTime = (dateStr) => { if (!dateStr) return '-'; const d = new Date(dateStr); return isNaN(d.getTime()) ? '-' : d.toLocaleString('fr-FR'); };
+const formatHeureMessage = (dateStr) => { if (!dateStr) return '-'; const d = new Date(dateStr); return isNaN(d.getTime()) ? '-' : `le ${d.toLocaleDateString('fr-FR')} à ${d.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}`; };
 
-// --- 🖨️ MOTEUR D'IMPRESSION PARTAGÉ ---
+// --- 🖨️ MOTEUR D'IMPRESSION PARTAGÉ (CORRIGÉ POUR 58MM ET RÉIMPRESSION) ---
 const lancerImpression = (type, data, params) => {
   const win = window.open('', '', type === 'caisse' ? 'width=350,height=600' : 'width=800,height=900');
-  if (!win) { 
-    alert("⚠️ Votre navigateur a bloqué l'impression. Veuillez autoriser les Pop-ups."); 
-    return; 
-  }
+  if (!win) { alert("⚠️ Votre navigateur a bloqué l'impression. Veuillez autoriser les Pop-ups."); return; }
 
   const dateDoc = formatDateTime(data.date || new Date());
+
+  // Fonction pour gérer la différence entre le Panier en direct et l'Historique DB
+  const getLineData = (i) => {
+    const prixU = safeNum(i.prix_unitaire !== undefined ? i.prix_unitaire : i.prix_vente);
+    const remiseU = safeNum(i.remise_unitaire_ar !== undefined ? i.remise_unitaire_ar : i.remise_montant);
+    const qte = safeNum(i.qte);
+    const totalLigne = safeNum(i.total_ligne !== undefined ? i.total_ligne : (prixU - remiseU) * qte);
+    return { prixU, remiseU, qte, totalLigne };
+  };
 
   if (type === 'caisse') {
     win.document.write(`
@@ -50,6 +40,10 @@ const lancerImpression = (type, data, params) => {
         <style>
           @media print { @page { margin: 0; } body { margin: 0; } } 
           body { font-family: monospace; width: ${data.printSize || '58mm'}; padding: 10px; font-size: 12px; margin: 0 auto; text-align: center; }
+          .item-block { text-align: left; margin-bottom: 8px; border-bottom: 1px dotted #ccc; padding-bottom: 4px; }
+          .item-line1 { font-weight: bold; font-size: 13px; }
+          .item-line2 { display: flex; justify-content: space-between; margin-top: 3px; font-size: 12px; }
+          .item-line3 { font-size: 10px; color: #555; margin-top: 2px; }
         </style>
       </head>
       <body>
@@ -60,19 +54,23 @@ const lancerImpression = (type, data, params) => {
         ${data.numero ? `<p style="margin:0; font-weight:bold; font-size:11px; border:1px solid #000; padding:2px; display:inline-block;">${data.numero}</p>` : ''}
         ${data.methode ? `<p style="margin:2px 0; font-weight:bold; font-size:10px;">Payé par : ${data.methode}${data.banque ? ` (${data.banque})` : ''}</p>` : ''}
         <hr style="border-top:1px dashed #000;"/>
-        <table style="width:100%; text-align:left; font-size:11px;">
-          ${data.panier.map(i => `
-            <tr>
-              <td style="width:15%; font-weight:bold; vertical-align:top;">${safeNum(i.qte)}x</td>
-              <td style="width:50%; vertical-align:top;">
-                ${(i.nom||'').substring(0,15)}<br/>
-                <span style="font-size:9px;">[${i.categorie || 'Divers'}]</span>
-              </td>
-              <td style="width:35%; text-align:right; vertical-align:top;">${formatAr((safeNum(i.prix_vente) - safeNum(i.remise_montant)) * safeNum(i.qte))}</td>
-            </tr>
-          `).join('')}
-        </table>
-        <hr style="border-top:1px dashed #000;"/>
+        
+        <div style="width:100%;">
+          ${data.panier.map(i => {
+            const { prixU, remiseU, qte, totalLigne } = getLineData(i);
+            return `
+            <div class="item-block">
+              <div class="item-line1">${qte}x ${i.nom}</div>
+              <div class="item-line2">
+                <span>${formatAr(prixU - remiseU)}</span>
+                <span style="font-weight:bold;">${formatAr(totalLigne)}</span>
+              </div>
+              <div class="item-line3">[${i.categorie || 'Divers'}]</div>
+            </div>
+            `;
+          }).join('')}
+        </div>
+        
         <h3 style="text-align:right; margin:5px 0;">TOTAL: ${formatAr(data.totalNet)} Ar</h3>
         ${data.totalRemisesEnAr > 0 ? `<p style="text-align:right; font-size:10px; margin:0;">(Dont remise : ${formatAr(data.totalRemisesEnAr)} Ar)</p>` : ''}
         <p style="margin-top:10px;">${params.message_ticket || 'Merci de votre visite !'}</p>
@@ -122,14 +120,16 @@ const lancerImpression = (type, data, params) => {
         <table>
           <thead><tr><th>Désignation</th><th>Qté</th><th>Prix U.</th><th style="text-align:right;">Total</th></tr></thead>
           <tbody>
-            ${data.panier.map(i => `
+            ${data.panier.map(i => {
+              const { prixU, remiseU, qte, totalLigne } = getLineData(i);
+              return `
               <tr>
                 <td>${i.nom} <span style="font-size:10px; color:#666;">(${i.categorie || 'Divers'})</span></td>
-                <td>${safeNum(i.qte)}</td>
-                <td>${formatAr(safeNum(i.prix_vente) - safeNum(i.remise_montant))}</td>
-                <td style="text-align:right;">${formatAr((safeNum(i.prix_vente) - safeNum(i.remise_montant)) * safeNum(i.qte))} Ar</td>
+                <td>${qte}</td>
+                <td>${formatAr(prixU - remiseU)}</td>
+                <td style="text-align:right;">${formatAr(totalLigne)} Ar</td>
               </tr>
-            `).join('')}
+            `}).join('')}
           </tbody>
         </table>
         <div class="total-line">TOTAL NET : ${formatAr(data.totalNet)} Ar</div>
@@ -486,7 +486,7 @@ const AdminUtilisateurs = ({ currentUser, onUpdateSession }) => {
 };
 
 // ==========================================
-// MODULE MESSAGERIE 
+// MODULE MESSAGERIE
 // ==========================================
 const ModuleMessagerie = ({ user, onMessagesRead }) => {
   const [messages, setMessages] = useState([]);
@@ -494,7 +494,6 @@ const ModuleMessagerie = ({ user, onMessagesRead }) => {
   const [form, setForm] = useState({ dest: '', obj: '', msg: '' });
 
   const load = async () => {
-    // Empêcher l'envoi à soi-même
     const { data: usersData } = await supabase.from('utilisateurs').select('identifiant').neq('identifiant', user.identifiant);
     setDestinataires(usersData || []);
     if(usersData && usersData.length > 0) setForm(prev => ({...prev, dest: usersData[0].identifiant}));
@@ -502,7 +501,6 @@ const ModuleMessagerie = ({ user, onMessagesRead }) => {
     const { data } = await supabase.from('messagerie').select('*').or(`destinataire.eq.${user.identifiant},expediteur.eq.${user.identifiant}`).order('date_envoi', { ascending: false });
     setMessages(data || []);
     
-    // Marquer lu et clear cloche
     await supabase.from('messagerie').update({ est_lu: true }).eq('destinataire', user.identifiant).eq('est_lu', false);
     if(onMessagesRead) onMessagesRead();
   };
@@ -557,7 +555,7 @@ const ModuleMessagerie = ({ user, onMessagesRead }) => {
 
 
 // ==========================================
-// MODULE VENTE 
+// MODULE VENTE
 // ==========================================
 const ModuleVente = ({ mode, params, categoriesDb }) => {
   const [panier, setPanier] = useState([]);
@@ -611,13 +609,12 @@ const ModuleVente = ({ mode, params, categoriesDb }) => {
     let numero_genere = "";
     const today = new Date(); 
     
-    // FORMAT DE LA DATE: DDMMYY (Ex: 280326)
+    // FORMAT DE LA DATE: DDMMYY
     const dd = String(today.getDate()).padStart(2, '0');
     const mm = String(today.getMonth() + 1).padStart(2, '0');
     const yy = String(today.getFullYear()).slice(2, 4);
     const numDateStr = `${dd}${mm}${yy}`; 
     
-    // Pour la requête base de données, il faut chercher depuis minuit aujourd'hui
     const startOfToday = new Date(today);
     startOfToday.setHours(0, 0, 0, 0);
     const startIso = startOfToday.toISOString();
@@ -974,7 +971,7 @@ const AdminDashboard = () => {
 };
 
 // ==========================================
-// ADMIN STOCK (AVEC MODIFICATION DU PRIX)
+// ADMIN STOCK
 // ==========================================
 const AdminStock = ({ categoriesDb, refreshCategories }) => { 
   const [produits, setProduits] = useState([]);
@@ -986,7 +983,6 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
   const [reapproForm, setReapproForm] = useState({ qte: '', prix_a: '', prix_v: '', marge: '', dlc: '' }); 
   const [showHistoProd, setShowHistoProd] = useState(null); 
 
-  // Modal pour Édition Prix
   const [editProd, setEditProd] = useState(null);
   const [editForm, setEditForm] = useState({ prix_v: '', marge: '' });
 
@@ -1043,7 +1039,6 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
   const handleRVente = (val) => { const pv = safeNum(val)||0; const pa = safeNum(reapproForm.prix_a)||0; let m = reapproForm.marge; if(pa>0 && pv>0) m = (((pv-pa)/pa)*100).toFixed(2); setReapproForm(prev => ({...prev, prix_v: val, marge: m})); };
   const handleRMarge = (val) => { const m = safeNum(val)||0; const pa = safeNum(reapproForm.prix_a)||0; let pv = reapproForm.prix_v; if(pa>0) pv = Math.round(pa*(1+(m/100))); setReapproForm(prev => ({...prev, marge: val, prix_v: pv})); };
 
-  // NOUVEAU: GESTION DE LA MODIFICATION DE PRIX
   const handleEditVente = (val) => {
     const pv = safeNum(val) || 0;
     const pa = safeNum(editProd.prix_achat) || 0;
@@ -1145,7 +1140,6 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
         </div>
       </div>
 
-      {/* MODAL MODIFICATION PRIX */}
       {editProd && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-6 rounded-3xl w-full max-w-md">
@@ -1171,7 +1165,6 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
         </div>
       )}
 
-      {/* MODAL REAPPRO */}
       {reapproProd && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-6 rounded-3xl w-full max-w-md">
@@ -1190,7 +1183,6 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
         </div>
       )}
 
-      {/* MODAL HISTORIQUE */}
       {showHistoProd && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-6 rounded-3xl w-full max-w-md shadow-2xl">
