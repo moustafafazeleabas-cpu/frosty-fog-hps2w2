@@ -6,7 +6,7 @@ const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || 'https://wblginsktosyp
 const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndibGdpbnNrdG9zeXBibWhtZ2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjU3NTYsImV4cCI6MjA4OTk0MTc1Nn0.pmysPmutGjW2Tw7jFvrBE_0ue2pZmS32Pjncu1Rmr8w';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const LOGO_URL = "https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg"; // <-- N'oublie pas ton lien ImgBB ici
+const LOGO_URL = "https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg"; //
 
 const CATEGORIES_PRODUITS = ["Huile", "Épicerie Indienne", "Produits surgelés", "Boissons & Eaux", "Papeterie", "Produits ménagers", "Informatique", "Épicerie pratique", "Cosmétique", "Quincaillerie", "Divers"];
 
@@ -172,9 +172,6 @@ const lancerImpression = (type, data, params) => {
   win.document.close(); setTimeout(() => { win.print(); }, 800);
 };
 
-// ==========================================
-// APP PRINCIPALE
-// ==========================================
 export default function App() {
   const [user, setUser] = useState(() => { 
     const savedUser = localStorage.getItem('hakimi_user'); 
@@ -245,31 +242,16 @@ export default function App() {
            lockWindowStart.setHours(18, 0, 0, 0);
            
            const { data: latestCloture } = await supabase.from('cloture_caisse').select('date_cloture').gte('date_cloture', lockWindowStart.toISOString()).limit(1);
-           if (latestCloture && latestCloture.length > 0) { 
-               setIsLocked(false); 
-           } else { 
-               setIsLocked(true); 
-               setView('cloture'); 
-           }
-        } else { 
-           setIsLocked(false); 
-        }
+           if (latestCloture && latestCloture.length > 0) { setIsLocked(false); } else { setIsLocked(true); setView('cloture'); }
+        } else { setIsLocked(false); }
       };
       
-      checkTasks(); 
-      const interval = setInterval(checkTasks, 30000); 
-      return () => clearInterval(interval);
+      checkTasks(); const interval = setInterval(checkTasks, 30000); return () => clearInterval(interval);
     }
   }, [user, isLocked]);
 
-  const handleLogin = (userData) => { 
-    localStorage.setItem('hakimi_user', JSON.stringify(userData)); 
-    setUser(userData); 
-  };
-  const handleLogout = () => { 
-    localStorage.removeItem('hakimi_user'); 
-    setUser(null); 
-  };
+  const handleLogin = (userData) => { localStorage.setItem('hakimi_user', JSON.stringify(userData)); setUser(userData); };
+  const handleLogout = () => { localStorage.removeItem('hakimi_user'); setUser(null); };
 
   const handleOpenNotif = () => {
     setNotifOpen(!notifOpen);
@@ -288,19 +270,12 @@ export default function App() {
 
   if (!user) return <LoginScreen onLogin={handleLogin} />;
 
-  const changeView = (newView) => { 
-    if(!isLocked) { 
-      setView(newView); 
-      setMenuOpen(false); 
-    } 
-  };
-  
+  const changeView = (newView) => { if(!isLocked) { setView(newView); setMenuOpen(false); } };
   const totalAlertes = msgNonLus + (hasClearedNotifsToday ? 0 : alertesStockDLC.length);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row font-sans text-gray-800">
       
-      {/* HEADER MOBILE FIXE */}
       <div className="md:hidden bg-[#800020] text-white p-4 flex justify-between items-center sticky top-0 z-[60] shadow-md">
         <img src={LOGO_URL} alt="Hakimi Plus" className="h-8 bg-white p-1 rounded" onError={(e) => { e.target.onerror = null; e.target.outerHTML = '<span class="font-black text-xl italic uppercase">HAKIMI PLUS</span>'; }} />
         <div className="flex items-center gap-4">
@@ -311,10 +286,8 @@ export default function App() {
         </div>
       </div>
 
-      {/* OVERLAY MOBILE POUR FERMER LE MENU */}
       {menuOpen && <div className="fixed inset-0 bg-black/60 z-[65] md:hidden" onClick={() => setMenuOpen(false)}></div>}
 
-      {/* MENU LATÉRAL */}
       <nav className={`fixed inset-y-0 left-0 z-[70] w-72 bg-[#800020] text-white p-6 shadow-2xl flex flex-col justify-between overflow-y-auto transition-transform transform ${menuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`}>
         <div>
           <div className="mb-6 hidden md:flex flex-col items-center border-b border-white/10 pb-6 relative">
@@ -369,7 +342,6 @@ export default function App() {
         </div>
       </nav>
 
-      {/* PANNEAU NOTIFICATIONS OVERLAY */}
       {notifOpen && (
         <>
           <div className="fixed inset-0 z-[75] md:hidden" onClick={() => setNotifOpen(false)}></div>
@@ -396,7 +368,6 @@ export default function App() {
         </>
       )}
 
-      {/* ZONE CENTRALE */}
       <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto relative">
         {isLocked && view !== 'cloture' && (
            <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
@@ -447,7 +418,6 @@ const AdminUtilisateurs = ({ currentUser, onUpdateSession }) => {
     const { data } = await supabase.from('utilisateurs').select('*').order('identifiant'); 
     setUsers(data || []); 
   };
-  
   useEffect(() => { load(); }, []);
 
   const save = async (e) => {
@@ -587,7 +557,7 @@ const ModuleMessagerie = ({ user, onMessagesRead }) => {
 };
 
 // ==========================================
-// MODULE VENTE
+// MODULE VENTE (MÉTHODE DDMMYY + STOCK CHECK)
 // ==========================================
 const ModuleVente = ({ mode, params, categoriesDb }) => {
   const [panier, setPanier] = useState([]);
@@ -612,8 +582,14 @@ const ModuleVente = ({ mode, params, categoriesDb }) => {
       const p = await supabase.from('produits').select('*').order('nom');
       const c = await supabase.from('clients').select('*').order('nom');
       setProduits(p.data || []);
-      if (mode !== 'caisse') { setSelectedClient(""); setClients(c.data.filter(i => i.nom !== 'Vente à un utilisateur')); }
-      else { setSelectedClient("Vente à un utilisateur"); setClients(c.data); }
+      if (mode !== 'caisse') { 
+        setSelectedClient(""); 
+        setClients(c.data.filter(i => i.nom !== 'Vente à consommateur' && i.nom !== 'Vente à un utilisateur')); 
+      }
+      else { 
+        setSelectedClient("Vente à consommateur"); 
+        setClients(c.data); 
+      }
     };
     load(); 
     setPanier([]); 
@@ -640,9 +616,23 @@ const ModuleVente = ({ mode, params, categoriesDb }) => {
 
   const ajouter = (p) => {
     if (venteReussie) return;
+    
+    // VÉRIFICATION DU STOCK
+    if (safeNum(p.stock_actuel) <= 0) {
+       alert("⚠️ Stock épuisé pour ce produit !");
+       return;
+    }
+
     const ex = panier.find(i => i.id === p.id);
-    if (ex) setPanier(panier.map(i => i.id === p.id ? { ...i, qte: safeNum(i.qte) + 1 } : i));
-    else setPanier([...panier, { ...p, qte: 1, remise_montant: "" }]); 
+    if (ex) {
+       if (safeNum(ex.qte) >= safeNum(p.stock_actuel)) {
+           alert("⚠️ Vous avez atteint le stock maximum disponible !");
+           return;
+       }
+       setPanier(panier.map(i => i.id === p.id ? { ...i, qte: safeNum(i.qte) + 1 } : i));
+    } else {
+       setPanier([...panier, { ...p, qte: 1, remise_montant: "" }]); 
+    }
   };
 
   const updateRemiseArticle = (id, val) => {
@@ -747,7 +737,7 @@ const ModuleVente = ({ mode, params, categoriesDb }) => {
                    <p className="font-bold text-gray-800 text-[11px] uppercase truncate group-hover:text-[#800020]">{p.nom}</p>
                    <p className="text-[8px] text-gray-400 font-bold uppercase">{p.categorie || 'Divers'}</p>
                 </div>
-                <span className="bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded text-[9px] font-black shrink-0">STK: {p.stock_actuel}</span>
+                <span className={`px-1.5 py-0.5 rounded text-[9px] font-black shrink-0 ${safeNum(p.stock_actuel) <= 0 ? 'bg-red-600 text-white animate-pulse' : 'bg-gray-100 text-gray-500'}`}>STK: {p.stock_actuel}</span>
               </div>
               <p className="text-red-600 font-black text-sm">{formatAr(p.prix_vente)} Ar</p>
             </button>
@@ -768,10 +758,16 @@ const ModuleVente = ({ mode, params, categoriesDb }) => {
              )}
           </div>
           
-          <select className={`w-full p-3 rounded-xl font-bold border outline-none shrink-0 ${mode==='devis' ? 'bg-gray-50 text-gray-800 border-gray-200' : 'bg-white/10 text-white border-white/20'}`} value={selectedClient} onChange={e => setSelectedClient(e.target.value)} disabled={venteReussie}>
-            {mode !== 'caisse' && <option value="" className="text-black">⚠️ SÉLECTIONNER CLIENT</option>}
-            {clients.map(c => <option key={c.nom} value={c.nom} className="text-black">{c.nom}</option>)}
-          </select>
+          {mode === 'caisse' ? (
+            <div className="w-full p-3 rounded-xl font-bold border border-white/20 bg-white/10 text-white shrink-0 cursor-not-allowed opacity-90 text-center uppercase tracking-widest">
+               Vente à consommateur
+            </div>
+          ) : (
+            <select className={`w-full p-3 rounded-xl font-bold border outline-none shrink-0 ${mode==='devis' ? 'bg-gray-50 text-gray-800 border-gray-200' : 'bg-white/10 text-white border-white/20'}`} value={selectedClient} onChange={e => setSelectedClient(e.target.value)} disabled={venteReussie}>
+              <option value="" className="text-black">⚠️ SÉLECTIONNER CLIENT</option>
+              {clients.map(c => <option key={c.nom} value={c.nom} className="text-black">{c.nom}</option>)}
+            </select>
+          )}
           
           {mode === 'admin_credit' && (
             <input type="date" className="w-full bg-white/10 p-3 rounded-xl font-bold border border-white/20 outline-none text-white shrink-0 mt-1" onChange={e => setEcheance(e.target.value)} disabled={venteReussie} />
@@ -789,7 +785,14 @@ const ModuleVente = ({ mode, params, categoriesDb }) => {
                     <div className="flex items-center gap-2">
                       <button onClick={() => setPanier(panier.map(x => x.id === item.id ? {...x, qte: Math.max(1, safeNum(x.qte)-1)} : x))} className="w-6 h-6 rounded bg-white/20 font-black">-</button>
                       <span className="font-black text-sm w-4 text-center">{safeNum(item.qte)}</span>
-                      <button onClick={() => setPanier(panier.map(x => x.id === item.id ? {...x, qte: safeNum(x.qte)+1} : x))} className="w-6 h-6 rounded bg-white/20 font-black">+</button>
+                      <button onClick={() => {
+                          const pStock = produits.find(p => p.id === item.id)?.stock_actuel || 0;
+                          if (safeNum(item.qte) < safeNum(pStock)) {
+                              setPanier(panier.map(x => x.id === item.id ? {...x, qte: safeNum(x.qte)+1} : x));
+                          } else {
+                              alert("⚠️ Vous avez atteint le stock maximum disponible !");
+                          }
+                      }} className="w-6 h-6 rounded bg-white/20 font-black">+</button>
                     </div>
                   ) : (<span className="font-black opacity-60">Qté: {safeNum(item.qte)}</span>)}
                   <span className="font-black">{formatAr((safeNum(item.prix_vente) - safeNum(item.remise_montant)) * safeNum(item.qte))}</span>
@@ -876,7 +879,7 @@ const ModuleVente = ({ mode, params, categoriesDb }) => {
               <button onClick={() => lancerImpression(mode, venteReussie, params)} className="flex-1 p-3 rounded-xl font-black uppercase bg-green-600 text-white shadow-lg hover:bg-green-700">
                 🖨️ {mode==='caisse'?'Ticket':(mode==='devis'?'Devis':'Facture')}
               </button>
-              <button onClick={() => {setPanier([]); setVenteReussie(null); setRemiseGlobale(""); setSelectedClient(mode==='caisse' ? "Vente à un utilisateur" : ""); setMethodePaiement("CASH"); setBanqueCheque(""); setNumeroCheque(""); setIsLivraison(false); setFraisLivraison(1000);}} className="flex-1 p-3 rounded-xl font-bold uppercase border border-white/50 text-white hover:bg-white/10">
+              <button onClick={() => {setPanier([]); setVenteReussie(null); setRemiseGlobale(""); setSelectedClient(mode==='caisse' ? "Vente à consommateur" : ""); setMethodePaiement("CASH"); setBanqueCheque(""); setNumeroCheque(""); setIsLivraison(false); setFraisLivraison(1000);}} className="flex-1 p-3 rounded-xl font-bold uppercase border border-white/50 text-white hover:bg-white/10">
                 Nouveau
               </button>
             </div>
@@ -1725,18 +1728,72 @@ const ModuleHistorique = ({ params }) => {
   );
 };
 
-// ==========================================
-// CLIENTS (SÉPARATION NIF/STAT)
-// ==========================================
+const AdminParametres = ({ params, setParams }) => {
+  const [form, setForm] = useState(params);
+  
+  const save = async (e) => { 
+    e.preventDefault(); 
+    const { data } = await supabase.from('parametres').update(form).eq('id', 1).select(); 
+    if (data) { 
+      setParams(data[0]); 
+      alert("Paramètres du ticket mis à jour avec succès !"); 
+    } 
+  };
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-6">
+      <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Paramètres Ticket & ERP</h2>
+      <form onSubmit={save} className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-gray-100 space-y-4">
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+           <div>
+             <label className="text-xs font-bold text-gray-500 uppercase">Nom de l'entreprise</label>
+             <input className="w-full p-3 bg-gray-50 border rounded-xl font-black text-lg outline-none" value={form.nom_entreprise||''} onChange={e=>setForm({...form, nom_entreprise: e.target.value})} required />
+           </div>
+           <div>
+             <label className="text-xs font-bold text-gray-500 uppercase">Contact (Tél)</label>
+             <input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.contact||''} onChange={e=>setForm({...form, contact: e.target.value})} />
+           </div>
+        </div>
+        
+        <div>
+          <label className="text-xs font-bold text-gray-500 uppercase">Adresse</label>
+          <input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.adresse||''} onChange={e=>setForm({...form, adresse: e.target.value})} required />
+        </div>
+        
+        <div>
+          <label className="text-xs font-bold text-gray-500 uppercase">NIF / STAT (Ex: NIF: 123 | STAT: 456)</label>
+          <input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.nif_stat||''} onChange={e=>setForm({...form, nif_stat: e.target.value})} />
+        </div>
+
+        <div className="border-t border-gray-200 pt-4 mt-4">
+           <h3 className="font-black text-[#800020] mb-3 uppercase text-sm">Personnalisation du Ticket 58mm</h3>
+           <div className="space-y-4">
+             <div>
+               <label className="text-xs font-bold text-gray-500 uppercase">Message d'en-tête (Sous l'adresse)</label>
+               <textarea className="w-full p-3 bg-gray-50 border rounded-xl outline-none text-sm" rows="2" placeholder="Ex: Ouvert 7j/7 de 8h à 18h" value={form.message_entete||''} onChange={e=>setForm({...form, message_entete: e.target.value})} />
+               <p className="text-[9px] text-gray-400 mt-1">S'affiche en haut du ticket. Vous pouvez appuyer sur 'Entrée' pour sauter des lignes.</p>
+             </div>
+             
+             <div>
+               <label className="text-xs font-bold text-gray-500 uppercase">Message de fin de ticket (Pied de page)</label>
+               <textarea className="w-full p-3 bg-gray-50 border rounded-xl outline-none text-sm italic" rows="3" placeholder="Ex: Merci de votre visite ! Les articles ne sont ni repris ni échangés." value={form.message_ticket||''} onChange={e=>setForm({...form, message_ticket: e.target.value})} />
+               <p className="text-[9px] text-gray-400 mt-1">S'affiche tout en bas du ticket. Vous pouvez appuyer sur 'Entrée' pour sauter des lignes.</p>
+             </div>
+           </div>
+        </div>
+
+        <button type="submit" className="w-full bg-[#800020] text-white p-4 rounded-xl font-black uppercase shadow-md mt-4 hover:bg-[#5a0016] transition">Enregistrer les modifications</button>
+      </form>
+    </div>
+  );
+};
+
 const ModuleClients = () => {
   const [list, setList] = useState([]);
   const [form, setForm] = useState({ nom: '', tel: '', wa: '', adresse: '', nif: '', stat: '' });
   
-  const load = async () => { 
-    const { data } = await supabase.from('clients').select('*').order('nom'); 
-    setList(data || []); 
-  };
-  
+  const load = async () => { const { data } = await supabase.from('clients').select('*').order('nom'); setList(data || []); };
   useEffect(() => { load(); }, []);
 
   const save = async (e) => { 
@@ -1778,9 +1835,6 @@ const ModuleClients = () => {
   ); 
 };
 
-// ==========================================
-// FOURNISSEURS, CREDITS, DEPENSES ET LOGIN
-// ==========================================
 const AdminFournisseurs = () => {
   const [list, setList] = useState([]);
   const [form, setForm] = useState({ nom: '', tel: '', wa: '' });
