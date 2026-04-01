@@ -6,7 +6,7 @@ const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || 'https://wblginsktosyp
 const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndibGdpbnNrdG9zeXBibWhtZ2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjU3NTYsImV4cCI6MjA4OTk0MTc1Nn0.pmysPmutGjW2Tw7jFvrBE_0ue2pZmS32Pjncu1Rmr8w';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const LOGO_URL = "https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg"; // <-- N'oublie pas ton lien ImgBB ici
+const LOGO_URL = "https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg"; // 
 
 const CATEGORIES_PRODUITS = ["Huile", "Épicerie Indienne", "Produits surgelés", "Boissons & Eaux", "Papeterie", "Produits ménagers", "Informatique", "Épicerie pratique", "Cosmétique", "Quincaillerie", "Divers"];
 
@@ -33,9 +33,11 @@ const formatHeureMessage = (dateStr) => {
   return isNaN(d.getTime()) ? '-' : `le ${d.toLocaleDateString('fr-FR')} à ${d.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}`; 
 };
 
-// --- 🖨️ MOTEUR D'IMPRESSION PARTAGÉ (CORRIGÉ 58MM + ENTÊTE/PIED DE PAGE) ---
+// --- 🖨️ MOTEUR D'IMPRESSION PARTAGÉ (CORRIGÉ 58MM + CRÉDIT + HISTORIQUE) ---
 const lancerImpression = (type, data, params) => {
-  const win = window.open('', '', type === 'caisse' ? 'width=350,height=600' : 'width=800,height=900');
+  const isTicket = data.printSize === '58mm' || data.printSize === '80mm';
+  const win = window.open('', '', isTicket ? 'width=350,height=600' : 'width=800,height=900');
+  
   if (!win) { 
     alert("⚠️ Votre navigateur a bloqué l'impression. Veuillez autoriser les Pop-ups."); 
     return; 
@@ -53,16 +55,21 @@ const lancerImpression = (type, data, params) => {
     return { prixU, remiseU, qte, totalLigne };
   };
 
-  if (type === 'caisse') {
+  if (isTicket) {
+    let titreType = '';
+    if (type === 'admin_credit') titreType = 'FACTURE À CRÉDIT';
+    if (type === 'devis') titreType = 'DEVIS ESTIMATIF';
+    if (type === 'facture_a4') titreType = 'FACTURE';
+
     win.document.write(`
       <html><head>
-        <title>Ticket de Caisse</title>
+        <title>Ticket</title>
         <style>
           @media print { @page { margin: 0; } body { margin: 0; } } 
-          body { font-family: monospace; width: ${data.printSize || '58mm'}; padding: 10px; font-size: 12px; margin: 0 auto; text-align: center; }
+          body { font-family: monospace; width: ${data.printSize}; padding: 10px; font-size: 12px; margin: 0 auto; text-align: center; }
           .item-block { text-align: left; margin-bottom: 8px; border-bottom: 1px dotted #ccc; padding-bottom: 4px; }
-          .item-line1 { font-weight: bold; font-size: 13px; }
-          .item-line2 { display: flex; justify-content: space-between; margin-top: 3px; font-size: 12px; }
+          .item-line1 { font-weight: bold; font-size: 12px; }
+          .item-line2 { display: flex; justify-content: space-between; margin-top: 3px; font-size: 11px; }
           .item-line3 { font-size: 10px; color: #555; margin-top: 2px; }
         </style>
       </head>
@@ -70,34 +77,43 @@ const lancerImpression = (type, data, params) => {
         <img src="${LOGO_URL}" style="max-width:80%; height:auto; margin-bottom:5px;" onerror="this.style.display='none'"/>
         <h2 style="margin:0;">${params.nom_entreprise || 'HAKIMI PLUS'}</h2>
         <p style="margin:0; font-size:10px;">${params.adresse || ''}<br/>${params.contact || ''}</p>
-        ${params.message_entete ? `<p style="margin:3px 0; font-size:10px;">${params.message_entete.replace(/\n/g, '<br/>')}</p>` : ''}
+        ${params.message_entete ? `<p style="margin:3px 0; font-size:10px;">${String(params.message_entete).replace(/\n/g, '<br/>')}</p>` : ''}
         <p style="margin:5px 0; font-size:10px;">${dateDoc}</p>
+        
+        ${titreType ? `
+          <div style="border: 2px solid #000; padding: 4px; margin: 5px 0;">
+            <h3 style="margin:0; font-size:12px; text-transform:uppercase;">${titreType}</h3>
+            ${data.client_nom && data.client_nom !== 'Vente à consommateur' ? `<p style="margin:2px 0 0 0; font-size:10px; font-weight:bold;">Client: ${data.client_nom}</p>` : ''}
+            ${data.echeance ? `<p style="margin:2px 0 0 0; font-size:10px; color:red;">Échéance : ${formatDate(data.echeance)}</p>` : ''}
+          </div>
+        ` : ''}
+
         ${data.numero ? `<p style="margin:0; font-weight:bold; font-size:11px; border:1px solid #000; padding:2px; display:inline-block;">${data.numero}</p>` : ''}
-        ${data.methode ? `<p style="margin:2px 0; font-weight:bold; font-size:10px;">Payé par : ${data.methode}${data.banque ? ` (${data.banque})` : ''}</p>` : ''}
+        ${data.methode && type !== 'admin_credit' && type !== 'devis' ? `<p style="margin:2px 0; font-weight:bold; font-size:10px;">Payé par : ${data.methode}${data.banque ? ` (${data.banque})` : ''}</p>` : ''}
         <hr style="border-top:1px dashed #000;"/>
         
         <div style="width:100%;">
-          ${panierList.map(i => {
+          ${panierList.length > 0 ? panierList.map(i => {
             const { prixU, remiseU, qte, totalLigne } = getLineData(i);
             return `
             <div class="item-block">
               <div class="item-line1">${qte}x ${i.nom}</div>
               <div class="item-line2">
-                <span>${formatAr(prixU - remiseU)}</span>
-                <span style="font-weight:bold;">${formatAr(totalLigne)}</span>
+                <span>${formatAr(prixU - remiseU)} Ar/u</span>
+                <span style="font-weight:bold;">${formatAr(totalLigne)} Ar</span>
               </div>
               <div class="item-line3">[${i.categorie || 'Divers'}]</div>
             </div>
             `;
-          }).join('')}
+          }).join('') : `<p style="font-size:10px; text-align:left;">Ancien format : ${data.articles_liste || data.details_articles || 'Détails non disponibles'}</p>`}
         </div>
         
         <hr style="border-top:1px dashed #000;"/>
-        <div style="text-align:right; font-size:12px; margin:3px 0;">Total Articles: ${formatAr(data.totalNet)}</div>
-        ${fraisLivraison > 0 ? `<div style="text-align:right; font-size:12px; margin:3px 0;">Livraison: ${formatAr(fraisLivraison)}</div>` : ''}
-        <h3 style="text-align:right; margin:5px 0;">À PAYER: ${formatAr(safeNum(data.totalNet) + fraisLivraison)} Ar</h3>
+        <div style="text-align:right; font-size:12px; margin:3px 0;">Total Articles: ${formatAr(data.totalNet)} Ar</div>
+        ${fraisLivraison > 0 ? `<div style="text-align:right; font-size:12px; margin:3px 0;">Livraison: ${formatAr(fraisLivraison)} Ar</div>` : ''}
+        <h3 style="text-align:right; margin:5px 0;">${type === 'devis' ? 'TOTAL ESTIMÉ' : 'À PAYER'}: ${formatAr(safeNum(data.totalNet) + fraisLivraison)} Ar</h3>
         ${data.totalRemisesEnAr > 0 ? `<p style="text-align:right; font-size:10px; margin:0;">(Dont remise : ${formatAr(data.totalRemisesEnAr)} Ar)</p>` : ''}
-        <p style="margin-top:10px; font-size:11px;">${(params.message_ticket || 'Merci de votre visite !').replace(/\n/g, '<br/>')}</p>
+        <p style="margin-top:10px; font-size:11px;">${(params.message_ticket ? String(params.message_ticket) : 'Merci de votre visite !').replace(/\n/g, '<br/>')}</p>
         <p style="color:#fff;">.</p>
       </body></html>
     `);
@@ -117,7 +133,7 @@ const lancerImpression = (type, data, params) => {
           th { background-color: #800020; color: white; } 
           .header-flex { display: flex; justify-content: space-between; border-bottom: 2px solid #800020; padding-bottom: 15px; margin-bottom: 15px; } 
           .client-box { background-color: #f9f9f9; border-left: 4px solid #800020; padding: 15px; width: 50%; margin-bottom: 20px; } 
-          .total-line { font-size: 20px; font-weight: bold; color: #800020; text-align: right; margin-top: 20px; }
+          .total-line { font-size: 20px; font-weight: bold; color: #800020; text-align: right; margin-top: 10px; }
         </style>
       </head>
       <body>
@@ -131,7 +147,7 @@ const lancerImpression = (type, data, params) => {
             <h2 style="margin:0; color:#800020; font-size: 22px;">${titre}</h2>
             ${data.numero ? `<h3 style="margin:5px 0;">N° ${data.numero}</h3>` : ''}
             <p style="margin:5px 0 0 0;">Date : ${dateDoc}</p>
-            ${data.methode ? `<p style="margin:5px 0 0 0; font-weight:bold; font-size:11px;">Payé par : ${data.methode}${data.banque ? ` (${data.banque})` : ''}</p>` : ''}
+            ${data.methode && type !== 'admin_credit' ? `<p style="margin:5px 0 0 0; font-weight:bold; font-size:11px;">Payé par : ${data.methode}${data.banque ? ` (${data.banque})` : ''}</p>` : ''}
           </div>
         </div>
         <div class="client-box">
@@ -144,7 +160,7 @@ const lancerImpression = (type, data, params) => {
         <table>
           <thead><tr><th>Désignation</th><th>Qté</th><th>Prix U.</th><th style="text-align:right;">Total</th></tr></thead>
           <tbody>
-            ${panierList.map(i => {
+            ${panierList.length > 0 ? panierList.map(i => {
               const { prixU, remiseU, qte, totalLigne } = getLineData(i);
               return `
               <tr>
@@ -153,7 +169,7 @@ const lancerImpression = (type, data, params) => {
                 <td>${formatAr(prixU - remiseU)}</td>
                 <td style="text-align:right;">${formatAr(totalLigne)} Ar</td>
               </tr>
-            `}).join('')}
+            `}).join('') : `<tr><td colspan="4">${data.articles_liste || data.details_articles || 'Détails non disponibles'}</td></tr>`}
           </tbody>
         </table>
         
@@ -171,6 +187,9 @@ const lancerImpression = (type, data, params) => {
   win.document.close(); setTimeout(() => { win.print(); }, 800);
 };
 
+// ==========================================
+// APP PRINCIPALE
+// ==========================================
 export default function App() {
   const [user, setUser] = useState(() => { 
     const savedUser = localStorage.getItem('hakimi_user'); 
@@ -216,11 +235,9 @@ export default function App() {
       if(user.role === 'vendeur' && !isLocked && view === 'dashboard') setView('caisse'); 
       
       const checkTasks = async () => {
-        // Messagerie
         const { count } = await supabase.from('messagerie').select('*', { count: 'exact', head: true }).eq('destinataire', user.identifiant).eq('est_lu', false);
         setMsgNonLus(count || 0);
 
-        // Alertes Stock
         const { data: prods } = await supabase.from('produits').select('nom, stock_actuel, date_peremption');
         if (prods) {
           let alertes = []; const now = new Date();
@@ -235,7 +252,6 @@ export default function App() {
           setAlertesStockDLC(alertes);
         }
 
-        // Clôture Check
         const now2 = new Date(); const h = now2.getHours();
         const isLockTime = (h >= 18 || h < 7);
         if (isLockTime) {
@@ -244,15 +260,8 @@ export default function App() {
            lockWindowStart.setHours(18, 0, 0, 0);
            
            const { data: latestCloture } = await supabase.from('cloture_caisse').select('date_cloture').gte('date_cloture', lockWindowStart.toISOString()).limit(1);
-           if (latestCloture && latestCloture.length > 0) { 
-               setIsLocked(false); 
-           } else { 
-               setIsLocked(true); 
-               setView('cloture'); 
-           }
-        } else { 
-           setIsLocked(false); 
-        }
+           if (latestCloture && latestCloture.length > 0) { setIsLocked(false); } else { setIsLocked(true); setView('cloture'); }
+        } else { setIsLocked(false); }
       };
       
       checkTasks(); 
@@ -357,7 +366,7 @@ export default function App() {
                 <NavBtn active={view==='admin_fournisseurs'} onClick={()=>changeView('admin_fournisseurs')} disabled={isLocked}>🚚 Fournisseurs</NavBtn>
                 <NavBtn active={view==='suivi_credits'} onClick={()=>changeView('suivi_credits')} disabled={isLocked}>📉 Suivi Dettes</NavBtn>
                 <NavBtn active={view==='admin_utilisateurs'} onClick={()=>changeView('admin_utilisateurs')} disabled={isLocked}>🔐 Comptes & Accès</NavBtn>
-                <NavBtn active={view==='parametres'} onClick={()=>changeView('parametres')} disabled={isLocked}>⚙️ Paramètres ERP</NavBtn>
+                <NavBtn active={view==='parametres'} onClick={()=>changeView('parametres')} disabled={isLocked}>⚙️ Paramètres Ticket & ERP</NavBtn>
               </div>
             )}
           </div>
@@ -416,7 +425,7 @@ export default function App() {
         {view==='journal_clotures' && <ModuleJournalClotures />}
         {view==='clients' && <ModuleClients />}
         {view==='depenses' && <ModuleDepenses />}
-        {view==='suivi_credits' && <SuiviCredits />}
+        {view==='suivi_credits' && <SuiviCredits params={parametres} />}
         {view==='messagerie' && <ModuleMessagerie user={user} onMessagesRead={() => setMsgNonLus(0)} />}
         {view==='parametres' && <AdminParametres params={parametres} setParams={setParametres} />}
         {view==='admin_utilisateurs' && <AdminUtilisateurs currentUser={user} onUpdateSession={handleLogin} />}
@@ -436,71 +445,7 @@ const NavBtn = ({ active, onClick, disabled, children }) => (
 );
 
 // ==========================================
-// ADMIN PARAMETRES (TICKET & ERP)
-// ==========================================
-const AdminParametres = ({ params, setParams }) => {
-  const [form, setForm] = useState(params);
-  
-  const save = async (e) => { 
-    e.preventDefault(); 
-    const { data } = await supabase.from('parametres').update(form).eq('id', 1).select(); 
-    if (data) { 
-      setParams(data[0]); 
-      alert("Paramètres du ticket mis à jour avec succès !"); 
-    } 
-  };
-
-  return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Paramètres Ticket & ERP</h2>
-      <form onSubmit={save} className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-gray-100 space-y-4">
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-           <div>
-             <label className="text-xs font-bold text-gray-500 uppercase">Nom de l'entreprise</label>
-             <input className="w-full p-3 bg-gray-50 border rounded-xl font-black text-lg outline-none" value={form.nom_entreprise||''} onChange={e=>setForm({...form, nom_entreprise: e.target.value})} required />
-           </div>
-           <div>
-             <label className="text-xs font-bold text-gray-500 uppercase">Contact (Tél)</label>
-             <input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.contact||''} onChange={e=>setForm({...form, contact: e.target.value})} />
-           </div>
-        </div>
-        
-        <div>
-          <label className="text-xs font-bold text-gray-500 uppercase">Adresse</label>
-          <input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.adresse||''} onChange={e=>setForm({...form, adresse: e.target.value})} required />
-        </div>
-        
-        <div>
-          <label className="text-xs font-bold text-gray-500 uppercase">NIF / STAT (Ex: NIF: 123 | STAT: 456)</label>
-          <input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.nif_stat||''} onChange={e=>setForm({...form, nif_stat: e.target.value})} />
-        </div>
-
-        <div className="border-t border-gray-200 pt-4 mt-4">
-           <h3 className="font-black text-[#800020] mb-3 uppercase text-sm">Personnalisation du Ticket 58mm</h3>
-           <div className="space-y-4">
-             <div>
-               <label className="text-xs font-bold text-gray-500 uppercase">Message d'en-tête (Sous l'adresse)</label>
-               <textarea className="w-full p-3 bg-gray-50 border rounded-xl outline-none text-sm" rows="2" placeholder="Ex: Ouvert 7j/7 de 8h à 18h" value={form.message_entete||''} onChange={e=>setForm({...form, message_entete: e.target.value})} />
-               <p className="text-[9px] text-gray-400 mt-1">S'affiche en haut du ticket. Vous pouvez appuyer sur 'Entrée' pour sauter des lignes.</p>
-             </div>
-             
-             <div>
-               <label className="text-xs font-bold text-gray-500 uppercase">Message de fin de ticket (Pied de page)</label>
-               <textarea className="w-full p-3 bg-gray-50 border rounded-xl outline-none text-sm italic" rows="3" placeholder="Ex: Merci de votre visite ! Les articles ne sont ni repris ni échangés." value={form.message_ticket||''} onChange={e=>setForm({...form, message_ticket: e.target.value})} />
-               <p className="text-[9px] text-gray-400 mt-1">S'affiche tout en bas du ticket. Vous pouvez appuyer sur 'Entrée' pour sauter des lignes.</p>
-             </div>
-           </div>
-        </div>
-
-        <button type="submit" className="w-full bg-[#800020] text-white p-4 rounded-xl font-black uppercase shadow-md mt-4 hover:bg-[#5a0016] transition">Enregistrer les modifications</button>
-      </form>
-    </div>
-  );
-};
-
-// ==========================================
-// ADMIN UTILISATEURS (COMPTES ET ACCÈS)
+// ADMIN UTILISATEURS
 // ==========================================
 const AdminUtilisateurs = ({ currentUser, onUpdateSession }) => {
   const [users, setUsers] = useState([]);
@@ -588,7 +533,6 @@ const ModuleMessagerie = ({ user, onMessagesRead }) => {
   const [form, setForm] = useState({ dest: '', obj: '', msg: '' });
 
   const load = async () => {
-    // Empêcher l'envoi à soi-même
     const { data: usersData } = await supabase.from('utilisateurs').select('identifiant').neq('identifiant', user.identifiant);
     setDestinataires(usersData || []);
     if(usersData && usersData.length > 0) setForm(prev => ({...prev, dest: usersData[0].identifiant}));
@@ -596,7 +540,6 @@ const ModuleMessagerie = ({ user, onMessagesRead }) => {
     const { data } = await supabase.from('messagerie').select('*').or(`destinataire.eq.${user.identifiant},expediteur.eq.${user.identifiant}`).order('date_envoi', { ascending: false });
     setMessages(data || []);
     
-    // Marquer lu et clear cloche
     await supabase.from('messagerie').update({ est_lu: true }).eq('destinataire', user.identifiant).eq('est_lu', false);
     if(onMessagesRead) onMessagesRead();
   };
@@ -650,7 +593,6 @@ const ModuleMessagerie = ({ user, onMessagesRead }) => {
   );
 };
 
-
 // ==========================================
 // MODULE VENTE
 // ==========================================
@@ -662,7 +604,7 @@ const ModuleVente = ({ mode, params, categoriesDb }) => {
   const [selectedCat, setSelectedCat] = useState("");
   const [selectedClient, setSelectedClient] = useState("");
   const [echeance, setEcheance] = useState("");
-  const [printSize, setPrintSize] = useState('58mm');
+  const [printSize, setPrintSize] = useState(mode === 'admin_credit' || mode === 'devis' ? 'A4' : '58mm');
   const [remiseGlobale, setRemiseGlobale] = useState(""); 
   const [methodePaiement, setMethodePaiement] = useState("CASH"); 
   const [banqueCheque, setBanqueCheque] = useState("");
@@ -677,8 +619,14 @@ const ModuleVente = ({ mode, params, categoriesDb }) => {
       const p = await supabase.from('produits').select('*').order('nom');
       const c = await supabase.from('clients').select('*').order('nom');
       setProduits(p.data || []);
-      if (mode !== 'caisse') { setSelectedClient(""); setClients(c.data.filter(i => i.nom !== 'Vente à un utilisateur')); }
-      else { setSelectedClient("Vente à un utilisateur"); setClients(c.data); }
+      if (mode !== 'caisse') { 
+        setSelectedClient(""); 
+        setClients(c.data.filter(i => i.nom !== 'Vente à consommateur' && i.nom !== 'Vente à un utilisateur')); 
+      }
+      else { 
+        setSelectedClient("Vente à consommateur"); 
+        setClients(c.data); 
+      }
     };
     load(); 
     setPanier([]); 
@@ -690,6 +638,11 @@ const ModuleVente = ({ mode, params, categoriesDb }) => {
     setNumeroCheque("");
     setIsLivraison(false); 
     setFraisLivraison(1000);
+    
+    // Auto-selection du format d'impression selon le mode
+    if (mode === 'admin_credit' || mode === 'facture_a4' || mode === 'devis') setPrintSize('A4');
+    else setPrintSize('58mm');
+
   }, [mode]);
 
   const totalBrut = panier.reduce((acc, i) => acc + (safeNum(i.prix_vente) * safeNum(i.qte)), 0);
@@ -705,9 +658,22 @@ const ModuleVente = ({ mode, params, categoriesDb }) => {
 
   const ajouter = (p) => {
     if (venteReussie) return;
+    
+    if (safeNum(p.stock_actuel) <= 0) {
+       alert("⚠️ Stock épuisé pour ce produit !");
+       return;
+    }
+
     const ex = panier.find(i => i.id === p.id);
-    if (ex) setPanier(panier.map(i => i.id === p.id ? { ...i, qte: safeNum(i.qte) + 1 } : i));
-    else setPanier([...panier, { ...p, qte: 1, remise_montant: "" }]); 
+    if (ex) {
+       if (safeNum(ex.qte) >= safeNum(p.stock_actuel)) {
+           alert("⚠️ Vous avez atteint le stock maximum disponible !");
+           return;
+       }
+       setPanier(panier.map(i => i.id === p.id ? { ...i, qte: safeNum(i.qte) + 1 } : i));
+    } else {
+       setPanier([...panier, { ...p, qte: 1, remise_montant: "" }]); 
+    }
   };
 
   const updateRemiseArticle = (id, val) => {
@@ -778,7 +744,7 @@ const ModuleVente = ({ mode, params, categoriesDb }) => {
       }]);
 
       if (mode === 'admin_credit') {
-        await supabase.from('credits').insert([{ nom_client: selectedClient, montant_du: totalNet, details_articles: strArticles, date_echeance: echeance }]);
+        await supabase.from('credits').insert([{ nom_client: selectedClient, montant_du: totalNet, details_articles: strArticles, date_echeance: echeance, numero_facture: numero_genere, details_json: detailsObj }]);
       }
     }
     
@@ -812,7 +778,7 @@ const ModuleVente = ({ mode, params, categoriesDb }) => {
                    <p className="font-bold text-gray-800 text-[11px] uppercase truncate group-hover:text-[#800020]">{p.nom}</p>
                    <p className="text-[8px] text-gray-400 font-bold uppercase">{p.categorie || 'Divers'}</p>
                 </div>
-                <span className="bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded text-[9px] font-black shrink-0">STK: {p.stock_actuel}</span>
+                <span className={`px-1.5 py-0.5 rounded text-[9px] font-black shrink-0 ${safeNum(p.stock_actuel) <= 0 ? 'bg-red-600 text-white animate-pulse' : 'bg-gray-100 text-gray-500'}`}>STK: {p.stock_actuel}</span>
               </div>
               <p className="text-red-600 font-black text-sm">{formatAr(p.prix_vente)} Ar</p>
             </button>
@@ -825,18 +791,25 @@ const ModuleVente = ({ mode, params, categoriesDb }) => {
         <div className="space-y-4 flex-1 flex flex-col min-h-0">
           <div className="border-b border-white/20 pb-3 flex justify-between items-center shrink-0">
              <h3 className={`font-black italic uppercase tracking-widest ${mode==='devis' ? 'text-[#800020]' : 'text-white'}`}>{mode === 'devis' ? 'CRÉATION DEVIS' : mode.replace('admin_', '').replace('_', ' ')}</h3>
-             {mode === 'caisse' && (
+             {(mode === 'caisse' || mode === 'admin_credit') && (
                <select className="bg-black/20 text-xs p-1.5 rounded outline-none font-bold text-white border border-white/10" value={printSize} onChange={e => setPrintSize(e.target.value)} disabled={venteReussie}>
+                 {mode === 'admin_credit' && <option value="A4" className="text-black">Format A4</option>}
                  <option value="58mm" className="text-black">Ticket 58mm</option>
                  <option value="80mm" className="text-black">Ticket 80mm</option>
                </select>
              )}
           </div>
           
-          <select className={`w-full p-3 rounded-xl font-bold border outline-none shrink-0 ${mode==='devis' ? 'bg-gray-50 text-gray-800 border-gray-200' : 'bg-white/10 text-white border-white/20'}`} value={selectedClient} onChange={e => setSelectedClient(e.target.value)} disabled={venteReussie}>
-            {mode !== 'caisse' && <option value="" className="text-black">⚠️ SÉLECTIONNER CLIENT</option>}
-            {clients.map(c => <option key={c.nom} value={c.nom} className="text-black">{c.nom}</option>)}
-          </select>
+          {mode === 'caisse' ? (
+            <div className="w-full p-3 rounded-xl font-bold border border-white/20 bg-white/10 text-white shrink-0 cursor-not-allowed opacity-90 text-center uppercase tracking-widest">
+               Vente à consommateur
+            </div>
+          ) : (
+            <select className={`w-full p-3 rounded-xl font-bold border outline-none shrink-0 ${mode==='devis' ? 'bg-gray-50 text-gray-800 border-gray-200' : 'bg-white/10 text-white border-white/20'}`} value={selectedClient} onChange={e => setSelectedClient(e.target.value)} disabled={venteReussie}>
+              <option value="" className="text-black">⚠️ SÉLECTIONNER CLIENT</option>
+              {clients.map(c => <option key={c.nom} value={c.nom} className="text-black">{c.nom}</option>)}
+            </select>
+          )}
           
           {mode === 'admin_credit' && (
             <input type="date" className="w-full bg-white/10 p-3 rounded-xl font-bold border border-white/20 outline-none text-white shrink-0 mt-1" onChange={e => setEcheance(e.target.value)} disabled={venteReussie} />
@@ -854,7 +827,14 @@ const ModuleVente = ({ mode, params, categoriesDb }) => {
                     <div className="flex items-center gap-2">
                       <button onClick={() => setPanier(panier.map(x => x.id === item.id ? {...x, qte: Math.max(1, safeNum(x.qte)-1)} : x))} className="w-6 h-6 rounded bg-white/20 font-black">-</button>
                       <span className="font-black text-sm w-4 text-center">{safeNum(item.qte)}</span>
-                      <button onClick={() => setPanier(panier.map(x => x.id === item.id ? {...x, qte: safeNum(x.qte)+1} : x))} className="w-6 h-6 rounded bg-white/20 font-black">+</button>
+                      <button onClick={() => {
+                          const pStock = produits.find(p => p.id === item.id)?.stock_actuel || 0;
+                          if (safeNum(item.qte) < safeNum(pStock)) {
+                              setPanier(panier.map(x => x.id === item.id ? {...x, qte: safeNum(x.qte)+1} : x));
+                          } else {
+                              alert("⚠️ Vous avez atteint le stock maximum disponible !");
+                          }
+                      }} className="w-6 h-6 rounded bg-white/20 font-black">+</button>
                     </div>
                   ) : (<span className="font-black opacity-60">Qté: {safeNum(item.qte)}</span>)}
                   <span className="font-black">{formatAr((safeNum(item.prix_vente) - safeNum(item.remise_montant)) * safeNum(item.qte))}</span>
@@ -939,9 +919,9 @@ const ModuleVente = ({ mode, params, categoriesDb }) => {
           ) : (
             <div className="flex flex-col md:flex-row gap-2">
               <button onClick={() => lancerImpression(mode, venteReussie, params)} className="flex-1 p-3 rounded-xl font-black uppercase bg-green-600 text-white shadow-lg hover:bg-green-700">
-                🖨️ {mode==='caisse'?'Ticket':(mode==='devis'?'Devis':'Facture')}
+                🖨️ {mode==='caisse'?'Ticket':(mode==='devis'?'Devis':(printSize==='A4'?'Facture A4':'Ticket Crédit'))}
               </button>
-              <button onClick={() => {setPanier([]); setVenteReussie(null); setRemiseGlobale(""); setSelectedClient(mode==='caisse' ? "Vente à un utilisateur" : ""); setMethodePaiement("CASH"); setBanqueCheque(""); setNumeroCheque(""); setIsLivraison(false); setFraisLivraison(1000);}} className="flex-1 p-3 rounded-xl font-bold uppercase border border-white/50 text-white hover:bg-white/10">
+              <button onClick={() => {setPanier([]); setVenteReussie(null); setRemiseGlobale(""); setSelectedClient(mode==='caisse' ? "Vente à consommateur" : ""); setMethodePaiement("CASH"); setBanqueCheque(""); setNumeroCheque(""); setIsLivraison(false); setFraisLivraison(1000);}} className="flex-1 p-3 rounded-xl font-bold uppercase border border-white/50 text-white hover:bg-white/10">
                 Nouveau
               </button>
             </div>
@@ -1553,92 +1533,249 @@ const ModuleJournalClotures = () => {
   );
 };
 
-const ModuleClients = () => {
-  const [list, setList] = useState([]);
-  const [form, setForm] = useState({ nom: '', tel: '', wa: '', adresse: '', nif: '', stat: '' });
+const ModuleJournalDevis = ({ params }) => {
+  const [devis, setDevis] = useState([]);
   
-  const load = async () => { const { data } = await supabase.from('clients').select('*').order('nom'); setList(data || []); };
+  const load = async () => { 
+    const { data } = await supabase.from('devis').select('*').order('date_devis', { ascending: false }); 
+    setDevis(data || []); 
+  };
+  
   useEffect(() => { load(); }, []);
 
-  const save = async (e) => { 
-    e.preventDefault(); 
-    await supabase.from('clients').insert([{nom: form.nom, telephone: form.tel, contact_whatsapp: form.wa, adresse: form.adresse, nif: form.nif, stat: form.stat}]); 
-    setForm({ nom: '', tel: '', wa: '', adresse: '', nif: '', stat: '' }); 
+  const transformerFacture = async (d) => {
+    if(!window.confirm(`Transformer le devis ${d.numero_devis || 'Sans N°'} en Facture ? Le stock sera déduit.`)) return;
+    
+    const today = new Date(); 
+    const dd = String(today.getDate()).padStart(2, '0');
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const yy = String(today.getFullYear()).slice(2, 4);
+    const numDateStr = `${dd}${mm}${yy}`; 
+    
+    const startOfToday = new Date(today);
+    startOfToday.setHours(0, 0, 0, 0);
+    const startIso = startOfToday.toISOString();
+
+    const { count } = await supabase.from('historique_ventes').select('*', {count: 'exact', head:true}).gte('date_vente', startIso);
+    const numFacture = `FA${numDateStr}-${String((count || 0) + 1).padStart(3, '0')}`;
+
+    let beneficeTotal = 0;
+    if (d.details_json && Array.isArray(d.details_json.articles)) {
+      for (let art of d.details_json.articles) {
+         await supabase.rpc('decrement_stock_by_name', { p_nom: art.nom, amount: safeNum(art.qte) });
+         const { data: pData } = await supabase.from('produits').select('prix_achat').eq('nom', art.nom).single();
+         const pa = pData ? pData.prix_achat : 0;
+         beneficeTotal += ((safeNum(art.prix_unitaire) - safeNum(art.remise_unitaire_ar) - pa) * safeNum(art.qte));
+      }
+    }
+    const remiseGl = d.details_json ? safeNum(d.details_json.remise_globale_pourcent) : 0;
+    beneficeTotal -= (beneficeTotal * (remiseGl/100));
+
+    await supabase.from('historique_ventes').insert([{ 
+      numero_facture: numFacture, type_vente: 'FACTURE', client_nom: d.client_nom, 
+      articles_liste: d.articles_liste, montant_total: d.montant_total, benefice_total: beneficeTotal, 
+      remise_globale_pourcent: remiseGl, total_remise_ar: d.total_remise_ar, details_json: d.details_json, methode_paiement: 'CASH' 
+    }]);
+    await supabase.from('devis').update({ statut: 'Facturé ✅', numero_facture_liee: numFacture }).eq('id', d.id);
     load(); 
+    alert(`Transformé avec succès ! Numéro de facture : ${numFacture}`);
+  };
+
+  const reImprimer = (d) => {
+    if (d.statut === 'Facturé ✅') {
+       const dataPrint = { numero: d.numero_facture_liee, client_nom: d.client_nom, date: d.date_devis, totalNet: d.montant_total, totalRemisesEnAr: d.total_remise_ar, panier: d.details_json?.articles || [], fraisLivraison: safeNum(d.details_json?.frais_livraison) };
+       lancerImpression('facture_a4', dataPrint, params);
+    } else {
+       const dataPrint = { numero: d.numero_devis, client_nom: d.client_nom, date: d.date_devis, totalNet: d.montant_total, totalRemisesEnAr: d.total_remise_ar, panier: d.details_json?.articles || [], fraisLivraison: safeNum(d.details_json?.frais_livraison) };
+       lancerImpression('devis', dataPrint, params);
+    }
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <form onSubmit={save} className="bg-white p-6 rounded-3xl shadow-sm border-t-4 border-[#800020] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        <input placeholder="Nom / Société" className="p-3 bg-gray-50 border rounded-xl outline-none" value={form.nom} onChange={e=>setForm({...form, nom: e.target.value})} required />
-        <input placeholder="Tél Normal" className="p-3 bg-gray-50 border rounded-xl outline-none" value={form.tel} onChange={e=>setForm({...form, tel: e.target.value})} />
-        <input placeholder="N° WhatsApp" className="p-3 bg-green-50 border border-green-100 rounded-xl outline-none" value={form.wa} onChange={e=>setForm({...form, wa: e.target.value})} />
-        <div className="flex gap-2">
-          <input placeholder="NIF" className="flex-1 p-3 bg-gray-50 border rounded-xl outline-none w-full" value={form.nif} onChange={e=>setForm({...form, nif: e.target.value})} />
-          <input placeholder="STAT" className="flex-1 p-3 bg-gray-50 border rounded-xl outline-none w-full" value={form.stat} onChange={e=>setForm({...form, stat: e.target.value})} />
-        </div>
-        <input placeholder="Adresse" className="p-3 bg-gray-50 border rounded-xl outline-none md:col-span-2" value={form.adresse} onChange={e=>setForm({...form, adresse: e.target.value})} />
-        <button className="bg-[#800020] text-white p-3 rounded-xl font-black uppercase lg:col-span-3">Ajouter Client</button>
-      </form>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {list.map(c => (
-          <div key={c.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-start">
-            <div>
-              <p className="font-black uppercase text-sm text-gray-800">{c.nom}</p>
-              <p className="text-[10px] text-gray-500 mt-1">📞 {c.telephone || '-'}</p>
-              {c.contact_whatsapp && <a href={`https://wa.me/${c.contact_whatsapp.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer" className="text-[10px] text-green-600 font-bold underline">💬 WhatsApp : {c.contact_whatsapp}</a>}
-            </div>
-            <div className="flex flex-col gap-1 items-end">
-              <span className="text-[9px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded">NIF: {c.nif || c.raison_fiscale || '-'}</span>
-              <span className="text-[9px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded">STAT: {c.stat || '-'}</span>
-            </div>
-          </div>
-        ))}
+    <div className="max-w-6xl mx-auto space-y-6">
+      <div className="flex justify-between items-center border-b-2 border-[#800020] pb-2">
+        <h2 className="text-2xl font-black uppercase text-[#800020]">Journal des Devis</h2>
       </div>
-    </div>
-  ); 
-};
-
-const AdminFournisseurs = () => {
-  const [list, setList] = useState([]);
-  const [form, setForm] = useState({ nom: '', tel: '', wa: '' });
-
-  const load = async () => { const { data } = await supabase.from('fournisseurs').select('*').order('nom'); setList(data || []); };
-  useEffect(() => { load(); }, []);
-
-  const save = async (e) => {
-    e.preventDefault();
-    await supabase.from('fournisseurs').insert([{ nom: form.nom, telephone: form.tel, contact_whatsapp: form.wa }]);
-    setForm({ nom: '', tel: '', wa: '' }); load();
-  };
-
-  return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <form onSubmit={save} className="bg-white p-6 rounded-3xl shadow-sm grid grid-cols-1 md:grid-cols-3 gap-3 border-t-4 border-[#800020]">
-        <input placeholder="Société" className="p-3 bg-gray-50 border rounded-xl outline-none" value={form.nom} onChange={e=>setForm({...form, nom: e.target.value})} required />
-        <input placeholder="Tél Fixe" className="p-3 bg-gray-50 border rounded-xl outline-none" value={form.tel} onChange={e=>setForm({...form, tel: e.target.value})} required />
-        <input placeholder="WhatsApp" className="p-3 bg-green-50 border border-green-100 rounded-xl outline-none" value={form.wa} onChange={e=>setForm({...form, wa: e.target.value})} />
-        <button className="bg-[#800020] text-white p-3 rounded-xl font-black uppercase md:col-span-3">Ajouter</button>
-      </form>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {list.map(f => (
-          <div key={f.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-            <p className="font-black text-sm uppercase text-gray-800 mb-2">{f.nom}</p>
-            <div className="flex gap-2">
-              <span className="flex-1 bg-gray-100 text-gray-600 p-2 rounded text-center text-[10px] font-bold">📞 {f.telephone}</span>
-              {f.contact_whatsapp && <a href={`https://wa.me/${f.contact_whatsapp.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer" className="flex-1 bg-green-500 text-white p-2 rounded text-center text-[10px] font-black hover:bg-green-600">💬 WhatsApp</a>}
+      <div className="grid gap-3">
+        {devis.map(d => (
+          <div key={d.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="flex-1 w-full">
+              <div className="flex items-center gap-3 mb-1">
+                <span className="font-black text-[#800020]">{d.numero_devis || 'Sans N°'}</span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${d.statut === 'En attente' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>{d.statut || 'En attente'}</span>
+                <span className="text-[10px] text-gray-400 font-bold">{formatDate(d.date_devis)}</span>
+              </div>
+              <p className="font-black text-sm uppercase">{d.client_nom}</p>
+              <p className="text-[10px] text-gray-500 mt-1 line-clamp-1">🛒 {d.articles_liste}</p>
+            </div>
+            <p className="text-xl font-black text-gray-800 shrink-0">{formatAr(d.montant_total)} Ar</p>
+            <div className="flex gap-2 w-full md:w-auto shrink-0">
+               <button onClick={()=>reImprimer(d)} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg font-bold text-xs shadow-sm transition">🖨️ {d.statut === 'Facturé ✅' ? 'Imprimer Facture' : 'Imprimer Devis'}</button>
+               {d.statut !== 'Facturé ✅' && <button onClick={()=>transformerFacture(d)} className="flex-1 bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg font-black text-xs shadow-sm transition">🔄 Transformer Facture</button>}
             </div>
           </div>
         ))}
+        {devis.length === 0 && <p className="text-center text-gray-400 italic">Aucun devis enregistré.</p>}
       </div>
     </div>
   );
 };
 
-const SuiviCredits = () => {
+const ModuleJournalFactures = ({ params }) => {
+  const [factures, setFactures] = useState([]); 
+  const [dateFiltre, setDateFiltre] = useState("");
+  
+  useEffect(() => { 
+    const load = async () => { 
+      let q = supabase.from('historique_ventes').select('*').in('type_vente', ['FACTURE', 'FACTURE_A4']).order('date_vente', { ascending: false }); 
+      if (dateFiltre) q = q.gte('date_vente', `${dateFiltre}T00:00:00`).lte('date_vente', `${dateFiltre}T23:59:59`); 
+      const { data } = await q; 
+      setFactures(data || []); 
+    }; 
+    load(); 
+  }, [dateFiltre]);
+
+  const reImprimer = (v) => {
+    const dataPrint = { numero: v.numero_facture, client_nom: v.client_nom, date: v.date_vente, totalNet: v.montant_total, totalRemisesEnAr: v.total_remise_ar, panier: v.details_json?.articles || [], methode: v.methode_paiement, banque: v.details_json?.paiement_infos?.banque, fraisLivraison: safeNum(v.details_json?.frais_livraison) };
+    lancerImpression('facture_a4', dataPrint, params);
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto space-y-6">
+      <div className="flex justify-between items-center border-b-2 border-[#800020] pb-2">
+        <h2 className="text-2xl font-black uppercase text-[#800020]">Journal des Factures</h2>
+        <input type="date" className="p-2 bg-white border rounded-xl font-bold text-xs" onChange={e => setDateFiltre(e.target.value)} />
+      </div>
+      <div className="grid gap-3">
+        {factures.map(v => (
+          <div key={v.id} className="bg-white p-5 rounded-2xl shadow-sm border flex flex-col md:flex-row justify-between items-center gap-3">
+            <div className="flex-1 w-full">
+              <div className="flex items-center gap-2 mb-1">
+                {v.numero_facture && <span className="font-black text-[#800020]">{v.numero_facture}</span>}
+                <span className="text-[10px] text-gray-400 font-bold ml-2">{formatDate(v.date_vente)}</span>
+              </div>
+              <p className="font-black uppercase text-sm">{v.client_nom}</p>
+              <p className="text-[10px] text-gray-500 mt-1 line-clamp-1">🛒 {v.articles_liste}</p>
+            </div>
+            <p className="text-xl font-black text-gray-800 shrink-0">{formatAr(v.montant_total)} Ar</p>
+            <button onClick={()=>reImprimer(v)} className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-3 rounded-lg font-black text-xs shadow-sm transition w-full md:w-auto shrink-0">🖨️ Imprimer Facture</button>
+          </div>
+        ))}
+        {factures.length === 0 && <p className="text-center text-gray-400 italic">Aucune facture enregistrée.</p>}
+      </div>
+    </div>
+  );
+};
+
+const ModuleHistorique = ({ params }) => {
+  const [ventes, setVentes] = useState([]); 
+  const [dateFiltre, setDateFiltre] = useState("");
+  const [detailModal, setDetailModal] = useState(null);
+  
+  useEffect(() => { 
+    const load = async () => { 
+      let q = supabase.from('historique_ventes').select('*').order('date_vente', { ascending: false }); 
+      if (dateFiltre) q = q.gte('date_vente', `${dateFiltre}T00:00:00`).lte('date_vente', `${dateFiltre}T23:59:59`); 
+      const { data } = await q; 
+      setVentes(data || []); 
+    }; 
+    load(); 
+  }, [dateFiltre]);
+
+  const reImprimer = (v) => {
+    const type = v.type_vente === 'CAISSE' ? 'caisse' : (v.type_vente === 'FACTURE' ? 'facture_a4' : 'admin_credit');
+    const dataPrint = { numero: v.numero_facture, methode: v.methode_paiement, banque: v.details_json?.paiement_infos?.banque, client_nom: v.client_nom, date: v.date_vente, totalNet: v.montant_total, totalRemisesEnAr: v.total_remise_ar, panier: v.details_json?.articles || [], fraisLivraison: safeNum(v.details_json?.frais_livraison), printSize: '58mm' };
+    lancerImpression(type, dataPrint, params);
+  };
+
+  const BadgePaiement = ({ methode }) => {
+    if(methode === 'MVOLA') return <span className="bg-green-100 text-green-700 text-[9px] font-black px-2 py-0.5 rounded">🟢 MVOLA</span>;
+    if(methode === 'ORANGE MONEY') return <span className="bg-orange-100 text-orange-700 text-[9px] font-black px-2 py-0.5 rounded">🟠 ORANGE M.</span>;
+    if(methode === 'CHEQUE') return <span className="bg-pink-100 text-pink-700 text-[9px] font-black px-2 py-0.5 rounded">✍️ CHÈQUE</span>;
+    return <span className="bg-blue-100 text-blue-700 text-[9px] font-black px-2 py-0.5 rounded">💵 CASH</span>;
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto space-y-6 relative">
+      <div className="flex justify-between items-center border-b-2 border-[#800020] pb-2">
+        <h2 className="text-2xl font-black uppercase text-[#800020]">Historique Global</h2>
+        <input type="date" className="p-2 bg-white border rounded-xl font-bold text-xs" onChange={e => setDateFiltre(e.target.value)} />
+      </div>
+      <div className="grid gap-3">
+        {ventes.map(v => (
+          <div key={v.id} className="bg-white p-4 rounded-xl shadow-sm border flex flex-col md:flex-row justify-between items-center gap-3">
+            <div className="flex-1 w-full cursor-pointer" onClick={() => setDetailModal(v)}>
+              <div className="flex items-center gap-2 mb-1">
+                {v.numero_facture && <span className="font-black text-gray-800 text-[10px]">{v.numero_facture}</span>}
+                <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${v.type_vente === 'CRÉDIT' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>{v.type_vente}</span>
+                {v.type_vente !== 'CRÉDIT' && <BadgePaiement methode={v.methode_paiement} />}
+                <span className="text-[10px] text-gray-400 font-bold">{formatDateTime(v.date_vente)}</span>
+              </div>
+              <p className="font-black uppercase text-sm">{v.client_nom}</p>
+              <p className="text-[10px] text-gray-500 mt-1 line-clamp-1">🛒 {v.articles_liste}</p>
+            </div>
+            <p className="text-lg font-black text-[#800020] shrink-0">{formatAr(v.montant_total)} Ar</p>
+            <button onClick={(e)=>{e.stopPropagation(); reImprimer(v);}} className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg font-bold text-xs shadow-sm transition w-full md:w-auto shrink-0">🖨️ Re-imprimer</button>
+          </div>
+        ))}
+      </div>
+
+      {detailModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+          <div className="bg-white p-6 rounded-3xl w-full max-w-lg shadow-2xl">
+            <div className="flex justify-between items-center border-b pb-3 mb-4">
+               <div><h3 className="font-black text-[#800020] text-lg uppercase">Détails de Vente</h3><p className="text-xs text-gray-500 font-bold">{formatDateTime(detailModal.date_vente)}</p></div>
+               <button onClick={() => setDetailModal(null)} className="text-2xl font-black text-gray-400">×</button>
+            </div>
+            <p className="text-sm font-bold uppercase mb-4 text-gray-800">👤 {detailModal.client_nom} {detailModal.methode_paiement && `- Payé par ${detailModal.methode_paiement}`}</p>
+            
+            <div className="space-y-2 mb-6 bg-gray-50 p-3 rounded-xl max-h-48 overflow-y-auto custom-scrollbar">
+              {detailModal.details_json?.articles?.map((art, idx) => {
+                const pu = safeNum(art.prix_unitaire !== undefined ? art.prix_unitaire : art.prix_vente) - safeNum(art.remise_unitaire_ar !== undefined ? art.remise_unitaire_ar : art.remise_montant);
+                const tl = safeNum(art.total_ligne !== undefined ? art.total_ligne : pu * safeNum(art.qte));
+                return (
+                  <div key={idx} className="flex justify-between text-xs border-b border-gray-200 pb-2 last:border-0">
+                    <div>
+                      <span className="font-bold">{art.qte}x {art.nom}</span>
+                      {(art.remise_unitaire_ar > 0 || art.remise_montant > 0) && <p className="text-[9px] text-green-600 font-bold">Remise unitaire appliquée</p>}
+                    </div>
+                    <span className="font-black">{formatAr(tl)} Ar</span>
+                  </div>
+                )
+              })}
+            </div>
+            
+            <div className="bg-red-50 p-4 rounded-xl border border-red-100 flex flex-col gap-2">
+               <div className="flex justify-between items-center">
+                 <p className="text-[10px] font-bold text-red-600 uppercase">Total Articles (Magasin)</p>
+                 <p className="text-lg font-black text-[#800020]">{formatAr(detailModal.montant_total)} Ar</p>
+               </div>
+               {safeNum(detailModal.details_json?.frais_livraison) > 0 && (
+                 <div className="flex justify-between items-center">
+                   <p className="text-[10px] font-bold text-orange-600 uppercase">Frais Livraison (Livreur)</p>
+                   <p className="text-sm font-black text-orange-600">+{formatAr(detailModal.details_json?.frais_livraison)} Ar</p>
+                 </div>
+               )}
+               {safeNum(detailModal.details_json?.frais_livraison) > 0 && (
+                 <div className="flex justify-between items-center border-t border-red-200 pt-2 mt-1">
+                   <p className="text-xs font-black text-[#800020] uppercase">Total payé par client</p>
+                   <p className="text-xl font-black text-[#800020]">{formatAr(safeNum(detailModal.montant_total) + safeNum(detailModal.details_json?.frais_livraison))} Ar</p>
+                 </div>
+               )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const SuiviCredits = ({ params }) => {
   const [credits, setCredits] = useState([]);
   const [clients, setClients] = useState([]);
   const [filtre, setFiltre] = useState('non_paye');
+  const [detailModal, setDetailModal] = useState(null);
+  const [reprintSize, setReprintSize] = useState('A4');
 
   const load = async () => { 
     const cr = await supabase.from('credits').select('*').order('date_credit', { ascending: false }); 
@@ -1652,6 +1789,7 @@ const SuiviCredits = () => {
     if(window.confirm("Confirmer encaissement ?")) { 
       await supabase.from('credits').update({ statut: 'paye', date_paiement: new Date().toISOString() }).eq('id', id); 
       load(); 
+      setDetailModal(null);
     } 
   };
 
@@ -1663,11 +1801,27 @@ const SuiviCredits = () => {
     window.open(`https://wa.me/${num}?text=${txt}`, '_blank'); 
   };
 
+  const reImprimer = (c) => {
+      const dataPrint = {
+          numero: c.numero_facture,
+          client_nom: c.nom_client,
+          date: c.date_credit,
+          echeance: c.date_echeance,
+          totalNet: c.montant_du,
+          totalRemisesEnAr: c.details_json?.total_remise_ar || 0,
+          panier: c.details_json?.articles || [],
+          fraisLivraison: safeNum(c.details_json?.frais_livraison),
+          printSize: reprintSize,
+          methode: 'CRÉDIT'
+      };
+      lancerImpression('admin_credit', dataPrint, params);
+  };
+
   const dataAffichee = credits.filter(c => c.statut === filtre);
   const aujourdHui = new Date();
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-6 relative">
       <div className="flex gap-2 border-b-2 border-gray-100 pb-4 overflow-x-auto">
         <button onClick={() => setFiltre('non_paye')} className={`px-4 py-2 rounded-xl font-black uppercase text-xs whitespace-nowrap ${filtre === 'non_paye' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-500'}`}>🔴 Dettes en cours</button>
         <button onClick={() => setFiltre('paye')} className={`px-4 py-2 rounded-xl font-black uppercase text-xs whitespace-nowrap ${filtre === 'paye' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-500'}`}>✅ Payés</button>
@@ -1677,7 +1831,7 @@ const SuiviCredits = () => {
           const echeanceDate = new Date(c.date_echeance); 
           const enRetard = filtre === 'non_paye' && c.date_echeance && echeanceDate <= aujourdHui; 
           return (
-            <div key={c.id} className={`bg-white p-4 md:p-6 rounded-2xl shadow-sm border-l-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ${filtre === 'non_paye' ? (enRetard ? 'border-red-600 bg-red-50' : 'border-[#800020]') : 'border-green-500'}`}>
+            <div key={c.id} className={`bg-white p-4 md:p-6 rounded-2xl shadow-sm border-l-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 cursor-pointer hover:shadow-md transition ${filtre === 'non_paye' ? (enRetard ? 'border-red-600 bg-red-50' : 'border-[#800020]') : 'border-green-500'}`} onClick={() => setDetailModal(c)}>
               <div className="flex-1">
                 <p className="font-black text-lg uppercase text-gray-800">{c.nom_client}</p>
                 <div className="flex flex-wrap gap-2 mt-1">
@@ -1690,8 +1844,8 @@ const SuiviCredits = () => {
                 <p className={`text-2xl font-black ${filtre === 'non_paye' ? 'text-red-600' : 'text-green-600'}`}>{formatAr(c.montant_du)} Ar</p>
                 {filtre === 'non_paye' && (
                   <div className="flex gap-2 mt-2 w-full md:w-auto">
-                    {enRetard && <button onClick={() => relancerWA(c)} className="flex-1 bg-green-500 text-white px-3 py-2 rounded-lg font-black uppercase text-[9px] shadow-md hover:bg-green-600">💬 Relancer</button>}
-                    <button onClick={() => encaisser(c.id)} className="flex-1 bg-[#800020] text-white px-3 py-2 rounded-lg font-black uppercase text-[9px] shadow-md hover:bg-red-900">Encaisser</button>
+                    {enRetard && <button onClick={(e) => { e.stopPropagation(); relancerWA(c); }} className="flex-1 bg-green-500 text-white px-3 py-2 rounded-lg font-black uppercase text-[9px] shadow-md hover:bg-green-600">💬 Relancer</button>}
+                    <button onClick={(e) => { e.stopPropagation(); encaisser(c.id); }} className="flex-1 bg-[#800020] text-white px-3 py-2 rounded-lg font-black uppercase text-[9px] shadow-md hover:bg-red-900">Encaisser</button>
                   </div>
                 )}
               </div>
@@ -1699,6 +1853,64 @@ const SuiviCredits = () => {
           )
         })}
       </div>
+
+      {detailModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+          <div className="bg-white p-6 rounded-3xl w-full max-w-lg shadow-2xl">
+             <div className="flex justify-between items-center border-b pb-3 mb-4">
+               <div>
+                 <h3 className="font-black text-[#800020] text-lg uppercase">Détails du Crédit</h3>
+                 <p className="text-xs text-gray-500 font-bold">{formatDateTime(detailModal.date_credit)}</p>
+               </div>
+               <button onClick={() => setDetailModal(null)} className="text-2xl font-black text-gray-400">×</button>
+             </div>
+
+             <p className="text-sm font-bold uppercase mb-4 text-gray-800">👤 {detailModal.nom_client}</p>
+
+             <div className="space-y-2 mb-6 bg-gray-50 p-3 rounded-xl max-h-48 overflow-y-auto custom-scrollbar">
+                {detailModal.details_json?.articles ? detailModal.details_json.articles.map((art, idx) => {
+                    const pu = safeNum(art.prix_unitaire !== undefined ? art.prix_unitaire : art.prix_vente) - safeNum(art.remise_unitaire_ar !== undefined ? art.remise_unitaire_ar : art.remise_montant);
+                    const tl = safeNum(art.total_ligne !== undefined ? art.total_ligne : pu * safeNum(art.qte));
+                    return (
+                      <div key={idx} className="flex justify-between text-xs border-b border-gray-200 pb-2 last:border-0">
+                        <div>
+                          <span className="font-bold">{art.qte}x {art.nom}</span>
+                          <p className="text-[9px] text-gray-500">[{art.categorie || 'Divers'}]</p>
+                          {(art.remise_unitaire_ar > 0 || art.remise_montant > 0) && <p className="text-[9px] text-green-600 font-bold">Remise unitaire appliquée</p>}
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[10px] text-gray-500 block">{formatAr(pu)} Ar/u</span>
+                          <span className="font-black">{formatAr(tl)} Ar</span>
+                        </div>
+                      </div>
+                    )
+                }) : <p className="text-xs italic text-gray-500">{detailModal.details_articles}</p>}
+             </div>
+
+             <div className="bg-red-50 p-4 rounded-xl border border-red-100 flex flex-col gap-2 mb-4">
+               <div className="flex justify-between items-center">
+                 <p className="text-[10px] font-bold text-red-600 uppercase">Montant Dû (Magasin)</p>
+                 <p className="text-2xl font-black text-[#800020]">{formatAr(detailModal.montant_du)} Ar</p>
+               </div>
+               {safeNum(detailModal.details_json?.frais_livraison) > 0 && (
+                 <div className="flex justify-between items-center">
+                   <p className="text-[10px] font-bold text-orange-600 uppercase">Dont Livraison</p>
+                   <p className="text-sm font-black text-orange-600">+{formatAr(detailModal.details_json?.frais_livraison)} Ar</p>
+                 </div>
+               )}
+             </div>
+
+             <div className="flex gap-2 items-center border-t pt-4">
+                <select className="p-3 bg-gray-50 border rounded-xl outline-none text-xs font-bold" value={reprintSize} onChange={e=>setReprintSize(e.target.value)}>
+                    <option value="A4">Format A4</option>
+                    <option value="58mm">Ticket 58mm</option>
+                    <option value="80mm">Ticket 80mm</option>
+                </select>
+                <button onClick={() => reImprimer(detailModal)} className="flex-1 bg-gray-800 hover:bg-black text-white p-3 rounded-xl font-black uppercase text-xs transition">🖨️ Réimprimer</button>
+             </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
