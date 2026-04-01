@@ -6,7 +6,7 @@ const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || 'https://wblginsktosyp
 const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndibGdpbnNrdG9zeXBibWhtZ2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjU3NTYsImV4cCI6MjA4OTk0MTc1Nn0.pmysPmutGjW2Tw7jFvrBE_0ue2pZmS32Pjncu1Rmr8w';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const LOGO_URL = "https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg"; //
+const LOGO_URL = "https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg"; // <-- N'oublie pas ton lien ImgBB ici
 
 const CATEGORIES_PRODUITS = ["Huile", "Épicerie Indienne", "Produits surgelés", "Boissons & Eaux", "Papeterie", "Produits ménagers", "Informatique", "Épicerie pratique", "Cosmétique", "Quincaillerie", "Divers"];
 
@@ -45,7 +45,6 @@ const lancerImpression = (type, data, params) => {
   const panierList = Array.isArray(data.panier) ? data.panier : [];
   const fraisLivraison = safeNum(data.fraisLivraison);
 
-  // Sécurité pour la lecture des prix (Direct VS Historique)
   const getLineData = (i) => {
     const prixU = safeNum(i.prix_unitaire !== undefined ? i.prix_unitaire : i.prix_vente);
     const remiseU = safeNum(i.remise_unitaire_ar !== undefined ? i.remise_unitaire_ar : i.remise_montant);
@@ -62,8 +61,8 @@ const lancerImpression = (type, data, params) => {
           @media print { @page { margin: 0; } body { margin: 0; } } 
           body { font-family: monospace; width: ${data.printSize || '58mm'}; padding: 10px; font-size: 12px; margin: 0 auto; text-align: center; }
           .item-block { text-align: left; margin-bottom: 8px; border-bottom: 1px dotted #ccc; padding-bottom: 4px; }
-          .item-line1 { font-weight: bold; font-size: 12px; }
-          .item-line2 { display: flex; justify-content: space-between; margin-top: 3px; font-size: 11px; }
+          .item-line1 { font-weight: bold; font-size: 13px; }
+          .item-line2 { display: flex; justify-content: space-between; margin-top: 3px; font-size: 12px; }
           .item-line3 { font-size: 10px; color: #555; margin-top: 2px; }
         </style>
       </head>
@@ -71,7 +70,7 @@ const lancerImpression = (type, data, params) => {
         <img src="${LOGO_URL}" style="max-width:80%; height:auto; margin-bottom:5px;" onerror="this.style.display='none'"/>
         <h2 style="margin:0;">${params.nom_entreprise || 'HAKIMI PLUS'}</h2>
         <p style="margin:0; font-size:10px;">${params.adresse || ''}<br/>${params.contact || ''}</p>
-        ${params.message_entete ? `<p style="margin:3px 0; font-size:10px;">${String(params.message_entete).replace(/\n/g, '<br/>')}</p>` : ''}
+        ${params.message_entete ? `<p style="margin:3px 0; font-size:10px;">${params.message_entete.replace(/\n/g, '<br/>')}</p>` : ''}
         <p style="margin:5px 0; font-size:10px;">${dateDoc}</p>
         ${data.numero ? `<p style="margin:0; font-weight:bold; font-size:11px; border:1px solid #000; padding:2px; display:inline-block;">${data.numero}</p>` : ''}
         ${data.methode ? `<p style="margin:2px 0; font-weight:bold; font-size:10px;">Payé par : ${data.methode}${data.banque ? ` (${data.banque})` : ''}</p>` : ''}
@@ -84,8 +83,8 @@ const lancerImpression = (type, data, params) => {
             <div class="item-block">
               <div class="item-line1">${qte}x ${i.nom}</div>
               <div class="item-line2">
-                <span>${formatAr(prixU - remiseU)} Ar</span>
-                <span style="font-weight:bold;">${formatAr(totalLigne)} Ar</span>
+                <span>${formatAr(prixU - remiseU)}</span>
+                <span style="font-weight:bold;">${formatAr(totalLigne)}</span>
               </div>
               <div class="item-line3">[${i.categorie || 'Divers'}]</div>
             </div>
@@ -94,11 +93,11 @@ const lancerImpression = (type, data, params) => {
         </div>
         
         <hr style="border-top:1px dashed #000;"/>
-        <div style="text-align:right; font-size:12px; margin:3px 0;">Total Articles: ${formatAr(data.totalNet)} Ar</div>
-        ${fraisLivraison > 0 ? `<div style="text-align:right; font-size:12px; margin:3px 0;">Livraison: ${formatAr(fraisLivraison)} Ar</div>` : ''}
+        <div style="text-align:right; font-size:12px; margin:3px 0;">Total Articles: ${formatAr(data.totalNet)}</div>
+        ${fraisLivraison > 0 ? `<div style="text-align:right; font-size:12px; margin:3px 0;">Livraison: ${formatAr(fraisLivraison)}</div>` : ''}
         <h3 style="text-align:right; margin:5px 0;">À PAYER: ${formatAr(safeNum(data.totalNet) + fraisLivraison)} Ar</h3>
         ${data.totalRemisesEnAr > 0 ? `<p style="text-align:right; font-size:10px; margin:0;">(Dont remise : ${formatAr(data.totalRemisesEnAr)} Ar)</p>` : ''}
-        <p style="margin-top:10px; font-size:11px;">${(params.message_ticket ? String(params.message_ticket) : 'Merci de votre visite !').replace(/\n/g, '<br/>')}</p>
+        <p style="margin-top:10px; font-size:11px;">${(params.message_ticket || 'Merci de votre visite !').replace(/\n/g, '<br/>')}</p>
         <p style="color:#fff;">.</p>
       </body></html>
     `);
@@ -118,7 +117,7 @@ const lancerImpression = (type, data, params) => {
           th { background-color: #800020; color: white; } 
           .header-flex { display: flex; justify-content: space-between; border-bottom: 2px solid #800020; padding-bottom: 15px; margin-bottom: 15px; } 
           .client-box { background-color: #f9f9f9; border-left: 4px solid #800020; padding: 15px; width: 50%; margin-bottom: 20px; } 
-          .total-line { font-size: 20px; font-weight: bold; color: #800020; text-align: right; margin-top: 10px; }
+          .total-line { font-size: 20px; font-weight: bold; color: #800020; text-align: right; margin-top: 20px; }
         </style>
       </head>
       <body>
@@ -217,9 +216,11 @@ export default function App() {
       if(user.role === 'vendeur' && !isLocked && view === 'dashboard') setView('caisse'); 
       
       const checkTasks = async () => {
+        // Messagerie
         const { count } = await supabase.from('messagerie').select('*', { count: 'exact', head: true }).eq('destinataire', user.identifiant).eq('est_lu', false);
         setMsgNonLus(count || 0);
 
+        // Alertes Stock
         const { data: prods } = await supabase.from('produits').select('nom, stock_actuel, date_peremption');
         if (prods) {
           let alertes = []; const now = new Date();
@@ -234,6 +235,7 @@ export default function App() {
           setAlertesStockDLC(alertes);
         }
 
+        // Clôture Check
         const now2 = new Date(); const h = now2.getHours();
         const isLockTime = (h >= 18 || h < 7);
         if (isLockTime) {
@@ -242,16 +244,31 @@ export default function App() {
            lockWindowStart.setHours(18, 0, 0, 0);
            
            const { data: latestCloture } = await supabase.from('cloture_caisse').select('date_cloture').gte('date_cloture', lockWindowStart.toISOString()).limit(1);
-           if (latestCloture && latestCloture.length > 0) { setIsLocked(false); } else { setIsLocked(true); setView('cloture'); }
-        } else { setIsLocked(false); }
+           if (latestCloture && latestCloture.length > 0) { 
+               setIsLocked(false); 
+           } else { 
+               setIsLocked(true); 
+               setView('cloture'); 
+           }
+        } else { 
+           setIsLocked(false); 
+        }
       };
       
-      checkTasks(); const interval = setInterval(checkTasks, 30000); return () => clearInterval(interval);
+      checkTasks(); 
+      const interval = setInterval(checkTasks, 30000); 
+      return () => clearInterval(interval);
     }
   }, [user, isLocked]);
 
-  const handleLogin = (userData) => { localStorage.setItem('hakimi_user', JSON.stringify(userData)); setUser(userData); };
-  const handleLogout = () => { localStorage.removeItem('hakimi_user'); setUser(null); };
+  const handleLogin = (userData) => { 
+    localStorage.setItem('hakimi_user', JSON.stringify(userData)); 
+    setUser(userData); 
+  };
+  const handleLogout = () => { 
+    localStorage.removeItem('hakimi_user'); 
+    setUser(null); 
+  };
 
   const handleOpenNotif = () => {
     setNotifOpen(!notifOpen);
@@ -270,12 +287,19 @@ export default function App() {
 
   if (!user) return <LoginScreen onLogin={handleLogin} />;
 
-  const changeView = (newView) => { if(!isLocked) { setView(newView); setMenuOpen(false); } };
+  const changeView = (newView) => { 
+    if(!isLocked) { 
+      setView(newView); 
+      setMenuOpen(false); 
+    } 
+  };
+  
   const totalAlertes = msgNonLus + (hasClearedNotifsToday ? 0 : alertesStockDLC.length);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row font-sans text-gray-800">
       
+      {/* HEADER MOBILE FIXE */}
       <div className="md:hidden bg-[#800020] text-white p-4 flex justify-between items-center sticky top-0 z-[60] shadow-md">
         <img src={LOGO_URL} alt="Hakimi Plus" className="h-8 bg-white p-1 rounded" onError={(e) => { e.target.onerror = null; e.target.outerHTML = '<span class="font-black text-xl italic uppercase">HAKIMI PLUS</span>'; }} />
         <div className="flex items-center gap-4">
@@ -286,8 +310,10 @@ export default function App() {
         </div>
       </div>
 
+      {/* OVERLAY MOBILE POUR FERMER LE MENU */}
       {menuOpen && <div className="fixed inset-0 bg-black/60 z-[65] md:hidden" onClick={() => setMenuOpen(false)}></div>}
 
+      {/* MENU LATÉRAL */}
       <nav className={`fixed inset-y-0 left-0 z-[70] w-72 bg-[#800020] text-white p-6 shadow-2xl flex flex-col justify-between overflow-y-auto transition-transform transform ${menuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`}>
         <div>
           <div className="mb-6 hidden md:flex flex-col items-center border-b border-white/10 pb-6 relative">
@@ -331,7 +357,7 @@ export default function App() {
                 <NavBtn active={view==='admin_fournisseurs'} onClick={()=>changeView('admin_fournisseurs')} disabled={isLocked}>🚚 Fournisseurs</NavBtn>
                 <NavBtn active={view==='suivi_credits'} onClick={()=>changeView('suivi_credits')} disabled={isLocked}>📉 Suivi Dettes</NavBtn>
                 <NavBtn active={view==='admin_utilisateurs'} onClick={()=>changeView('admin_utilisateurs')} disabled={isLocked}>🔐 Comptes & Accès</NavBtn>
-                <NavBtn active={view==='parametres'} onClick={()=>changeView('parametres')} disabled={isLocked}>⚙️ Paramètres Ticket & ERP</NavBtn>
+                <NavBtn active={view==='parametres'} onClick={()=>changeView('parametres')} disabled={isLocked}>⚙️ Paramètres ERP</NavBtn>
               </div>
             )}
           </div>
@@ -342,6 +368,7 @@ export default function App() {
         </div>
       </nav>
 
+      {/* PANNEAU NOTIFICATIONS OVERLAY */}
       {notifOpen && (
         <>
           <div className="fixed inset-0 z-[75] md:hidden" onClick={() => setNotifOpen(false)}></div>
@@ -368,6 +395,7 @@ export default function App() {
         </>
       )}
 
+      {/* ZONE CENTRALE */}
       <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto relative">
         {isLocked && view !== 'cloture' && (
            <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
@@ -408,7 +436,71 @@ const NavBtn = ({ active, onClick, disabled, children }) => (
 );
 
 // ==========================================
-// ADMIN UTILISATEURS
+// ADMIN PARAMETRES (TICKET & ERP)
+// ==========================================
+const AdminParametres = ({ params, setParams }) => {
+  const [form, setForm] = useState(params);
+  
+  const save = async (e) => { 
+    e.preventDefault(); 
+    const { data } = await supabase.from('parametres').update(form).eq('id', 1).select(); 
+    if (data) { 
+      setParams(data[0]); 
+      alert("Paramètres du ticket mis à jour avec succès !"); 
+    } 
+  };
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-6">
+      <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Paramètres Ticket & ERP</h2>
+      <form onSubmit={save} className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-gray-100 space-y-4">
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+           <div>
+             <label className="text-xs font-bold text-gray-500 uppercase">Nom de l'entreprise</label>
+             <input className="w-full p-3 bg-gray-50 border rounded-xl font-black text-lg outline-none" value={form.nom_entreprise||''} onChange={e=>setForm({...form, nom_entreprise: e.target.value})} required />
+           </div>
+           <div>
+             <label className="text-xs font-bold text-gray-500 uppercase">Contact (Tél)</label>
+             <input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.contact||''} onChange={e=>setForm({...form, contact: e.target.value})} />
+           </div>
+        </div>
+        
+        <div>
+          <label className="text-xs font-bold text-gray-500 uppercase">Adresse</label>
+          <input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.adresse||''} onChange={e=>setForm({...form, adresse: e.target.value})} required />
+        </div>
+        
+        <div>
+          <label className="text-xs font-bold text-gray-500 uppercase">NIF / STAT (Ex: NIF: 123 | STAT: 456)</label>
+          <input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.nif_stat||''} onChange={e=>setForm({...form, nif_stat: e.target.value})} />
+        </div>
+
+        <div className="border-t border-gray-200 pt-4 mt-4">
+           <h3 className="font-black text-[#800020] mb-3 uppercase text-sm">Personnalisation du Ticket 58mm</h3>
+           <div className="space-y-4">
+             <div>
+               <label className="text-xs font-bold text-gray-500 uppercase">Message d'en-tête (Sous l'adresse)</label>
+               <textarea className="w-full p-3 bg-gray-50 border rounded-xl outline-none text-sm" rows="2" placeholder="Ex: Ouvert 7j/7 de 8h à 18h" value={form.message_entete||''} onChange={e=>setForm({...form, message_entete: e.target.value})} />
+               <p className="text-[9px] text-gray-400 mt-1">S'affiche en haut du ticket. Vous pouvez appuyer sur 'Entrée' pour sauter des lignes.</p>
+             </div>
+             
+             <div>
+               <label className="text-xs font-bold text-gray-500 uppercase">Message de fin de ticket (Pied de page)</label>
+               <textarea className="w-full p-3 bg-gray-50 border rounded-xl outline-none text-sm italic" rows="3" placeholder="Ex: Merci de votre visite ! Les articles ne sont ni repris ni échangés." value={form.message_ticket||''} onChange={e=>setForm({...form, message_ticket: e.target.value})} />
+               <p className="text-[9px] text-gray-400 mt-1">S'affiche tout en bas du ticket. Vous pouvez appuyer sur 'Entrée' pour sauter des lignes.</p>
+             </div>
+           </div>
+        </div>
+
+        <button type="submit" className="w-full bg-[#800020] text-white p-4 rounded-xl font-black uppercase shadow-md mt-4 hover:bg-[#5a0016] transition">Enregistrer les modifications</button>
+      </form>
+    </div>
+  );
+};
+
+// ==========================================
+// ADMIN UTILISATEURS (COMPTES ET ACCÈS)
 // ==========================================
 const AdminUtilisateurs = ({ currentUser, onUpdateSession }) => {
   const [users, setUsers] = useState([]);
@@ -496,6 +588,7 @@ const ModuleMessagerie = ({ user, onMessagesRead }) => {
   const [form, setForm] = useState({ dest: '', obj: '', msg: '' });
 
   const load = async () => {
+    // Empêcher l'envoi à soi-même
     const { data: usersData } = await supabase.from('utilisateurs').select('identifiant').neq('identifiant', user.identifiant);
     setDestinataires(usersData || []);
     if(usersData && usersData.length > 0) setForm(prev => ({...prev, dest: usersData[0].identifiant}));
@@ -503,6 +596,7 @@ const ModuleMessagerie = ({ user, onMessagesRead }) => {
     const { data } = await supabase.from('messagerie').select('*').or(`destinataire.eq.${user.identifiant},expediteur.eq.${user.identifiant}`).order('date_envoi', { ascending: false });
     setMessages(data || []);
     
+    // Marquer lu et clear cloche
     await supabase.from('messagerie').update({ est_lu: true }).eq('destinataire', user.identifiant).eq('est_lu', false);
     if(onMessagesRead) onMessagesRead();
   };
@@ -556,8 +650,9 @@ const ModuleMessagerie = ({ user, onMessagesRead }) => {
   );
 };
 
+
 // ==========================================
-// MODULE VENTE (MÉTHODE DDMMYY + STOCK CHECK)
+// MODULE VENTE
 // ==========================================
 const ModuleVente = ({ mode, params, categoriesDb }) => {
   const [panier, setPanier] = useState([]);
@@ -582,14 +677,8 @@ const ModuleVente = ({ mode, params, categoriesDb }) => {
       const p = await supabase.from('produits').select('*').order('nom');
       const c = await supabase.from('clients').select('*').order('nom');
       setProduits(p.data || []);
-      if (mode !== 'caisse') { 
-        setSelectedClient(""); 
-        setClients(c.data.filter(i => i.nom !== 'Vente à consommateur' && i.nom !== 'Vente à un utilisateur')); 
-      }
-      else { 
-        setSelectedClient("Vente à consommateur"); 
-        setClients(c.data); 
-      }
+      if (mode !== 'caisse') { setSelectedClient(""); setClients(c.data.filter(i => i.nom !== 'Vente à un utilisateur')); }
+      else { setSelectedClient("Vente à un utilisateur"); setClients(c.data); }
     };
     load(); 
     setPanier([]); 
@@ -616,23 +705,9 @@ const ModuleVente = ({ mode, params, categoriesDb }) => {
 
   const ajouter = (p) => {
     if (venteReussie) return;
-    
-    // VÉRIFICATION DU STOCK
-    if (safeNum(p.stock_actuel) <= 0) {
-       alert("⚠️ Stock épuisé pour ce produit !");
-       return;
-    }
-
     const ex = panier.find(i => i.id === p.id);
-    if (ex) {
-       if (safeNum(ex.qte) >= safeNum(p.stock_actuel)) {
-           alert("⚠️ Vous avez atteint le stock maximum disponible !");
-           return;
-       }
-       setPanier(panier.map(i => i.id === p.id ? { ...i, qte: safeNum(i.qte) + 1 } : i));
-    } else {
-       setPanier([...panier, { ...p, qte: 1, remise_montant: "" }]); 
-    }
+    if (ex) setPanier(panier.map(i => i.id === p.id ? { ...i, qte: safeNum(i.qte) + 1 } : i));
+    else setPanier([...panier, { ...p, qte: 1, remise_montant: "" }]); 
   };
 
   const updateRemiseArticle = (id, val) => {
@@ -737,7 +812,7 @@ const ModuleVente = ({ mode, params, categoriesDb }) => {
                    <p className="font-bold text-gray-800 text-[11px] uppercase truncate group-hover:text-[#800020]">{p.nom}</p>
                    <p className="text-[8px] text-gray-400 font-bold uppercase">{p.categorie || 'Divers'}</p>
                 </div>
-                <span className={`px-1.5 py-0.5 rounded text-[9px] font-black shrink-0 ${safeNum(p.stock_actuel) <= 0 ? 'bg-red-600 text-white animate-pulse' : 'bg-gray-100 text-gray-500'}`}>STK: {p.stock_actuel}</span>
+                <span className="bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded text-[9px] font-black shrink-0">STK: {p.stock_actuel}</span>
               </div>
               <p className="text-red-600 font-black text-sm">{formatAr(p.prix_vente)} Ar</p>
             </button>
@@ -758,16 +833,10 @@ const ModuleVente = ({ mode, params, categoriesDb }) => {
              )}
           </div>
           
-          {mode === 'caisse' ? (
-            <div className="w-full p-3 rounded-xl font-bold border border-white/20 bg-white/10 text-white shrink-0 cursor-not-allowed opacity-90 text-center uppercase tracking-widest">
-               Vente à consommateur
-            </div>
-          ) : (
-            <select className={`w-full p-3 rounded-xl font-bold border outline-none shrink-0 ${mode==='devis' ? 'bg-gray-50 text-gray-800 border-gray-200' : 'bg-white/10 text-white border-white/20'}`} value={selectedClient} onChange={e => setSelectedClient(e.target.value)} disabled={venteReussie}>
-              <option value="" className="text-black">⚠️ SÉLECTIONNER CLIENT</option>
-              {clients.map(c => <option key={c.nom} value={c.nom} className="text-black">{c.nom}</option>)}
-            </select>
-          )}
+          <select className={`w-full p-3 rounded-xl font-bold border outline-none shrink-0 ${mode==='devis' ? 'bg-gray-50 text-gray-800 border-gray-200' : 'bg-white/10 text-white border-white/20'}`} value={selectedClient} onChange={e => setSelectedClient(e.target.value)} disabled={venteReussie}>
+            {mode !== 'caisse' && <option value="" className="text-black">⚠️ SÉLECTIONNER CLIENT</option>}
+            {clients.map(c => <option key={c.nom} value={c.nom} className="text-black">{c.nom}</option>)}
+          </select>
           
           {mode === 'admin_credit' && (
             <input type="date" className="w-full bg-white/10 p-3 rounded-xl font-bold border border-white/20 outline-none text-white shrink-0 mt-1" onChange={e => setEcheance(e.target.value)} disabled={venteReussie} />
@@ -785,14 +854,7 @@ const ModuleVente = ({ mode, params, categoriesDb }) => {
                     <div className="flex items-center gap-2">
                       <button onClick={() => setPanier(panier.map(x => x.id === item.id ? {...x, qte: Math.max(1, safeNum(x.qte)-1)} : x))} className="w-6 h-6 rounded bg-white/20 font-black">-</button>
                       <span className="font-black text-sm w-4 text-center">{safeNum(item.qte)}</span>
-                      <button onClick={() => {
-                          const pStock = produits.find(p => p.id === item.id)?.stock_actuel || 0;
-                          if (safeNum(item.qte) < safeNum(pStock)) {
-                              setPanier(panier.map(x => x.id === item.id ? {...x, qte: safeNum(x.qte)+1} : x));
-                          } else {
-                              alert("⚠️ Vous avez atteint le stock maximum disponible !");
-                          }
-                      }} className="w-6 h-6 rounded bg-white/20 font-black">+</button>
+                      <button onClick={() => setPanier(panier.map(x => x.id === item.id ? {...x, qte: safeNum(x.qte)+1} : x))} className="w-6 h-6 rounded bg-white/20 font-black">+</button>
                     </div>
                   ) : (<span className="font-black opacity-60">Qté: {safeNum(item.qte)}</span>)}
                   <span className="font-black">{formatAr((safeNum(item.prix_vente) - safeNum(item.remise_montant)) * safeNum(item.qte))}</span>
@@ -879,7 +941,7 @@ const ModuleVente = ({ mode, params, categoriesDb }) => {
               <button onClick={() => lancerImpression(mode, venteReussie, params)} className="flex-1 p-3 rounded-xl font-black uppercase bg-green-600 text-white shadow-lg hover:bg-green-700">
                 🖨️ {mode==='caisse'?'Ticket':(mode==='devis'?'Devis':'Facture')}
               </button>
-              <button onClick={() => {setPanier([]); setVenteReussie(null); setRemiseGlobale(""); setSelectedClient(mode==='caisse' ? "Vente à consommateur" : ""); setMethodePaiement("CASH"); setBanqueCheque(""); setNumeroCheque(""); setIsLivraison(false); setFraisLivraison(1000);}} className="flex-1 p-3 rounded-xl font-bold uppercase border border-white/50 text-white hover:bg-white/10">
+              <button onClick={() => {setPanier([]); setVenteReussie(null); setRemiseGlobale(""); setSelectedClient(mode==='caisse' ? "Vente à un utilisateur" : ""); setMethodePaiement("CASH"); setBanqueCheque(""); setNumeroCheque(""); setIsLivraison(false); setFraisLivraison(1000);}} className="flex-1 p-3 rounded-xl font-bold uppercase border border-white/50 text-white hover:bg-white/10">
                 Nouveau
               </button>
             </div>
@@ -1487,304 +1549,6 @@ const ModuleJournalClotures = () => {
           </div>
         </div>
       )}
-    </div>
-  );
-};
-
-const ModuleJournalDevis = ({ params }) => {
-  const [devis, setDevis] = useState([]);
-  
-  const load = async () => { 
-    const { data } = await supabase.from('devis').select('*').order('date_devis', { ascending: false }); 
-    setDevis(data || []); 
-  };
-  
-  useEffect(() => { load(); }, []);
-
-  const transformerFacture = async (d) => {
-    if(!window.confirm(`Transformer le devis ${d.numero_devis || 'Sans N°'} en Facture ? Le stock sera déduit.`)) return;
-    
-    const today = new Date(); 
-    const dd = String(today.getDate()).padStart(2, '0');
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const yy = String(today.getFullYear()).slice(2, 4);
-    const numDateStr = `${dd}${mm}${yy}`; 
-    
-    const startOfToday = new Date(today);
-    startOfToday.setHours(0, 0, 0, 0);
-    const startIso = startOfToday.toISOString();
-
-    const { count } = await supabase.from('historique_ventes').select('*', {count: 'exact', head:true}).gte('date_vente', startIso);
-    const numFacture = `FA${numDateStr}-${String((count || 0) + 1).padStart(3, '0')}`;
-
-    let beneficeTotal = 0;
-    if (d.details_json && Array.isArray(d.details_json.articles)) {
-      for (let art of d.details_json.articles) {
-         await supabase.rpc('decrement_stock_by_name', { p_nom: art.nom, amount: safeNum(art.qte) });
-         const { data: pData } = await supabase.from('produits').select('prix_achat').eq('nom', art.nom).single();
-         const pa = pData ? pData.prix_achat : 0;
-         beneficeTotal += ((safeNum(art.prix_unitaire) - safeNum(art.remise_unitaire_ar) - pa) * safeNum(art.qte));
-      }
-    }
-    const remiseGl = d.details_json ? safeNum(d.details_json.remise_globale_pourcent) : 0;
-    beneficeTotal -= (beneficeTotal * (remiseGl/100));
-
-    await supabase.from('historique_ventes').insert([{ 
-      numero_facture: numFacture, type_vente: 'FACTURE', client_nom: d.client_nom, 
-      articles_liste: d.articles_liste, montant_total: d.montant_total, benefice_total: beneficeTotal, 
-      remise_globale_pourcent: remiseGl, total_remise_ar: d.total_remise_ar, details_json: d.details_json, methode_paiement: 'CASH' 
-    }]);
-    await supabase.from('devis').update({ statut: 'Facturé ✅', numero_facture_liee: numFacture }).eq('id', d.id);
-    load(); 
-    alert(`Transformé avec succès ! Numéro de facture : ${numFacture}`);
-  };
-
-  const reImprimer = (d) => {
-    if (d.statut === 'Facturé ✅') {
-       const dataPrint = { numero: d.numero_facture_liee, client_nom: d.client_nom, date: d.date_devis, totalNet: d.montant_total, totalRemisesEnAr: d.total_remise_ar, panier: d.details_json?.articles || [], fraisLivraison: safeNum(d.details_json?.frais_livraison) };
-       lancerImpression('facture_a4', dataPrint, params);
-    } else {
-       const dataPrint = { numero: d.numero_devis, client_nom: d.client_nom, date: d.date_devis, totalNet: d.montant_total, totalRemisesEnAr: d.total_remise_ar, panier: d.details_json?.articles || [], fraisLivraison: safeNum(d.details_json?.frais_livraison) };
-       lancerImpression('devis', dataPrint, params);
-    }
-  };
-
-  return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex justify-between items-center border-b-2 border-[#800020] pb-2">
-        <h2 className="text-2xl font-black uppercase text-[#800020]">Journal des Devis</h2>
-      </div>
-      <div className="grid gap-3">
-        {devis.map(d => (
-          <div key={d.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="flex-1 w-full">
-              <div className="flex items-center gap-3 mb-1">
-                <span className="font-black text-[#800020]">{d.numero_devis || 'Sans N°'}</span>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${d.statut === 'En attente' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>{d.statut || 'En attente'}</span>
-                <span className="text-[10px] text-gray-400 font-bold">{formatDate(d.date_devis)}</span>
-              </div>
-              <p className="font-black text-sm uppercase">{d.client_nom}</p>
-              <p className="text-[10px] text-gray-500 mt-1 line-clamp-1">🛒 {d.articles_liste}</p>
-            </div>
-            <p className="text-xl font-black text-gray-800 shrink-0">{formatAr(d.montant_total)} Ar</p>
-            <div className="flex gap-2 w-full md:w-auto shrink-0">
-               <button onClick={()=>reImprimer(d)} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg font-bold text-xs shadow-sm transition">🖨️ {d.statut === 'Facturé ✅' ? 'Imprimer Facture' : 'Imprimer Devis'}</button>
-               {d.statut !== 'Facturé ✅' && <button onClick={()=>transformerFacture(d)} className="flex-1 bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg font-black text-xs shadow-sm transition">🔄 Transformer Facture</button>}
-            </div>
-          </div>
-        ))}
-        {devis.length === 0 && <p className="text-center text-gray-400 italic">Aucun devis enregistré.</p>}
-      </div>
-    </div>
-  );
-};
-
-const ModuleJournalFactures = ({ params }) => {
-  const [factures, setFactures] = useState([]); 
-  const [dateFiltre, setDateFiltre] = useState("");
-  
-  useEffect(() => { 
-    const load = async () => { 
-      let q = supabase.from('historique_ventes').select('*').in('type_vente', ['FACTURE', 'FACTURE_A4']).order('date_vente', { ascending: false }); 
-      if (dateFiltre) q = q.gte('date_vente', `${dateFiltre}T00:00:00`).lte('date_vente', `${dateFiltre}T23:59:59`); 
-      const { data } = await q; 
-      setFactures(data || []); 
-    }; 
-    load(); 
-  }, [dateFiltre]);
-
-  const reImprimer = (v) => {
-    const dataPrint = { numero: v.numero_facture, client_nom: v.client_nom, date: v.date_vente, totalNet: v.montant_total, totalRemisesEnAr: v.total_remise_ar, panier: v.details_json?.articles || [], methode: v.methode_paiement, banque: v.details_json?.paiement_infos?.banque, fraisLivraison: safeNum(v.details_json?.frais_livraison) };
-    lancerImpression('facture_a4', dataPrint, params);
-  };
-
-  return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex justify-between items-center border-b-2 border-[#800020] pb-2">
-        <h2 className="text-2xl font-black uppercase text-[#800020]">Journal des Factures</h2>
-        <input type="date" className="p-2 bg-white border rounded-xl font-bold text-xs" onChange={e => setDateFiltre(e.target.value)} />
-      </div>
-      <div className="grid gap-3">
-        {factures.map(v => (
-          <div key={v.id} className="bg-white p-5 rounded-2xl shadow-sm border flex flex-col md:flex-row justify-between items-center gap-3">
-            <div className="flex-1 w-full">
-              <div className="flex items-center gap-2 mb-1">
-                {v.numero_facture && <span className="font-black text-[#800020]">{v.numero_facture}</span>}
-                <span className="text-[10px] text-gray-400 font-bold ml-2">{formatDate(v.date_vente)}</span>
-              </div>
-              <p className="font-black uppercase text-sm">{v.client_nom}</p>
-              <p className="text-[10px] text-gray-500 mt-1 line-clamp-1">🛒 {v.articles_liste}</p>
-            </div>
-            <p className="text-xl font-black text-gray-800 shrink-0">{formatAr(v.montant_total)} Ar</p>
-            <button onClick={()=>reImprimer(v)} className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-3 rounded-lg font-black text-xs shadow-sm transition w-full md:w-auto shrink-0">🖨️ Imprimer Facture</button>
-          </div>
-        ))}
-        {factures.length === 0 && <p className="text-center text-gray-400 italic">Aucune facture enregistrée.</p>}
-      </div>
-    </div>
-  );
-};
-
-const ModuleHistorique = ({ params }) => {
-  const [ventes, setVentes] = useState([]); 
-  const [dateFiltre, setDateFiltre] = useState("");
-  const [detailModal, setDetailModal] = useState(null);
-  
-  useEffect(() => { 
-    const load = async () => { 
-      let q = supabase.from('historique_ventes').select('*').order('date_vente', { ascending: false }); 
-      if (dateFiltre) q = q.gte('date_vente', `${dateFiltre}T00:00:00`).lte('date_vente', `${dateFiltre}T23:59:59`); 
-      const { data } = await q; 
-      setVentes(data || []); 
-    }; 
-    load(); 
-  }, [dateFiltre]);
-
-  const reImprimer = (v) => {
-    const type = v.type_vente === 'CAISSE' ? 'caisse' : (v.type_vente === 'FACTURE' ? 'facture_a4' : 'admin_credit');
-    const dataPrint = { numero: v.numero_facture, methode: v.methode_paiement, banque: v.details_json?.paiement_infos?.banque, client_nom: v.client_nom, date: v.date_vente, totalNet: v.montant_total, totalRemisesEnAr: v.total_remise_ar, panier: v.details_json?.articles || [], fraisLivraison: safeNum(v.details_json?.frais_livraison), printSize: '58mm' };
-    lancerImpression(type, dataPrint, params);
-  };
-
-  const BadgePaiement = ({ methode }) => {
-    if(methode === 'MVOLA') return <span className="bg-green-100 text-green-700 text-[9px] font-black px-2 py-0.5 rounded">🟢 MVOLA</span>;
-    if(methode === 'ORANGE MONEY') return <span className="bg-orange-100 text-orange-700 text-[9px] font-black px-2 py-0.5 rounded">🟠 ORANGE M.</span>;
-    if(methode === 'CHEQUE') return <span className="bg-pink-100 text-pink-700 text-[9px] font-black px-2 py-0.5 rounded">✍️ CHÈQUE</span>;
-    return <span className="bg-blue-100 text-blue-700 text-[9px] font-black px-2 py-0.5 rounded">💵 CASH</span>;
-  };
-
-  return (
-    <div className="max-w-6xl mx-auto space-y-6 relative">
-      <div className="flex justify-between items-center border-b-2 border-[#800020] pb-2">
-        <h2 className="text-2xl font-black uppercase text-[#800020]">Historique Global</h2>
-        <input type="date" className="p-2 bg-white border rounded-xl font-bold text-xs" onChange={e => setDateFiltre(e.target.value)} />
-      </div>
-      <div className="grid gap-3">
-        {ventes.map(v => (
-          <div key={v.id} className="bg-white p-4 rounded-xl shadow-sm border flex flex-col md:flex-row justify-between items-center gap-3">
-            <div className="flex-1 w-full cursor-pointer" onClick={() => setDetailModal(v)}>
-              <div className="flex items-center gap-2 mb-1">
-                {v.numero_facture && <span className="font-black text-gray-800 text-[10px]">{v.numero_facture}</span>}
-                <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${v.type_vente === 'CRÉDIT' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>{v.type_vente}</span>
-                {v.type_vente !== 'CRÉDIT' && <BadgePaiement methode={v.methode_paiement} />}
-                <span className="text-[10px] text-gray-400 font-bold">{formatDateTime(v.date_vente)}</span>
-              </div>
-              <p className="font-black uppercase text-sm">{v.client_nom}</p>
-              <p className="text-[10px] text-gray-500 mt-1 line-clamp-1">🛒 {v.articles_liste}</p>
-            </div>
-            <p className="text-lg font-black text-[#800020] shrink-0">{formatAr(v.montant_total)} Ar</p>
-            <button onClick={(e)=>{e.stopPropagation(); reImprimer(v);}} className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg font-bold text-xs shadow-sm transition w-full md:w-auto shrink-0">🖨️ Re-imprimer</button>
-          </div>
-        ))}
-      </div>
-
-      {detailModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-white p-6 rounded-3xl w-full max-w-lg shadow-2xl">
-            <div className="flex justify-between items-center border-b pb-3 mb-4">
-               <div><h3 className="font-black text-[#800020] text-lg uppercase">Détails de Vente</h3><p className="text-xs text-gray-500 font-bold">{formatDateTime(detailModal.date_vente)}</p></div>
-               <button onClick={() => setDetailModal(null)} className="text-2xl font-black text-gray-400">×</button>
-            </div>
-            <p className="text-sm font-bold uppercase mb-4 text-gray-800">👤 {detailModal.client_nom} {detailModal.methode_paiement && `- Payé par ${detailModal.methode_paiement}`}</p>
-            
-            <div className="space-y-2 mb-6 bg-gray-50 p-3 rounded-xl max-h-48 overflow-y-auto custom-scrollbar">
-              {detailModal.details_json?.articles?.map((art, idx) => {
-                const pu = safeNum(art.prix_unitaire !== undefined ? art.prix_unitaire : art.prix_vente) - safeNum(art.remise_unitaire_ar !== undefined ? art.remise_unitaire_ar : art.remise_montant);
-                const tl = safeNum(art.total_ligne !== undefined ? art.total_ligne : pu * safeNum(art.qte));
-                return (
-                  <div key={idx} className="flex justify-between text-xs border-b border-gray-200 pb-2 last:border-0">
-                    <div>
-                      <span className="font-bold">{art.qte}x {art.nom}</span>
-                      {(art.remise_unitaire_ar > 0 || art.remise_montant > 0) && <p className="text-[9px] text-green-600 font-bold">Remise unitaire appliquée</p>}
-                    </div>
-                    <span className="font-black">{formatAr(tl)} Ar</span>
-                  </div>
-                )
-              })}
-            </div>
-            
-            <div className="bg-red-50 p-4 rounded-xl border border-red-100 flex flex-col gap-2">
-               <div className="flex justify-between items-center">
-                 <p className="text-[10px] font-bold text-red-600 uppercase">Total Articles (Magasin)</p>
-                 <p className="text-lg font-black text-[#800020]">{formatAr(detailModal.montant_total)} Ar</p>
-               </div>
-               {safeNum(detailModal.details_json?.frais_livraison) > 0 && (
-                 <div className="flex justify-between items-center">
-                   <p className="text-[10px] font-bold text-orange-600 uppercase">Frais Livraison (Livreur)</p>
-                   <p className="text-sm font-black text-orange-600">+{formatAr(detailModal.details_json.frais_livraison)} Ar</p>
-                 </div>
-               )}
-               {safeNum(detailModal.details_json?.frais_livraison) > 0 && (
-                 <div className="flex justify-between items-center border-t border-red-200 pt-2 mt-1">
-                   <p className="text-xs font-black text-[#800020] uppercase">Total payé par client</p>
-                   <p className="text-xl font-black text-[#800020]">{formatAr(safeNum(detailModal.montant_total) + safeNum(detailModal.details_json.frais_livraison))} Ar</p>
-                 </div>
-               )}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-const AdminParametres = ({ params, setParams }) => {
-  const [form, setForm] = useState(params);
-  
-  const save = async (e) => { 
-    e.preventDefault(); 
-    const { data } = await supabase.from('parametres').update(form).eq('id', 1).select(); 
-    if (data) { 
-      setParams(data[0]); 
-      alert("Paramètres du ticket mis à jour avec succès !"); 
-    } 
-  };
-
-  return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Paramètres Ticket & ERP</h2>
-      <form onSubmit={save} className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-gray-100 space-y-4">
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-           <div>
-             <label className="text-xs font-bold text-gray-500 uppercase">Nom de l'entreprise</label>
-             <input className="w-full p-3 bg-gray-50 border rounded-xl font-black text-lg outline-none" value={form.nom_entreprise||''} onChange={e=>setForm({...form, nom_entreprise: e.target.value})} required />
-           </div>
-           <div>
-             <label className="text-xs font-bold text-gray-500 uppercase">Contact (Tél)</label>
-             <input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.contact||''} onChange={e=>setForm({...form, contact: e.target.value})} />
-           </div>
-        </div>
-        
-        <div>
-          <label className="text-xs font-bold text-gray-500 uppercase">Adresse</label>
-          <input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.adresse||''} onChange={e=>setForm({...form, adresse: e.target.value})} required />
-        </div>
-        
-        <div>
-          <label className="text-xs font-bold text-gray-500 uppercase">NIF / STAT (Ex: NIF: 123 | STAT: 456)</label>
-          <input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.nif_stat||''} onChange={e=>setForm({...form, nif_stat: e.target.value})} />
-        </div>
-
-        <div className="border-t border-gray-200 pt-4 mt-4">
-           <h3 className="font-black text-[#800020] mb-3 uppercase text-sm">Personnalisation du Ticket 58mm</h3>
-           <div className="space-y-4">
-             <div>
-               <label className="text-xs font-bold text-gray-500 uppercase">Message d'en-tête (Sous l'adresse)</label>
-               <textarea className="w-full p-3 bg-gray-50 border rounded-xl outline-none text-sm" rows="2" placeholder="Ex: Ouvert 7j/7 de 8h à 18h" value={form.message_entete||''} onChange={e=>setForm({...form, message_entete: e.target.value})} />
-               <p className="text-[9px] text-gray-400 mt-1">S'affiche en haut du ticket. Vous pouvez appuyer sur 'Entrée' pour sauter des lignes.</p>
-             </div>
-             
-             <div>
-               <label className="text-xs font-bold text-gray-500 uppercase">Message de fin de ticket (Pied de page)</label>
-               <textarea className="w-full p-3 bg-gray-50 border rounded-xl outline-none text-sm italic" rows="3" placeholder="Ex: Merci de votre visite ! Les articles ne sont ni repris ni échangés." value={form.message_ticket||''} onChange={e=>setForm({...form, message_ticket: e.target.value})} />
-               <p className="text-[9px] text-gray-400 mt-1">S'affiche tout en bas du ticket. Vous pouvez appuyer sur 'Entrée' pour sauter des lignes.</p>
-             </div>
-           </div>
-        </div>
-
-        <button type="submit" className="w-full bg-[#800020] text-white p-4 rounded-xl font-black uppercase shadow-md mt-4 hover:bg-[#5a0016] transition">Enregistrer les modifications</button>
-      </form>
     </div>
   );
 };
