@@ -6,7 +6,7 @@ const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || 'https://wblginsktosyp
 const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndibGdpbnNrdG9zeXBibWhtZ2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjU3NTYsImV4cCI6MjA4OTk0MTc1Nn0.pmysPmutGjW2Tw7jFvrBE_0ue2pZmS32Pjncu1Rmr8w';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const LOGO_URL = "https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg"; // 
+const LOGO_URL = "https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg"; // <-- N'oublie pas ton lien ImgBB ici
 
 const CATEGORIES_PRODUITS = ["Huile", "Épicerie Indienne", "Produits surgelés", "Boissons & Eaux", "Papeterie", "Produits ménagers", "Informatique", "Épicerie pratique", "Cosmétique", "Quincaillerie", "Divers"];
 
@@ -33,7 +33,7 @@ const formatHeureMessage = (dateStr) => {
   return isNaN(d.getTime()) ? '-' : `le ${d.toLocaleDateString('fr-FR')} à ${d.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}`; 
 };
 
-// --- 🖨️ MOTEUR D'IMPRESSION PARTAGÉ (CORRIGÉ 58MM + CRÉDIT + HISTORIQUE) ---
+// --- 🖨️ MOTEUR D'IMPRESSION PARTAGÉ ---
 const lancerImpression = (type, data, params) => {
   const isTicket = data.printSize === '58mm' || data.printSize === '80mm';
   const win = window.open('', '', isTicket ? 'width=350,height=600' : 'width=800,height=900');
@@ -445,7 +445,7 @@ const NavBtn = ({ active, onClick, disabled, children }) => (
 );
 
 // ==========================================
-// ADMIN UTILISATEURS
+// ADMIN UTILISATEURS (COMPTES ET ACCÈS)
 // ==========================================
 const AdminUtilisateurs = ({ currentUser, onUpdateSession }) => {
   const [users, setUsers] = useState([]);
@@ -533,6 +533,7 @@ const ModuleMessagerie = ({ user, onMessagesRead }) => {
   const [form, setForm] = useState({ dest: '', obj: '', msg: '' });
 
   const load = async () => {
+    // Empêcher l'envoi à soi-même
     const { data: usersData } = await supabase.from('utilisateurs').select('identifiant').neq('identifiant', user.identifiant);
     setDestinataires(usersData || []);
     if(usersData && usersData.length > 0) setForm(prev => ({...prev, dest: usersData[0].identifiant}));
@@ -540,6 +541,7 @@ const ModuleMessagerie = ({ user, onMessagesRead }) => {
     const { data } = await supabase.from('messagerie').select('*').or(`destinataire.eq.${user.identifiant},expediteur.eq.${user.identifiant}`).order('date_envoi', { ascending: false });
     setMessages(data || []);
     
+    // Marquer lu et clear cloche
     await supabase.from('messagerie').update({ est_lu: true }).eq('destinataire', user.identifiant).eq('est_lu', false);
     if(onMessagesRead) onMessagesRead();
   };
@@ -1753,19 +1755,162 @@ const ModuleHistorique = ({ params }) => {
                {safeNum(detailModal.details_json?.frais_livraison) > 0 && (
                  <div className="flex justify-between items-center">
                    <p className="text-[10px] font-bold text-orange-600 uppercase">Frais Livraison (Livreur)</p>
-                   <p className="text-sm font-black text-orange-600">+{formatAr(detailModal.details_json?.frais_livraison)} Ar</p>
+                   <p className="text-sm font-black text-orange-600">+{formatAr(detailModal.details_json.frais_livraison)} Ar</p>
                  </div>
                )}
                {safeNum(detailModal.details_json?.frais_livraison) > 0 && (
                  <div className="flex justify-between items-center border-t border-red-200 pt-2 mt-1">
                    <p className="text-xs font-black text-[#800020] uppercase">Total payé par client</p>
-                   <p className="text-xl font-black text-[#800020]">{formatAr(safeNum(detailModal.montant_total) + safeNum(detailModal.details_json?.frais_livraison))} Ar</p>
+                   <p className="text-xl font-black text-[#800020]">{formatAr(safeNum(detailModal.montant_total) + safeNum(detailModal.details_json.frais_livraison))} Ar</p>
                  </div>
                )}
             </div>
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+const AdminParametres = ({ params, setParams }) => {
+  const [form, setForm] = useState(params);
+  
+  const save = async (e) => { 
+    e.preventDefault(); 
+    const { data } = await supabase.from('parametres').update(form).eq('id', 1).select(); 
+    if (data) { 
+      setParams(data[0]); 
+      alert("Paramètres du ticket mis à jour avec succès !"); 
+    } 
+  };
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-6">
+      <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Paramètres Ticket & ERP</h2>
+      <form onSubmit={save} className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-gray-100 space-y-4">
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+           <div>
+             <label className="text-xs font-bold text-gray-500 uppercase">Nom de l'entreprise</label>
+             <input className="w-full p-3 bg-gray-50 border rounded-xl font-black text-lg outline-none" value={form.nom_entreprise||''} onChange={e=>setForm({...form, nom_entreprise: e.target.value})} required />
+           </div>
+           <div>
+             <label className="text-xs font-bold text-gray-500 uppercase">Contact (Tél)</label>
+             <input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.contact||''} onChange={e=>setForm({...form, contact: e.target.value})} />
+           </div>
+        </div>
+        
+        <div>
+          <label className="text-xs font-bold text-gray-500 uppercase">Adresse</label>
+          <input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.adresse||''} onChange={e=>setForm({...form, adresse: e.target.value})} required />
+        </div>
+        
+        <div>
+          <label className="text-xs font-bold text-gray-500 uppercase">NIF / STAT (Ex: NIF: 123 | STAT: 456)</label>
+          <input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.nif_stat||''} onChange={e=>setForm({...form, nif_stat: e.target.value})} />
+        </div>
+
+        <div className="border-t border-gray-200 pt-4 mt-4">
+           <h3 className="font-black text-[#800020] mb-3 uppercase text-sm">Personnalisation du Ticket 58mm</h3>
+           <div className="space-y-4">
+             <div>
+               <label className="text-xs font-bold text-gray-500 uppercase">Message d'en-tête (Sous l'adresse)</label>
+               <textarea className="w-full p-3 bg-gray-50 border rounded-xl outline-none text-sm" rows="2" placeholder="Ex: Ouvert 7j/7 de 8h à 18h" value={form.message_entete||''} onChange={e=>setForm({...form, message_entete: e.target.value})} />
+               <p className="text-[9px] text-gray-400 mt-1">S'affiche en haut du ticket. Vous pouvez appuyer sur 'Entrée' pour sauter des lignes.</p>
+             </div>
+             
+             <div>
+               <label className="text-xs font-bold text-gray-500 uppercase">Message de fin de ticket (Pied de page)</label>
+               <textarea className="w-full p-3 bg-gray-50 border rounded-xl outline-none text-sm italic" rows="3" placeholder="Ex: Merci de votre visite ! Les articles ne sont ni repris ni échangés." value={form.message_ticket||''} onChange={e=>setForm({...form, message_ticket: e.target.value})} />
+               <p className="text-[9px] text-gray-400 mt-1">S'affiche tout en bas du ticket. Vous pouvez appuyer sur 'Entrée' pour sauter des lignes.</p>
+             </div>
+           </div>
+        </div>
+
+        <button type="submit" className="w-full bg-[#800020] text-white p-4 rounded-xl font-black uppercase shadow-md mt-4 hover:bg-[#5a0016] transition">Enregistrer les modifications</button>
+      </form>
+    </div>
+  );
+};
+
+const ModuleClients = () => {
+  const [list, setList] = useState([]);
+  const [form, setForm] = useState({ nom: '', tel: '', wa: '', adresse: '', nif: '', stat: '' });
+  
+  const load = async () => { const { data } = await supabase.from('clients').select('*').order('nom'); setList(data || []); };
+  useEffect(() => { load(); }, []);
+
+  const save = async (e) => { 
+    e.preventDefault(); 
+    await supabase.from('clients').insert([{nom: form.nom, telephone: form.tel, contact_whatsapp: form.wa, adresse: form.adresse, nif: form.nif, stat: form.stat}]); 
+    setForm({ nom: '', tel: '', wa: '', adresse: '', nif: '', stat: '' }); 
+    load(); 
+  };
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-6">
+      <form onSubmit={save} className="bg-white p-6 rounded-3xl shadow-sm border-t-4 border-[#800020] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <input placeholder="Nom / Société" className="p-3 bg-gray-50 border rounded-xl outline-none" value={form.nom} onChange={e=>setForm({...form, nom: e.target.value})} required />
+        <input placeholder="Tél Normal" className="p-3 bg-gray-50 border rounded-xl outline-none" value={form.tel} onChange={e=>setForm({...form, tel: e.target.value})} />
+        <input placeholder="N° WhatsApp" className="p-3 bg-green-50 border border-green-100 rounded-xl outline-none" value={form.wa} onChange={e=>setForm({...form, wa: e.target.value})} />
+        <div className="flex gap-2">
+          <input placeholder="NIF" className="flex-1 p-3 bg-gray-50 border rounded-xl outline-none w-full" value={form.nif} onChange={e=>setForm({...form, nif: e.target.value})} />
+          <input placeholder="STAT" className="flex-1 p-3 bg-gray-50 border rounded-xl outline-none w-full" value={form.stat} onChange={e=>setForm({...form, stat: e.target.value})} />
+        </div>
+        <input placeholder="Adresse" className="p-3 bg-gray-50 border rounded-xl outline-none md:col-span-2" value={form.adresse} onChange={e=>setForm({...form, adresse: e.target.value})} />
+        <button className="bg-[#800020] text-white p-3 rounded-xl font-black uppercase lg:col-span-3">Ajouter Client</button>
+      </form>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {list.map(c => (
+          <div key={c.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-start">
+            <div>
+              <p className="font-black uppercase text-sm text-gray-800">{c.nom}</p>
+              <p className="text-[10px] text-gray-500 mt-1">📞 {c.telephone || '-'}</p>
+              {c.contact_whatsapp && <a href={`https://wa.me/${String(c.contact_whatsapp).replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer" className="text-[10px] text-green-600 font-bold underline">💬 WhatsApp : {c.contact_whatsapp}</a>}
+            </div>
+            <div className="flex flex-col gap-1 items-end">
+              <span className="text-[9px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded">NIF: {c.nif || c.raison_fiscale || '-'}</span>
+              <span className="text-[9px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded">STAT: {c.stat || '-'}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  ); 
+};
+
+const AdminFournisseurs = () => {
+  const [list, setList] = useState([]);
+  const [form, setForm] = useState({ nom: '', tel: '', wa: '' });
+
+  const load = async () => { const { data } = await supabase.from('fournisseurs').select('*').order('nom'); setList(data || []); };
+  useEffect(() => { load(); }, []);
+
+  const save = async (e) => {
+    e.preventDefault();
+    await supabase.from('fournisseurs').insert([{ nom: form.nom, telephone: form.tel, contact_whatsapp: form.wa }]);
+    setForm({ nom: '', tel: '', wa: '' }); load();
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      <form onSubmit={save} className="bg-white p-6 rounded-3xl shadow-sm grid grid-cols-1 md:grid-cols-3 gap-3 border-t-4 border-[#800020]">
+        <input placeholder="Société" className="p-3 bg-gray-50 border rounded-xl outline-none" value={form.nom} onChange={e=>setForm({...form, nom: e.target.value})} required />
+        <input placeholder="Tél Fixe" className="p-3 bg-gray-50 border rounded-xl outline-none" value={form.tel} onChange={e=>setForm({...form, tel: e.target.value})} required />
+        <input placeholder="WhatsApp" className="p-3 bg-green-50 border border-green-100 rounded-xl outline-none" value={form.wa} onChange={e=>setForm({...form, wa: e.target.value})} />
+        <button className="bg-[#800020] text-white p-3 rounded-xl font-black uppercase md:col-span-3">Ajouter</button>
+      </form>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {list.map(f => (
+          <div key={f.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+            <p className="font-black text-sm uppercase text-gray-800 mb-2">{f.nom}</p>
+            <div className="flex gap-2">
+              <span className="flex-1 bg-gray-100 text-gray-600 p-2 rounded text-center text-[10px] font-bold">📞 {f.telephone}</span>
+              {f.contact_whatsapp && <a href={`https://wa.me/${String(f.contact_whatsapp).replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer" className="flex-1 bg-green-500 text-white p-2 rounded text-center text-[10px] font-black hover:bg-green-600">💬 WhatsApp</a>}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
@@ -1796,7 +1941,7 @@ const SuiviCredits = ({ params }) => {
   const relancerWA = (credit) => { 
     const client = clients.find(c => c.nom === credit.nom_client); 
     if(!client || !client.contact_whatsapp) return alert("Pas de WhatsApp enregistré."); 
-    const num = client.contact_whatsapp.replace(/[^0-9]/g, ''); 
+    const num = String(client.contact_whatsapp).replace(/[^0-9]/g, ''); 
     const txt = encodeURIComponent(`Bonjour, c'est Hakimi Plus. Votre facture de ${formatAr(credit.montant_du)} Ar arrive à échéance le ${formatDate(credit.date_echeance)}. Merci.`); 
     window.open(`https://wa.me/${num}?text=${txt}`, '_blank'); 
   };
