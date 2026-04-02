@@ -6,7 +6,7 @@ const supabaseUrl = 'https://wblginsktosypbmhmgbr.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndibGdpbnNrdG9zeXBibWhtZ2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjU3NTYsImV4cCI6MjA4OTk0MTc1Nn0.pmysPmutGjW2Tw7jFvrBE_0ue2pZmS32Pjncu1Rmr8w';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const LOGO_URL = "https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg"; // <-- N'oublie pas ton lien ImgBB ici
+const LOGO_URL = "https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg"; //
 
 const CATEGORIES_PRODUITS = ["Huile", "Épicerie Indienne", "Produits surgelés", "Boissons & Eaux", "Papeterie", "Produits ménagers", "Informatique", "Épicerie pratique", "Cosmétique", "Quincaillerie", "Divers"];
 
@@ -378,7 +378,7 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
   const [produits, setProduits] = useState([]); const [fours, setFours] = useState([]); const [historique, setHistorique] = useState([]);
   const [selectedCatFilter, setSelectedCatFilter] = useState(""); const [searchStock, setSearchStock] = useState(""); const [sortConfig, setSortConfig] = useState({ key: 'nom', direction: 'asc' });
   const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', stock: '', fournisseur: '', categorie: 'Divers', dlc: '' }); const [reapproProd, setReapproProd] = useState(null); const [reapproForm, setReapproForm] = useState({ qte: '', prix_a: '', prix_v: '', marge: '', dlc: '' }); const [showHistoProd, setShowHistoProd] = useState(null); 
-  const [editProd, setEditProd] = useState(null); const [editForm, setEditForm] = useState({ prix_v: '', marge: '' });
+  const [editProd, setEditProd] = useState(null); const [editForm, setEditForm] = useState({ nom: '', prix_v: '', marge: '', pwd: '' });
 
   const load = async () => { const p = await supabase.from('produits').select('*').order('nom'); const f = await supabase.from('fournisseurs').select('nom'); const h = await supabase.from('historique_stock').select('*').order('date_ajout', { ascending: false }); setProduits(p.data || []); setFours(f.data || []); setHistorique(h.data || []); };
   useEffect(() => { load(); }, []);
@@ -397,7 +397,16 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
 
   const handleEditVente = (val) => { const pv = safeNum(val) || 0; const pa = safeNum(editProd.prix_achat) || 0; let m = editForm.marge; if (pa > 0 && pv > 0) m = (((pv - pa) / pa) * 100).toFixed(2); setEditForm(prev => ({ ...prev, prix_v: val, marge: m })); };
   const handleEditMarge = (val) => { const m = safeNum(val) || 0; const pa = safeNum(editProd.prix_achat) || 0; let pv = editForm.prix_v; if (pa > 0) pv = Math.round(pa * (1 + (m / 100))); setEditForm(prev => ({ ...prev, marge: val, prix_v: pv })); };
-  const saveEdit = async (e) => { e.preventDefault(); await supabase.from('produits').update({ prix_vente: safeNum(editForm.prix_v), marge_pourcent: safeNum(editForm.marge) }).eq('id', editProd.id); setEditProd(null); load(); alert("Prix modifié !"); };
+  
+  const saveEdit = async (e) => { 
+    e.preventDefault(); 
+    const { data: admins } = await supabase.from('utilisateurs').select('*').eq('role', 'superadmin').eq('mot_de_passe', editForm.pwd);
+    if (!admins || admins.length === 0) return alert("⚠️ Code Superadmin incorrect !");
+    const oldName = editProd.nom; const newName = editForm.nom;
+    await supabase.from('produits').update({ nom: newName, prix_vente: safeNum(editForm.prix_v), marge_pourcent: safeNum(editForm.marge) }).eq('id', editProd.id); 
+    if (oldName !== newName) { await supabase.from('historique_stock').update({ produit_nom: newName }).eq('produit_nom', oldName); }
+    setEditProd(null); load(); alert("Produit modifié avec succès !"); 
+  };
 
   const isDlcProche = (dlc) => { if(!dlc) return false; const diff = (new Date(dlc) - new Date()) / (1000 * 3600 * 24); return diff <= 10; };
 
@@ -412,9 +421,9 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
       <div className="bg-white p-4 md:p-8 rounded-3xl shadow-sm border-t-4 border-[#800020]"><h2 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-6">Nouvelle référence</h2><form onSubmit={saveNouveau} className="grid grid-cols-1 md:grid-cols-4 gap-4"><div><label className="text-[10px] font-bold text-gray-400 uppercase">Article</label><input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.nom} onChange={e=>setForm({...form, nom: e.target.value})} required /></div><div><label className="text-[10px] font-bold text-[#800020] uppercase flex justify-between">Catégorie <button type="button" onClick={addCategory} className="text-[#800020] font-black">+ Nouveau</button></label><select className="w-full p-3 bg-gray-50 border border-[#800020]/30 rounded-xl outline-none font-bold text-[#800020]" value={form.categorie} onChange={e=>setForm({...form, categorie: e.target.value})}>{(categoriesDb||[]).map(c => <option key={c} value={c}>{c}</option>)}</select></div><div><label className="text-[10px] font-bold text-gray-400 uppercase">Coût Achat</label><input type="number" className="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none" value={form.prix_a} onChange={e=>handleAchat(e.target.value)} required /></div><div><label className="text-[10px] font-bold text-[#800020] uppercase">Marge (%)</label><input type="number" step="0.01" className="w-full p-3 bg-[#800020]/10 border border-[#800020]/30 rounded-xl font-black text-[#800020] outline-none" value={form.marge} onChange={e=>handleMarge(e.target.value)} /></div><div><label className="text-[10px] font-bold text-red-600 uppercase">Prix Vente</label><input type="number" className="w-full p-3 bg-red-50 border border-red-200 rounded-xl font-black text-red-600 outline-none" value={form.prix_v} onChange={e=>handleVente(e.target.value)} required /></div><div><label className="text-[10px] font-bold text-gray-400 uppercase">Stock Initial</label><input type="number" className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.stock} onChange={e=>setForm({...form, stock: e.target.value})} required /></div><div><label className="text-[10px] font-bold text-gray-400 uppercase">Date Péremption (Optionnel)</label><input type="date" className="w-full p-3 bg-gray-50 border rounded-xl outline-none text-xs" value={form.dlc} onChange={e=>setForm({...form, dlc: e.target.value})} /></div><div><label className="text-[10px] font-bold text-gray-400 uppercase">Fournisseur</label><select className="w-full p-3 bg-gray-50 border rounded-xl outline-none text-sm" value={form.fournisseur} onChange={e=>setForm({...form, fournisseur: e.target.value})} required><option value="">Sélectionner</option>{fours.map(f=><option key={f.nom} value={f.nom}>{f.nom}</option>)}</select></div><button className="w-full bg-[#800020] text-white p-3 rounded-xl font-black uppercase shadow-md md:col-span-4">Ajouter au Stock</button></form></div>
       <div className="bg-white rounded-3xl shadow-sm overflow-hidden border border-gray-200">
         <div className="p-4 border-b bg-gray-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-3"><h3 className="font-black text-[#800020] uppercase">Inventaire Global</h3><div className="flex w-full md:w-auto gap-2"><input type="text" placeholder="🔍 Rechercher un produit..." className="p-2 border rounded-lg text-xs outline-none flex-1 md:w-48" value={searchStock} onChange={e=>setSearchStock(e.target.value)} /><select className="p-2 border rounded-lg text-xs font-bold outline-none" value={selectedCatFilter} onChange={e=>setSelectedCatFilter(e.target.value)}><option value="">Toutes Catégories</option>{(categoriesDb||[]).map(c => <option key={c} value={c}>{c}</option>)}</select></div></div>
-        <div className="overflow-x-auto"><table className="w-full text-left text-sm min-w-[800px]"><thead className="bg-gray-100 text-gray-600 font-bold uppercase text-[10px]"><tr><th className="p-4 cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('nom')}>Article {getSortIcon('nom')}</th><th className="p-4 cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('prix_achat')}>Achat {getSortIcon('prix_achat')}</th><th className="p-4 cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('prix_vente')}>Vente {getSortIcon('prix_vente')}</th><th className="p-4 text-center cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('stock_actuel')}>Stock {getSortIcon('stock_actuel')}</th><th className="p-4 text-center cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('date_peremption')}>Péremption {getSortIcon('date_peremption')}</th><th className="p-4 text-center">Actions</th></tr></thead><tbody className="divide-y divide-gray-100">{produitsAffiches.map(p => (<tr key={p.id} className="hover:bg-gray-50 transition"><td className="p-4"><p className="font-bold uppercase text-gray-800">{p.nom}</p><p className="text-[9px] text-gray-400 uppercase font-bold">{p.categorie || 'DIVERS'}</p></td><td className="p-4 text-gray-500">{formatAr(p.prix_achat)}</td><td className="p-4 font-black text-red-600">{formatAr(p.prix_vente)}</td><td className="p-4 text-center"><span className={`px-2 py-1 rounded font-black text-[10px] text-white ${safeNum(p.stock_actuel)<=5?'bg-red-600 animate-pulse':'bg-green-600'}`}>{p.stock_actuel}</span></td><td className="p-4 text-center text-xs font-bold">{p.date_peremption ? (<span className={`${isDlcProche(p.date_peremption) ? 'text-red-600 bg-red-50 px-2 py-1 rounded' : 'text-gray-500'}`}>{formatDate(p.date_peremption)}</span>) : '-'}</td><td className="p-4 text-center flex justify-center gap-1"><button onClick={() => { setEditProd(p); setEditForm({ prix_v: p.prix_vente, marge: p.marge_pourcent }); }} className="bg-blue-600 text-white px-3 py-1 rounded shadow text-[10px] font-bold uppercase">✏️ Prix</button><button onClick={() => { setReapproProd(p); setReapproForm({ qte: '', prix_a: p.prix_achat, prix_v: p.prix_vente, marge: p.marge_pourcent, dlc: p.date_peremption || '' }); }} className="bg-[#800020] text-white px-3 py-1 rounded shadow text-[10px] font-bold uppercase">Réappro</button><button onClick={() => setShowHistoProd(p)} className="bg-gray-200 px-3 py-1 rounded shadow text-[10px] font-bold uppercase">Histo</button></td></tr>))}{produitsAffiches.length === 0 && (<tr><td colSpan="6" className="text-center p-8 text-gray-400 italic">Aucun produit trouvé.</td></tr>)}</tbody></table></div>
+        <div className="overflow-x-auto"><table className="w-full text-left text-sm min-w-[800px]"><thead className="bg-gray-100 text-gray-600 font-bold uppercase text-[10px]"><tr><th className="p-4 cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('nom')}>Article {getSortIcon('nom')}</th><th className="p-4 cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('prix_achat')}>Achat {getSortIcon('prix_achat')}</th><th className="p-4 cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('prix_vente')}>Vente {getSortIcon('prix_vente')}</th><th className="p-4 text-center cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('stock_actuel')}>Stock {getSortIcon('stock_actuel')}</th><th className="p-4 text-center cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('date_peremption')}>Péremption {getSortIcon('date_peremption')}</th><th className="p-4 text-center">Actions</th></tr></thead><tbody className="divide-y divide-gray-100">{produitsAffiches.map(p => (<tr key={p.id} className="hover:bg-gray-50 transition"><td className="p-4"><p className="font-bold uppercase text-gray-800">{p.nom}</p><p className="text-[9px] text-gray-400 uppercase font-bold">{p.categorie || 'DIVERS'}</p></td><td className="p-4 text-gray-500">{formatAr(p.prix_achat)}</td><td className="p-4 font-black text-red-600">{formatAr(p.prix_vente)}</td><td className="p-4 text-center"><span className={`px-2 py-1 rounded font-black text-[10px] text-white ${safeNum(p.stock_actuel)<=5?'bg-red-600 animate-pulse':'bg-green-600'}`}>{p.stock_actuel}</span></td><td className="p-4 text-center text-xs font-bold">{p.date_peremption ? (<span className={`${isDlcProche(p.date_peremption) ? 'text-red-600 bg-red-50 px-2 py-1 rounded' : 'text-gray-500'}`}>{formatDate(p.date_peremption)}</span>) : '-'}</td><td className="p-4 text-center flex justify-center gap-1"><button onClick={() => { setEditProd(p); setEditForm({ nom: p.nom, prix_v: p.prix_vente, marge: p.marge_pourcent, pwd: '' }); }} className="bg-blue-600 text-white px-3 py-1 rounded shadow text-[10px] font-bold uppercase">✏️ Modifier</button><button onClick={() => { setReapproProd(p); setReapproForm({ qte: '', prix_a: p.prix_achat, prix_v: p.prix_vente, marge: p.marge_pourcent, dlc: p.date_peremption || '' }); }} className="bg-[#800020] text-white px-3 py-1 rounded shadow text-[10px] font-bold uppercase">Réappro</button><button onClick={() => setShowHistoProd(p)} className="bg-gray-200 px-3 py-1 rounded shadow text-[10px] font-bold uppercase">Histo</button></td></tr>))}{produitsAffiches.length === 0 && (<tr><td colSpan="6" className="text-center p-8 text-gray-400 italic">Aucun produit trouvé.</td></tr>)}</tbody></table></div>
       </div>
-      {editProd && (<div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50"><div className="bg-white p-6 rounded-3xl w-full max-w-md"><h2 className="text-lg font-black uppercase text-[#800020] mb-4">Modifier Prix : {editProd.nom}</h2><p className="text-xs text-gray-500 mb-4">Coût d'achat actuel : {formatAr(editProd.prix_achat)} Ar</p><form onSubmit={saveEdit} className="space-y-3"><div className="flex gap-2"><div className="flex-1"><label className="text-[10px] font-bold text-red-600 uppercase">Nouveau Prix Vente</label><input type="number" className="w-full p-3 border rounded-xl text-red-600 font-bold outline-none" value={editForm.prix_v} onChange={e=>handleEditVente(e.target.value)} required /></div><div className="flex-1"><label className="text-[10px] font-bold text-[#800020] uppercase">Marge (%)</label><input type="number" step="0.01" className="w-full p-3 border rounded-xl text-[#800020] font-bold outline-none" value={editForm.marge} onChange={e=>handleEditMarge(e.target.value)} /></div></div><div className="flex gap-2 pt-2"><button type="button" onClick={()=>setEditProd(null)} className="p-3 bg-gray-100 rounded-xl flex-1 font-bold text-gray-600">Annuler</button><button type="submit" className="p-3 bg-blue-600 text-white rounded-xl font-bold flex-1 shadow-md">Enregistrer</button></div></form></div></div>)}
+      {editProd && (<div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50"><div className="bg-white p-6 rounded-3xl w-full max-w-md"><h2 className="text-lg font-black uppercase text-[#800020] mb-4">Modifier : {editProd.nom}</h2><form onSubmit={saveEdit} className="space-y-3"><div><label className="text-[10px] font-bold text-gray-400 uppercase">Nom du Produit</label><input className="w-full p-3 border rounded-xl font-bold outline-none" value={editForm.nom} onChange={e=>setEditForm({...editForm, nom: e.target.value})} required /></div><div className="flex gap-2"><div className="flex-1"><label className="text-[10px] font-bold text-red-600 uppercase">Prix Vente</label><input type="number" className="w-full p-3 border rounded-xl text-red-600 font-bold outline-none" value={editForm.prix_v} onChange={e=>handleEditVente(e.target.value)} required /></div><div className="flex-1"><label className="text-[10px] font-bold text-[#800020] uppercase">Marge (%)</label><input type="number" step="0.01" className="w-full p-3 border rounded-xl text-[#800020] font-bold outline-none" value={editForm.marge} onChange={e=>handleEditMarge(e.target.value)} /></div></div><div className="pt-2 border-t"><label className="text-[10px] font-bold text-gray-400 uppercase">Code Superadmin</label><input type="password" placeholder="Mot de passe requis" className="w-full p-3 border rounded-xl font-bold outline-none text-center" value={editForm.pwd} onChange={e=>setEditForm({...editForm, pwd: e.target.value})} required /></div><div className="flex gap-2 pt-2"><button type="button" onClick={()=>setEditProd(null)} className="p-3 bg-gray-100 rounded-xl flex-1 font-bold text-gray-600">Annuler</button><button type="submit" className="p-3 bg-blue-600 text-white rounded-xl font-bold flex-1 shadow-md">Enregistrer</button></div></form></div></div>)}
       {reapproProd && (<div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50"><div className="bg-white p-6 rounded-3xl w-full max-w-md"><h2 className="text-lg font-black uppercase text-[#800020] mb-4">Réappro : {reapproProd.nom}</h2><form onSubmit={saveReappro} className="space-y-3"><input type="number" placeholder="Qté" className="w-full p-3 border rounded-xl" value={reapproForm.qte} onChange={e=>setReapproForm({...reapproForm, qte: e.target.value})} required /><input type="number" placeholder="Nouv. Prix Achat" className="w-full p-3 border rounded-xl" value={reapproForm.prix_a} onChange={e=>handleRAchat(e.target.value)} required /><div className="flex gap-2"><input type="number" className="w-full p-3 border rounded-xl text-red-600 font-bold" value={reapproForm.prix_v} onChange={e=>handleRVente(e.target.value)} required /><input type="number" className="w-full p-3 border rounded-xl text-[#800020] font-bold" value={reapproForm.marge} onChange={e=>handleRMarge(e.target.value)} /></div><div><label className="text-[10px] font-bold text-gray-400 uppercase">Nouvelle Date Péremption (Optionnel)</label><input type="date" className="w-full p-3 border rounded-xl" value={reapproForm.dlc} onChange={e=>setReapproForm({...reapproForm, dlc: e.target.value})} /></div><div className="flex gap-2 pt-2"><button type="button" onClick={()=>setReapproProd(null)} className="p-3 bg-gray-100 rounded-xl flex-1">Annuler</button><button type="submit" className="p-3 bg-[#800020] text-white rounded-xl font-bold flex-1">Valider</button></div></form></div></div>)}
       {showHistoProd && (<div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50"><div className="bg-white p-6 rounded-3xl w-full max-w-md shadow-2xl"><div className="flex justify-between items-center mb-4 border-b pb-2"><h2 className="text-lg font-black uppercase text-[#800020]">Historique d'Achat</h2><button onClick={() => setShowHistoProd(null)} className="text-gray-400 font-black text-xl">×</button></div><p className="text-gray-800 font-black mb-4 text-sm">{showHistoProd.nom}</p><div className="space-y-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">{historique.filter(h => h.produit_nom === showHistoProd.nom).map(h => (<div key={h.id} className="bg-gray-50 p-3 rounded-xl border border-gray-200 flex justify-between items-center"><div><p className="font-bold text-gray-800 text-xs">+{h.quantite} pièces</p><p className="text-[10px] text-gray-500 uppercase">{formatDate(h.date_ajout)}</p></div><p className="font-black text-red-600 text-sm">{formatAr(h.prix_achat)} Ar</p></div>))}{historique.filter(h => h.produit_nom === showHistoProd.nom).length === 0 && <p className="text-center text-gray-400 italic text-xs">Aucun historique</p>}</div></div></div>)}
     </div>
@@ -428,158 +437,25 @@ const ModuleHistorique = ({ params }) => {
   const [dateFiltre, setDateFiltre] = useState("");
   const [detailModal, setDetailModal] = useState(null);
   
-  // États pour l'annulation
   const [cancelModal, setCancelModal] = useState(null);
   const [cancelPwd, setCancelPwd] = useState("");
   const [isCancelling, setIsCancelling] = useState(false);
   
-  const load = async () => { 
-    let q = supabase.from('historique_ventes').select('*').order('date_vente', { ascending: false }); 
-    if (dateFiltre) q = q.gte('date_vente', `${dateFiltre}T00:00:00`).lte('date_vente', `${dateFiltre}T23:59:59`); 
-    const { data } = await q; 
-    setVentes(data || []); 
-  }; 
-  
+  const load = async () => { let q = supabase.from('historique_ventes').select('*').order('date_vente', { ascending: false }); if (dateFiltre) q = q.gte('date_vente', `${dateFiltre}T00:00:00`).lte('date_vente', `${dateFiltre}T23:59:59`); const { data } = await q; setVentes(data || []); }; 
   useEffect(() => { load(); }, [dateFiltre]);
 
-  const reImprimer = (v) => {
-    const type = v.type_vente === 'CAISSE' ? 'caisse' : (v.type_vente === 'FACTURE' ? 'facture_a4' : 'admin_credit');
-    const dataPrint = { numero: v.numero_facture, methode: v.methode_paiement, banque: v.details_json?.paiement_infos?.banque, client_nom: v.client_nom, date: v.date_vente, totalNet: v.montant_total, totalRemisesEnAr: v.total_remise_ar, panier: v.details_json?.articles || [], fraisLivraison: safeNum(v.details_json?.frais_livraison), printSize: '58mm' };
-    lancerImpression(type, dataPrint, params);
-  };
+  const reImprimer = (v) => { const type = v.type_vente === 'CAISSE' ? 'caisse' : (v.type_vente === 'FACTURE' ? 'facture_a4' : 'admin_credit'); const dataPrint = { numero: v.numero_facture, methode: v.methode_paiement, banque: v.details_json?.paiement_infos?.banque, client_nom: v.client_nom, date: v.date_vente, totalNet: v.montant_total, totalRemisesEnAr: v.total_remise_ar, panier: v.details_json?.articles || [], fraisLivraison: safeNum(v.details_json?.frais_livraison), printSize: '58mm' }; lancerImpression(type, dataPrint, params); };
 
-  const executerAnnulation = async (e) => {
-    e.preventDefault();
-    if(isCancelling) return;
-    setIsCancelling(true);
+  const executerAnnulation = async (e) => { e.preventDefault(); if(isCancelling) return; setIsCancelling(true); const { data: admins } = await supabase.from('utilisateurs').select('*').eq('role', 'superadmin').eq('mot_de_passe', cancelPwd); if (!admins || admins.length === 0) { alert("⚠️ Code Superadmin incorrect !"); setIsCancelling(false); return; } if (cancelModal.details_json && cancelModal.details_json.articles) { for (let art of cancelModal.details_json.articles) { const { data: pData } = await supabase.from('produits').select('stock_actuel').eq('nom', art.nom).single(); if (pData) { await supabase.from('produits').update({ stock_actuel: safeNum(pData.stock_actuel) + safeNum(art.qte) }).eq('nom', art.nom); } } } await supabase.from('historique_ventes').delete().eq('id', cancelModal.id); alert("✅ Vente annulée avec succès. Le stock a été restauré."); setCancelModal(null); setCancelPwd(""); setIsCancelling(false); load(); };
 
-    const { data: admins } = await supabase.from('utilisateurs').select('*').eq('role', 'superadmin').eq('mot_de_passe', cancelPwd);
-    if (!admins || admins.length === 0) {
-       alert("⚠️ Code Superadmin incorrect !");
-       setIsCancelling(false);
-       return;
-    }
-
-    if (cancelModal.details_json && cancelModal.details_json.articles) {
-        for (let art of cancelModal.details_json.articles) {
-            const { data: pData } = await supabase.from('produits').select('stock_actuel').eq('nom', art.nom).single();
-            if (pData) {
-                await supabase.from('produits').update({ stock_actuel: safeNum(pData.stock_actuel) + safeNum(art.qte) }).eq('nom', art.nom);
-            }
-        }
-    }
-
-    await supabase.from('historique_ventes').delete().eq('id', cancelModal.id);
-    
-    alert("✅ Vente annulée avec succès. Le stock a été restauré.");
-    setCancelModal(null);
-    setCancelPwd("");
-    setIsCancelling(false);
-    load(); 
-  };
-
-  const BadgePaiement = ({ methode }) => {
-    if(methode === 'MVOLA') return <span className="bg-green-100 text-green-700 text-[9px] font-black px-2 py-0.5 rounded">🟢 MVOLA</span>;
-    if(methode === 'ORANGE MONEY') return <span className="bg-orange-100 text-orange-700 text-[9px] font-black px-2 py-0.5 rounded">🟠 ORANGE M.</span>;
-    if(methode === 'CHEQUE') return <span className="bg-pink-100 text-pink-700 text-[9px] font-black px-2 py-0.5 rounded">✍️ CHÈQUE</span>;
-    return <span className="bg-blue-100 text-blue-700 text-[9px] font-black px-2 py-0.5 rounded">💵 CASH</span>;
-  };
+  const BadgePaiement = ({ methode }) => { if(methode === 'MVOLA') return <span className="bg-green-100 text-green-700 text-[9px] font-black px-2 py-0.5 rounded">🟢 MVOLA</span>; if(methode === 'ORANGE MONEY') return <span className="bg-orange-100 text-orange-700 text-[9px] font-black px-2 py-0.5 rounded">🟠 ORANGE M.</span>; if(methode === 'CHEQUE') return <span className="bg-pink-100 text-pink-700 text-[9px] font-black px-2 py-0.5 rounded">✍️ CHÈQUE</span>; return <span className="bg-blue-100 text-blue-700 text-[9px] font-black px-2 py-0.5 rounded">💵 CASH</span>; };
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 relative">
-      <div className="flex justify-between items-center border-b-2 border-[#800020] pb-2">
-        <h2 className="text-2xl font-black uppercase text-[#800020]">Historique Global</h2>
-        <input type="date" className="p-2 bg-white border rounded-xl font-bold text-xs" onChange={e => setDateFiltre(e.target.value)} />
-      </div>
-      <div className="grid gap-3">
-        {ventes.map(v => (
-          <div key={v.id} className="bg-white p-4 rounded-xl shadow-sm border flex flex-col md:flex-row justify-between items-center gap-3">
-            <div className="flex-1 w-full cursor-pointer" onClick={() => setDetailModal(v)}>
-              <div className="flex items-center gap-2 mb-1">
-                {v.numero_facture && <span className="font-black text-gray-800 text-[10px]">{v.numero_facture}</span>}
-                <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${v.type_vente === 'CRÉDIT' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>{v.type_vente}</span>
-                {v.type_vente !== 'CRÉDIT' && <BadgePaiement methode={v.methode_paiement} />}
-                <span className="text-[10px] text-gray-400 font-bold">{formatDateTime(v.date_vente)}</span>
-              </div>
-              <p className="font-black uppercase text-sm">{v.client_nom}</p>
-              <p className="text-[10px] text-gray-500 mt-1 line-clamp-1">🛒 {v.articles_liste}</p>
-            </div>
-            <p className="text-lg font-black text-[#800020] shrink-0">{formatAr(v.montant_total)} Ar</p>
-            <div className="flex gap-2 w-full md:w-auto shrink-0">
-              <button onClick={(e)=>{e.stopPropagation(); reImprimer(v);}} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg font-bold text-xs shadow-sm transition">🖨️ Re-imprimer</button>
-              <button onClick={(e)=>{e.stopPropagation(); setCancelModal(v);}} className="flex-1 bg-red-50 hover:bg-red-600 hover:text-white text-red-600 px-3 py-2 rounded-lg font-bold text-xs shadow-sm transition">🗑️ Annuler</button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {detailModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-white p-6 rounded-3xl w-full max-w-lg shadow-2xl">
-            <div className="flex justify-between items-center border-b pb-3 mb-4">
-               <div><h3 className="font-black text-[#800020] text-lg uppercase">Détails de Vente</h3><p className="text-xs text-gray-500 font-bold">{formatDateTime(detailModal.date_vente)}</p></div>
-               <button onClick={() => setDetailModal(null)} className="text-2xl font-black text-gray-400">×</button>
-            </div>
-            <p className="text-sm font-bold uppercase mb-4 text-gray-800">👤 {detailModal.client_nom} {detailModal.methode_paiement && `- Payé par ${detailModal.methode_paiement}`}</p>
-            
-            <div className="space-y-2 mb-6 bg-gray-50 p-3 rounded-xl max-h-48 overflow-y-auto custom-scrollbar">
-              {detailModal.details_json?.articles?.map((art, idx) => {
-                const pu = safeNum(art.prix_unitaire !== undefined ? art.prix_unitaire : art.prix_vente) - safeNum(art.remise_unitaire_ar !== undefined ? art.remise_unitaire_ar : art.remise_montant);
-                const tl = safeNum(art.total_ligne !== undefined ? art.total_ligne : pu * safeNum(art.qte));
-                return (
-                  <div key={idx} className="flex justify-between text-xs border-b border-gray-200 pb-2 last:border-0">
-                    <div>
-                      <span className="font-bold">{art.qte}x {art.nom}</span>
-                      {(art.remise_unitaire_ar > 0 || art.remise_montant > 0) && <p className="text-[9px] text-green-600 font-bold">Remise unitaire appliquée</p>}
-                    </div>
-                    <span className="font-black">{formatAr(tl)} Ar</span>
-                  </div>
-                )
-              })}
-            </div>
-            
-            <div className="bg-red-50 p-4 rounded-xl border border-red-100 flex flex-col gap-2">
-               <div className="flex justify-between items-center">
-                 <p className="text-[10px] font-bold text-red-600 uppercase">Total Articles (Magasin)</p>
-                 <p className="text-lg font-black text-[#800020]">{formatAr(detailModal.montant_total)} Ar</p>
-               </div>
-               {safeNum(detailModal.details_json?.frais_livraison) > 0 && (
-                 <div className="flex justify-between items-center">
-                   <p className="text-[10px] font-bold text-orange-600 uppercase">Frais Livraison (Livreur)</p>
-                   <p className="text-sm font-black text-orange-600">+{formatAr(detailModal.details_json.frais_livraison)} Ar</p>
-                 </div>
-               )}
-               {safeNum(detailModal.details_json?.frais_livraison) > 0 && (
-                 <div className="flex justify-between items-center border-t border-red-200 pt-2 mt-1">
-                   <p className="text-xs font-black text-[#800020] uppercase">Total payé par client</p>
-                   <p className="text-xl font-black text-[#800020]">{formatAr(safeNum(detailModal.montant_total) + safeNum(detailModal.details_json.frais_livraison))} Ar</p>
-                 </div>
-               )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {cancelModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[90]">
-          <div className="bg-white p-6 rounded-3xl w-full max-w-sm shadow-2xl border-t-8 border-red-600 text-center">
-             <div className="text-4xl mb-4">⚠️</div>
-             <h3 className="font-black text-red-600 text-lg uppercase mb-2">Annuler la vente ?</h3>
-             <p className="text-xs text-gray-500 mb-6">Cette action est définitive. Le stock des produits sera restauré et la vente sera supprimée de l'historique.</p>
-             
-             <form onSubmit={executerAnnulation} className="space-y-4">
-                <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase block text-left mb-1">Code Superadmin requis</label>
-                  <input type="password" placeholder="Mot de passe direction" className="w-full p-3 bg-gray-50 border rounded-xl outline-none text-center font-bold" value={cancelPwd} onChange={e=>setCancelPwd(e.target.value)} required disabled={isCancelling} />
-                </div>
-                <div className="flex gap-2">
-                  <button type="button" onClick={() => {setCancelModal(null); setCancelPwd("");}} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 p-3 rounded-xl font-bold text-xs transition" disabled={isCancelling}>Retour</button>
-                  <button type="submit" className="flex-1 bg-red-600 hover:bg-red-700 text-white p-3 rounded-xl font-black uppercase text-xs shadow-md transition" disabled={isCancelling}>{isCancelling ? 'En cours...' : 'Confirmer'}</button>
-                </div>
-             </form>
-          </div>
-        </div>
-      )}
+      <div className="flex justify-between items-center border-b-2 border-[#800020] pb-2"><h2 className="text-2xl font-black uppercase text-[#800020]">Historique Global</h2><input type="date" className="p-2 bg-white border rounded-xl font-bold text-xs" onChange={e => setDateFiltre(e.target.value)} /></div>
+      <div className="grid gap-3">{ventes.map(v => (<div key={v.id} className="bg-white p-4 rounded-xl shadow-sm border flex flex-col md:flex-row justify-between items-center gap-3"><div className="flex-1 w-full cursor-pointer" onClick={() => setDetailModal(v)}><div className="flex items-center gap-2 mb-1">{v.numero_facture && <span className="font-black text-gray-800 text-[10px]">{v.numero_facture}</span>}<span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${v.type_vente === 'CRÉDIT' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>{v.type_vente}</span>{v.type_vente !== 'CRÉDIT' && <BadgePaiement methode={v.methode_paiement} />}<span className="text-[10px] text-gray-400 font-bold">{formatDateTime(v.date_vente)}</span></div><p className="font-black uppercase text-sm">{v.client_nom}</p><p className="text-[10px] text-gray-500 mt-1 line-clamp-1">🛒 {v.articles_liste}</p></div><p className="text-lg font-black text-[#800020] shrink-0">{formatAr(v.montant_total)} Ar</p><div className="flex gap-2 w-full md:w-auto shrink-0"><button onClick={(e)=>{e.stopPropagation(); reImprimer(v);}} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg font-bold text-xs shadow-sm transition">🖨️ Re-imprimer</button><button onClick={(e)=>{e.stopPropagation(); setCancelModal(v);}} className="flex-1 bg-red-50 hover:bg-red-600 hover:text-white text-red-600 px-3 py-2 rounded-lg font-bold text-xs shadow-sm transition">🗑️ Annuler</button></div></div>))}</div>
+      {detailModal && (<div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50"><div className="bg-white p-6 rounded-3xl w-full max-w-lg shadow-2xl"><div className="flex justify-between items-center border-b pb-3 mb-4"><div><h3 className="font-black text-[#800020] text-lg uppercase">Détails de Vente</h3><p className="text-xs text-gray-500 font-bold">{formatDateTime(detailModal.date_vente)}</p></div><button onClick={() => setDetailModal(null)} className="text-2xl font-black text-gray-400">×</button></div><p className="text-sm font-bold uppercase mb-4 text-gray-800">👤 {detailModal.client_nom} {detailModal.methode_paiement && `- Payé par ${detailModal.methode_paiement}`}</p><div className="space-y-2 mb-6 bg-gray-50 p-3 rounded-xl max-h-48 overflow-y-auto custom-scrollbar">{detailModal.details_json?.articles?.map((art, idx) => { const pu = safeNum(art.prix_unitaire !== undefined ? art.prix_unitaire : art.prix_vente) - safeNum(art.remise_unitaire_ar !== undefined ? art.remise_unitaire_ar : art.remise_montant); const tl = safeNum(art.total_ligne !== undefined ? art.total_ligne : pu * safeNum(art.qte)); return (<div key={idx} className="flex justify-between text-xs border-b border-gray-200 pb-2 last:border-0"><div><span className="font-bold">{art.qte}x {art.nom}</span>{(art.remise_unitaire_ar > 0 || art.remise_montant > 0) && <p className="text-[9px] text-green-600 font-bold">Remise unitaire appliquée</p>}</div><span className="font-black">{formatAr(tl)} Ar</span></div>) })}</div><div className="bg-red-50 p-4 rounded-xl border border-red-100 flex flex-col gap-2"><div className="flex justify-between items-center"><p className="text-[10px] font-bold text-red-600 uppercase">Total Articles (Magasin)</p><p className="text-lg font-black text-[#800020]">{formatAr(detailModal.montant_total)} Ar</p></div>{safeNum(detailModal.details_json?.frais_livraison) > 0 && (<div className="flex justify-between items-center"><p className="text-[10px] font-bold text-orange-600 uppercase">Frais Livraison (Livreur)</p><p className="text-sm font-black text-orange-600">+{formatAr(detailModal.details_json.frais_livraison)} Ar</p></div>)}{safeNum(detailModal.details_json?.frais_livraison) > 0 && (<div className="flex justify-between items-center border-t border-red-200 pt-2 mt-1"><p className="text-xs font-black text-[#800020] uppercase">Total payé par client</p><p className="text-xl font-black text-[#800020]">{formatAr(safeNum(detailModal.montant_total) + safeNum(detailModal.details_json.frais_livraison))} Ar</p></div>)}</div></div></div>)}
+      {cancelModal && (<div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[90]"><div className="bg-white p-6 rounded-3xl w-full max-w-sm shadow-2xl border-t-8 border-red-600 text-center"><div className="text-4xl mb-4">⚠️</div><h3 className="font-black text-red-600 text-lg uppercase mb-2">Annuler la vente ?</h3><p className="text-xs text-gray-500 mb-6">Action définitive. Stock restauré et vente supprimée.</p><form onSubmit={executerAnnulation} className="space-y-4"><div><label className="text-[10px] font-bold text-gray-400 uppercase block text-left mb-1">Code Superadmin requis</label><input type="password" placeholder="Mot de passe direction" className="w-full p-3 bg-gray-50 border rounded-xl outline-none text-center font-bold" value={cancelPwd} onChange={e=>setCancelPwd(e.target.value)} required disabled={isCancelling} /></div><div className="flex gap-2"><button type="button" onClick={() => {setCancelModal(null); setCancelPwd("");}} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 p-3 rounded-xl font-bold text-xs transition" disabled={isCancelling}>Retour</button><button type="submit" className="flex-1 bg-red-600 hover:bg-red-700 text-white p-3 rounded-xl font-black uppercase text-xs shadow-md transition" disabled={isCancelling}>{isCancelling ? 'En cours...' : 'Confirmer'}</button></div></form></div></div>)}
     </div>
   );
 };
@@ -669,13 +545,76 @@ const AdminParametres = ({ params, setParams }) => {
 };
 
 const ModuleClients = () => {
-  const [list, setList] = useState([]); const [form, setForm] = useState({ nom: '', tel: '', wa: '', adresse: '', nif: '', stat: '' });
-  const load = async () => { const { data } = await supabase.from('clients').select('*').order('nom'); setList(data || []); }; useEffect(() => { load(); }, []);
-  const save = async (e) => { e.preventDefault(); await supabase.from('clients').insert([{nom: form.nom, telephone: form.tel, contact_whatsapp: form.wa, adresse: form.adresse, nif: form.nif, stat: form.stat}]); setForm({ nom: '', tel: '', wa: '', adresse: '', nif: '', stat: '' }); load(); };
+  const [list, setList] = useState([]); 
+  const [form, setForm] = useState({ nom: '', tel: '', wa: '', adresse: '', nif: '', stat: '' });
+  const [editModal, setEditModal] = useState(null);
+  const [editForm, setEditForm] = useState({ nom: '', tel: '', wa: '', adresse: '', nif: '', stat: '', pwd: '' });
+
+  const load = async () => { const { data } = await supabase.from('clients').select('*').order('nom'); setList(data || []); }; 
+  useEffect(() => { load(); }, []);
+
+  const saveNouveau = async (e) => { 
+    e.preventDefault(); 
+    await supabase.from('clients').insert([{nom: form.nom, telephone: form.tel, contact_whatsapp: form.wa, adresse: form.adresse, nif: form.nif, stat: form.stat}]); 
+    setForm({ nom: '', tel: '', wa: '', adresse: '', nif: '', stat: '' }); 
+    load(); 
+  };
+
+  const saveEdit = async (e) => {
+    e.preventDefault();
+    const { data: admins } = await supabase.from('utilisateurs').select('*').eq('role', 'superadmin').eq('mot_de_passe', editForm.pwd);
+    if (!admins || admins.length === 0) return alert("⚠️ Code Superadmin incorrect !");
+
+    const oldName = editModal.nom;
+    const newName = editForm.nom;
+
+    await supabase.from('clients').update({
+      nom: newName, telephone: editForm.tel, contact_whatsapp: editForm.wa,
+      adresse: editForm.adresse, nif: editForm.nif, stat: editForm.stat
+    }).eq('id', editModal.id);
+
+    if (oldName !== newName) {
+       await supabase.from('credits').update({ nom_client: newName }).eq('nom_client', oldName);
+       await supabase.from('devis').update({ client_nom: newName }).eq('client_nom', oldName);
+    }
+
+    setEditModal(null);
+    load();
+    alert("Client modifié avec succès !");
+  };
+
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <form onSubmit={save} className="bg-white p-6 rounded-3xl shadow-sm border-t-4 border-[#800020] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"><input placeholder="Nom / Société" className="p-3 bg-gray-50 border rounded-xl outline-none" value={form.nom} onChange={e=>setForm({...form, nom: e.target.value})} required /><input placeholder="Tél Normal" className="p-3 bg-gray-50 border rounded-xl outline-none" value={form.tel} onChange={e=>setForm({...form, tel: e.target.value})} /><input placeholder="N° WhatsApp" className="p-3 bg-green-50 border border-green-100 rounded-xl outline-none" value={form.wa} onChange={e=>setForm({...form, wa: e.target.value})} /><div className="flex gap-2"><input placeholder="NIF" className="flex-1 p-3 bg-gray-50 border rounded-xl outline-none w-full" value={form.nif} onChange={e=>setForm({...form, nif: e.target.value})} /><input placeholder="STAT" className="flex-1 p-3 bg-gray-50 border rounded-xl outline-none w-full" value={form.stat} onChange={e=>setForm({...form, stat: e.target.value})} /></div><input placeholder="Adresse" className="p-3 bg-gray-50 border rounded-xl outline-none md:col-span-2" value={form.adresse} onChange={e=>setForm({...form, adresse: e.target.value})} /><button className="bg-[#800020] text-white p-3 rounded-xl font-black uppercase lg:col-span-3">Ajouter Client</button></form>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{list.map(c => (<div key={c.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-start"><div><p className="font-black uppercase text-sm text-gray-800">{c.nom}</p><p className="text-[10px] text-gray-500 mt-1">📞 {c.telephone || '-'}</p>{c.contact_whatsapp && <a href={`https://wa.me/${String(c.contact_whatsapp).replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer" className="text-[10px] text-green-600 font-bold underline">💬 WhatsApp</a>}</div><div className="flex flex-col gap-1 items-end"><span className="text-[9px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded">NIF: {c.nif || c.raison_fiscale || '-'}</span><span className="text-[9px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded">STAT: {c.stat || '-'}</span></div></div>))}</div>
+    <div className="max-w-5xl mx-auto space-y-6 relative">
+      <form onSubmit={saveNouveau} className="bg-white p-6 rounded-3xl shadow-sm border-t-4 border-[#800020] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"><input placeholder="Nom / Société" className="p-3 bg-gray-50 border rounded-xl outline-none" value={form.nom} onChange={e=>setForm({...form, nom: e.target.value})} required /><input placeholder="Tél Normal" className="p-3 bg-gray-50 border rounded-xl outline-none" value={form.tel} onChange={e=>setForm({...form, tel: e.target.value})} /><input placeholder="N° WhatsApp" className="p-3 bg-green-50 border border-green-100 rounded-xl outline-none" value={form.wa} onChange={e=>setForm({...form, wa: e.target.value})} /><div className="flex gap-2"><input placeholder="NIF" className="flex-1 p-3 bg-gray-50 border rounded-xl outline-none w-full" value={form.nif} onChange={e=>setForm({...form, nif: e.target.value})} /><input placeholder="STAT" className="flex-1 p-3 bg-gray-50 border rounded-xl outline-none w-full" value={form.stat} onChange={e=>setForm({...form, stat: e.target.value})} /></div><input placeholder="Adresse" className="p-3 bg-gray-50 border rounded-xl outline-none md:col-span-2" value={form.adresse} onChange={e=>setForm({...form, adresse: e.target.value})} /><button className="bg-[#800020] text-white p-3 rounded-xl font-black uppercase lg:col-span-3">Ajouter Client</button></form>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{list.map(c => (<div key={c.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-start"><div><p className="font-black uppercase text-sm text-gray-800">{c.nom}</p><p className="text-[10px] text-gray-500 mt-1">📞 {c.telephone || '-'}</p>{c.contact_whatsapp && <a href={`https://wa.me/${String(c.contact_whatsapp).replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer" className="text-[10px] text-green-600 font-bold underline">💬 WhatsApp</a>}</div><div className="flex flex-col gap-1 items-end"><span className="text-[9px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded">NIF: {c.nif || c.raison_fiscale || '-'}</span><span className="text-[9px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded">STAT: {c.stat || '-'}</span><button onClick={() => { setEditModal(c); setEditForm({ nom: c.nom, tel: c.telephone||'', wa: c.contact_whatsapp||'', adresse: c.adresse||'', nif: c.nif||'', stat: c.stat||'', pwd: '' }); }} className="text-[10px] font-bold bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded transition mt-1">✏️ Modifier</button></div></div>))}</div>
+
+      {editModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+          <div className="bg-white p-6 rounded-3xl w-full max-w-md shadow-2xl">
+            <h2 className="text-lg font-black uppercase text-[#800020] mb-4">Modifier Client</h2>
+            <form onSubmit={saveEdit} className="space-y-3">
+              <div><label className="text-[10px] font-bold text-gray-400 uppercase">Nom / Société</label><input className="w-full p-3 bg-gray-50 border rounded-xl outline-none font-bold" value={editForm.nom} onChange={e=>setEditForm({...editForm, nom: e.target.value})} required /></div>
+              <div className="flex gap-2">
+                <div className="flex-1"><label className="text-[10px] font-bold text-gray-400 uppercase">Tél Normal</label><input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={editForm.tel} onChange={e=>setEditForm({...editForm, tel: e.target.value})} /></div>
+                <div className="flex-1"><label className="text-[10px] font-bold text-green-600 uppercase">N° WhatsApp</label><input className="w-full p-3 bg-green-50 border border-green-200 rounded-xl outline-none text-green-700" value={editForm.wa} onChange={e=>setEditForm({...editForm, wa: e.target.value})} /></div>
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1"><label className="text-[10px] font-bold text-gray-400 uppercase">NIF</label><input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={editForm.nif} onChange={e=>setEditForm({...editForm, nif: e.target.value})} /></div>
+                <div className="flex-1"><label className="text-[10px] font-bold text-gray-400 uppercase">STAT</label><input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={editForm.stat} onChange={e=>setEditForm({...editForm, stat: e.target.value})} /></div>
+              </div>
+              <div><label className="text-[10px] font-bold text-gray-400 uppercase">Adresse</label><input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={editForm.adresse} onChange={e=>setEditForm({...editForm, adresse: e.target.value})} /></div>
+              <div className="pt-2 border-t">
+                 <label className="text-[10px] font-bold text-gray-400 uppercase">Code Superadmin</label>
+                 <input type="password" placeholder="Mot de passe requis" className="w-full p-3 border rounded-xl font-bold outline-none text-center" value={editForm.pwd} onChange={e=>setEditForm({...editForm, pwd: e.target.value})} required />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="button" onClick={()=>setEditModal(null)} className="p-3 bg-gray-100 rounded-xl flex-1 font-bold text-gray-600">Annuler</button>
+                <button type="submit" className="p-3 bg-[#800020] text-white rounded-xl font-bold flex-1 shadow-md">Enregistrer</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   ); 
 };
