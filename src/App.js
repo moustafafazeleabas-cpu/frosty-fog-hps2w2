@@ -6,7 +6,7 @@ const supabaseUrl = 'https://wblginsktosypbmhmgbr.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndibGdpbnNrdG9zeXBibWhtZ2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjU3NTYsImV4cCI6MjA4OTk0MTc1Nn0.pmysPmutGjW2Tw7jFvrBE_0ue2pZmS32Pjncu1Rmr8w';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const LOGO_URL = "https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg"; // <-- N'oublie pas ton lien ImgBB ici
+const LOGO_URL = "https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg"; // 
 
 const CATEGORIES_PRODUITS = ["Huile", "Épicerie Indienne", "Produits surgelés", "Boissons & Eaux", "Papeterie", "Produits ménagers", "Informatique", "Épicerie pratique", "Cosmétique", "Quincaillerie", "Divers"];
 
@@ -19,6 +19,7 @@ const formatHeureMessage = (dateStr) => { if (!dateStr) return '-'; const d = ne
 const lancerImpression = (type, data, params) => {
   const isTicket = data.printSize === '58mm' || data.printSize === '80mm';
   const win = window.open('', '', isTicket ? 'width=350,height=600' : 'width=800,height=900');
+  
   if (!win) { alert("⚠️ Votre navigateur a bloqué l'impression. Veuillez autoriser les Pop-ups."); return; }
 
   const dateDoc = formatDateTime(data.date || new Date());
@@ -40,8 +41,8 @@ const lancerImpression = (type, data, params) => {
     if (type === 'facture_a4') titreType = 'FACTURE';
 
     win.document.write(`
-      <html><head><title>Ticket</title>
-        <style>@media print { @page { margin: 0; } body { margin: 0; } } body { font-family: monospace; width: ${data.printSize}; padding: 10px; font-size: 12px; margin: 0 auto; text-align: center; } .item-block { text-align: left; margin-bottom: 8px; border-bottom: 1px dotted #ccc; padding-bottom: 4px; } .item-line1 { font-weight: bold; font-size: 12px; } .item-line2 { display: flex; justify-content: space-between; margin-top: 3px; font-size: 11px; } .item-line3 { font-size: 10px; color: #555; margin-top: 2px; }</style>
+      <html><head><title>${data.numero || 'Ticket'}</title>
+        <style>@media print { @page { margin: 0; } body { margin: 0; } .no-print { display: none !important; } } body { font-family: monospace; width: ${data.printSize}; padding: 10px; font-size: 12px; margin: 0 auto; text-align: center; } .item-block { text-align: left; margin-bottom: 8px; border-bottom: 1px dotted #ccc; padding-bottom: 4px; } .item-line1 { font-weight: bold; font-size: 12px; } .item-line2 { display: flex; justify-content: space-between; margin-top: 3px; font-size: 11px; } .item-line3 { font-size: 10px; color: #555; margin-top: 2px; }</style>
       </head><body>
         <img src="${LOGO_URL}" style="max-width:80%; height:auto; margin-bottom:5px;" onerror="this.style.display='none'"/>
         <h2 style="margin:0;">${params.nom_entreprise || 'HAKIMI PLUS'}</h2>
@@ -70,9 +71,12 @@ const lancerImpression = (type, data, params) => {
   } else {
     let titre = 'FACTURE'; if (type === 'devis') titre = 'PROFORMA / DEVIS'; if (type === 'admin_credit') titre = 'FACTURE À CRÉDIT';
     win.document.write(`
-      <html><head><title>${titre}</title>
-        <style>@media print { @page { margin: 0; size: auto; } body { margin: 1cm; } } body { font-family: Arial, sans-serif; font-size: 13px; color: #333; } table { width: 100%; border-collapse: collapse; margin-top: 15px; } th, td { padding: 8px; border-bottom: 1px solid #eee; text-align: left; } th { background-color: #800020; color: white; } .header-flex { display: flex; justify-content: space-between; border-bottom: 2px solid #800020; padding-bottom: 15px; margin-bottom: 15px; } .client-box { background-color: #f9f9f9; border-left: 4px solid #800020; padding: 15px; width: 50%; margin-bottom: 20px; } .total-line { font-size: 20px; font-weight: bold; color: #800020; text-align: right; margin-top: 10px; }</style>
+      <html><head><title>${data.numero || titre}</title>
+        <style>@media print { @page { margin: 0; size: auto; } body { margin: 1cm; } .no-print { display: none !important; } } body { font-family: Arial, sans-serif; font-size: 13px; color: #333; } table { width: 100%; border-collapse: collapse; margin-top: 15px; } th, td { padding: 8px; border-bottom: 1px solid #eee; text-align: left; } th { background-color: #800020; color: white; } .header-flex { display: flex; justify-content: space-between; border-bottom: 2px solid #800020; padding-bottom: 15px; margin-bottom: 15px; } .client-box { background-color: #f9f9f9; border-left: 4px solid #800020; padding: 15px; width: 50%; margin-bottom: 20px; } .total-line { font-size: 20px; font-weight: bold; color: #800020; text-align: right; margin-top: 10px; }</style>
       </head><body>
+        <div class="no-print" style="background:#fff3cd; color:#856404; padding:10px; text-align:center; font-weight:bold; margin-bottom:20px; border-radius:5px; border: 1px solid #ffeeba;">
+           💡 Pour télécharger en PDF : Choisissez "Enregistrer au format PDF" dans la case "Destination" (ou Imprimante) ci-contre.
+        </div>
         <div class="header-flex"><div><img src="${LOGO_URL}" style="height:50px; margin-bottom:5px;" onerror="this.style.display='none'"/><h3 style="margin:0; color:#800020;">${params.nom_entreprise || 'HAKIMI PLUS'}</h3><p style="margin:0; font-size:11px;">${params.adresse || ''}<br/>${params.nif_stat || ''}<br/>${params.contact || ''}</p></div><div style="text-align:right;"><h2 style="margin:0; color:#800020; font-size: 22px;">${titre}</h2>${data.numero ? `<h3 style="margin:5px 0;">N° ${data.numero}</h3>` : ''}<p style="margin:5px 0 0 0;">Date : ${dateDoc}</p>${data.methode && type !== 'admin_credit' ? `<p style="margin:5px 0 0 0; font-weight:bold; font-size:11px;">Payé par : ${data.methode}${data.banque ? ` (${data.banque})` : ''}</p>` : ''}</div></div>
         <div class="client-box"><strong>Client :</strong> ${data.client_nom}<br/><strong>NIF :</strong> ${data.client_nif || '-'}<br/><strong>STAT :</strong> ${data.client_stat || '-'}<br/>${data.client_tel ? `<strong>Contact :</strong> ${data.client_tel}<br/>` : ''}${type === 'admin_credit' && data.echeance ? `<br/><strong style="color:red;">Échéance : ${formatDate(data.echeance)}</strong>` : ''}</div>
         <table><thead><tr><th>Désignation</th><th>Qté</th><th>Prix U.</th><th style="text-align:right;">Total</th></tr></thead><tbody>
@@ -137,7 +141,6 @@ export default function App() {
 
   const handleLogin = (userData) => { localStorage.setItem('hakimi_user', JSON.stringify(userData)); setUser(userData); };
   const handleLogout = () => { localStorage.removeItem('hakimi_user'); setUser(null); };
-
   const handleOpenNotif = () => { setNotifOpen(!notifOpen); if (!notifOpen) { localStorage.setItem('notifClearedDate', new Date().toLocaleDateString('fr-FR')); setHasClearedNotifsToday(true); } };
 
   if (loading) return (<div className="min-h-screen bg-white flex flex-col items-center justify-center"><div className="w-16 h-16 border-4 border-[#800020] border-t-transparent rounded-full animate-spin mb-4"></div><img src={LOGO_URL} alt="Chargement..." className="h-12 animate-pulse" onError={(e) => e.target.style.display='none'} /></div>);
@@ -434,11 +437,12 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
   );
 };
 // ==========================================
-// HISTORIQUE GLOBAL (AVEC ANNULATION & PDF)
+// HISTORIQUE GLOBAL (AVEC RECHERCHE ET PDF)
 // ==========================================
 const ModuleHistorique = ({ params }) => {
   const [ventes, setVentes] = useState([]); 
   const [dateFiltre, setDateFiltre] = useState("");
+  const [searchHisto, setSearchHisto] = useState("");
   const [detailModal, setDetailModal] = useState(null);
   
   const [cancelModal, setCancelModal] = useState(null);
@@ -449,17 +453,28 @@ const ModuleHistorique = ({ params }) => {
   useEffect(() => { load(); }, [dateFiltre]);
 
   const reImprimer = (v) => { const type = v.type_vente === 'CAISSE' ? 'caisse' : (v.type_vente === 'FACTURE' ? 'facture_a4' : 'admin_credit'); const dataPrint = { numero: v.numero_facture, methode: v.methode_paiement, banque: v.details_json?.paiement_infos?.banque, client_nom: v.client_nom, date: v.date_vente, totalNet: v.montant_total, totalRemisesEnAr: v.total_remise_ar, panier: v.details_json?.articles || [], fraisLivraison: safeNum(v.details_json?.frais_livraison), printSize: '58mm' }; lancerImpression(type, dataPrint, params); };
-  
   const imprimerPDF = (v) => { const dataPrint = { numero: v.numero_facture, methode: v.methode_paiement, banque: v.details_json?.paiement_infos?.banque, client_nom: v.client_nom, date: v.date_vente, totalNet: v.montant_total, totalRemisesEnAr: v.total_remise_ar, panier: v.details_json?.articles || [], fraisLivraison: safeNum(v.details_json?.frais_livraison), printSize: 'A4' }; lancerImpression('facture_a4', dataPrint, params); };
 
   const executerAnnulation = async (e) => { e.preventDefault(); if(isCancelling) return; setIsCancelling(true); const { data: admins } = await supabase.from('utilisateurs').select('*').eq('role', 'superadmin').eq('mot_de_passe', cancelPwd); if (!admins || admins.length === 0) { alert("⚠️ Code Superadmin incorrect !"); setIsCancelling(false); return; } if (cancelModal.details_json && cancelModal.details_json.articles) { for (let art of cancelModal.details_json.articles) { const { data: pData } = await supabase.from('produits').select('stock_actuel').eq('nom', art.nom).single(); if (pData) { await supabase.from('produits').update({ stock_actuel: safeNum(pData.stock_actuel) + safeNum(art.qte) }).eq('nom', art.nom); } } } await supabase.from('historique_ventes').delete().eq('id', cancelModal.id); alert("✅ Vente annulée avec succès. Le stock a été restauré."); setCancelModal(null); setCancelPwd(""); setIsCancelling(false); load(); };
 
   const BadgePaiement = ({ methode }) => { if(methode === 'MVOLA') return <span className="bg-green-100 text-green-700 text-[9px] font-black px-2 py-0.5 rounded">🟢 MVOLA</span>; if(methode === 'ORANGE MONEY') return <span className="bg-orange-100 text-orange-700 text-[9px] font-black px-2 py-0.5 rounded">🟠 ORANGE M.</span>; if(methode === 'CHEQUE') return <span className="bg-pink-100 text-pink-700 text-[9px] font-black px-2 py-0.5 rounded">✍️ CHÈQUE</span>; return <span className="bg-blue-100 text-blue-700 text-[9px] font-black px-2 py-0.5 rounded">💵 CASH</span>; };
 
+  const ventesAffiches = ventes.filter(v => {
+    if(!searchHisto) return true;
+    const term = searchHisto.toLowerCase();
+    return (v.client_nom||'').toLowerCase().includes(term) || (v.numero_facture||'').toLowerCase().includes(term) || (v.articles_liste||'').toLowerCase().includes(term);
+  });
+
   return (
     <div className="max-w-6xl mx-auto space-y-6 relative">
-      <div className="flex justify-between items-center border-b-2 border-[#800020] pb-2"><h2 className="text-2xl font-black uppercase text-[#800020]">Historique Global</h2><input type="date" className="p-2 bg-white border rounded-xl font-bold text-xs" onChange={e => setDateFiltre(e.target.value)} /></div>
-      <div className="grid gap-3">{ventes.map(v => (<div key={v.id} className="bg-white p-4 rounded-xl shadow-sm border flex flex-col md:flex-row justify-between items-center gap-3"><div className="flex-1 w-full cursor-pointer" onClick={() => setDetailModal(v)}><div className="flex items-center gap-2 mb-1">{v.numero_facture && <span className="font-black text-gray-800 text-[10px]">{v.numero_facture}</span>}<span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${v.type_vente === 'CRÉDIT' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>{v.type_vente}</span>{v.type_vente !== 'CRÉDIT' && <BadgePaiement methode={v.methode_paiement} />}<span className="text-[10px] text-gray-400 font-bold">{formatDateTime(v.date_vente)}</span></div><p className="font-black uppercase text-sm">{v.client_nom}</p><p className="text-[10px] text-gray-500 mt-1 line-clamp-1">🛒 {v.articles_liste}</p></div><p className="text-lg font-black text-[#800020] shrink-0">{formatAr(v.montant_total)} Ar</p><div className="flex gap-2 w-full md:w-auto shrink-0"><button onClick={(e)=>{e.stopPropagation(); imprimerPDF(v);}} className="flex-1 bg-blue-100 hover:bg-blue-200 text-blue-800 px-3 py-2 rounded-lg font-bold text-xs shadow-sm transition">📄 PDF (A4)</button><button onClick={(e)=>{e.stopPropagation(); reImprimer(v);}} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg font-bold text-xs shadow-sm transition">🖨️ Re-imprimer</button><button onClick={(e)=>{e.stopPropagation(); setCancelModal(v);}} className="flex-1 bg-red-50 hover:bg-red-600 hover:text-white text-red-600 px-3 py-2 rounded-lg font-bold text-xs shadow-sm transition">🗑️ Annuler</button></div></div>))}</div>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b-2 border-[#800020] pb-2 gap-2">
+        <h2 className="text-2xl font-black uppercase text-[#800020]">Historique Global</h2>
+        <div className="flex gap-2 w-full md:w-auto">
+          <input type="text" placeholder="🔍 Client, Produit, N°..." className="p-2 bg-white border rounded-xl font-bold text-xs flex-1 md:w-48 outline-none" value={searchHisto} onChange={e => setSearchHisto(e.target.value)} />
+          <input type="date" className="p-2 bg-white border rounded-xl font-bold text-xs" onChange={e => setDateFiltre(e.target.value)} />
+        </div>
+      </div>
+      <div className="grid gap-3">{ventesAffiches.map(v => (<div key={v.id} className="bg-white p-4 rounded-xl shadow-sm border flex flex-col md:flex-row justify-between items-center gap-3"><div className="flex-1 w-full cursor-pointer" onClick={() => setDetailModal(v)}><div className="flex items-center gap-2 mb-1">{v.numero_facture && <span className="font-black text-gray-800 text-[10px]">{v.numero_facture}</span>}<span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${v.type_vente === 'CRÉDIT' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>{v.type_vente}</span>{v.type_vente !== 'CRÉDIT' && <BadgePaiement methode={v.methode_paiement} />}<span className="text-[10px] text-gray-400 font-bold">{formatDateTime(v.date_vente)}</span></div><p className="font-black uppercase text-sm">{v.client_nom}</p><p className="text-[10px] text-gray-500 mt-1 line-clamp-1">🛒 {v.articles_liste}</p></div><p className="text-lg font-black text-[#800020] shrink-0">{formatAr(v.montant_total)} Ar</p><div className="flex gap-2 w-full md:w-auto shrink-0"><button onClick={(e)=>{e.stopPropagation(); imprimerPDF(v);}} className="flex-1 bg-blue-100 hover:bg-blue-200 text-blue-800 px-3 py-2 rounded-lg font-bold text-xs shadow-sm transition">📄 PDF (A4)</button><button onClick={(e)=>{e.stopPropagation(); reImprimer(v);}} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg font-bold text-xs shadow-sm transition">🖨️ Re-imprimer</button><button onClick={(e)=>{e.stopPropagation(); setCancelModal(v);}} className="flex-1 bg-red-50 hover:bg-red-600 hover:text-white text-red-600 px-3 py-2 rounded-lg font-bold text-xs shadow-sm transition">🗑️ Annuler</button></div></div>))}{ventesAffiches.length === 0 && <p className="text-center text-gray-400 italic">Aucune vente trouvée.</p>}</div>
       {detailModal && (<div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50"><div className="bg-white p-6 rounded-3xl w-full max-w-lg shadow-2xl"><div className="flex justify-between items-center border-b pb-3 mb-4"><div><h3 className="font-black text-[#800020] text-lg uppercase">Détails de Vente</h3><p className="text-xs text-gray-500 font-bold">{formatDateTime(detailModal.date_vente)}</p></div><button onClick={() => setDetailModal(null)} className="text-2xl font-black text-gray-400">×</button></div><p className="text-sm font-bold uppercase mb-4 text-gray-800">👤 {detailModal.client_nom} {detailModal.methode_paiement && `- Payé par ${detailModal.methode_paiement}`}</p><div className="space-y-2 mb-6 bg-gray-50 p-3 rounded-xl max-h-48 overflow-y-auto custom-scrollbar">{detailModal.details_json?.articles?.map((art, idx) => { const pu = safeNum(art.prix_unitaire !== undefined ? art.prix_unitaire : art.prix_vente) - safeNum(art.remise_unitaire_ar !== undefined ? art.remise_unitaire_ar : art.remise_montant); const tl = safeNum(art.total_ligne !== undefined ? art.total_ligne : pu * safeNum(art.qte)); return (<div key={idx} className="flex justify-between text-xs border-b border-gray-200 pb-2 last:border-0"><div><span className="font-bold">{art.qte}x {art.nom}</span>{(art.remise_unitaire_ar > 0 || art.remise_montant > 0) && <p className="text-[9px] text-green-600 font-bold">Remise unitaire appliquée</p>}</div><span className="font-black">{formatAr(tl)} Ar</span></div>) })}</div><div className="bg-red-50 p-4 rounded-xl border border-red-100 flex flex-col gap-2"><div className="flex justify-between items-center"><p className="text-[10px] font-bold text-red-600 uppercase">Total Articles (Magasin)</p><p className="text-lg font-black text-[#800020]">{formatAr(detailModal.montant_total)} Ar</p></div>{safeNum(detailModal.details_json?.frais_livraison) > 0 && (<div className="flex justify-between items-center"><p className="text-[10px] font-bold text-orange-600 uppercase">Frais Livraison (Livreur)</p><p className="text-sm font-black text-orange-600">+{formatAr(detailModal.details_json.frais_livraison)} Ar</p></div>)}{safeNum(detailModal.details_json?.frais_livraison) > 0 && (<div className="flex justify-between items-center border-t border-red-200 pt-2 mt-1"><p className="text-xs font-black text-[#800020] uppercase">Total payé par client</p><p className="text-xl font-black text-[#800020]">{formatAr(safeNum(detailModal.montant_total) + safeNum(detailModal.details_json.frais_livraison))} Ar</p></div>)}</div></div></div>)}
       {cancelModal && (<div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[90]"><div className="bg-white p-6 rounded-3xl w-full max-w-sm shadow-2xl border-t-8 border-red-600 text-center"><div className="text-4xl mb-4">⚠️</div><h3 className="font-black text-red-600 text-lg uppercase mb-2">Annuler la vente ?</h3><p className="text-xs text-gray-500 mb-6">Action définitive. Stock restauré et vente supprimée.</p><form onSubmit={executerAnnulation} className="space-y-4"><div><label className="text-[10px] font-bold text-gray-400 uppercase block text-left mb-1">Code Superadmin requis</label><input type="password" placeholder="Mot de passe direction" className="w-full p-3 bg-gray-50 border rounded-xl outline-none text-center font-bold" value={cancelPwd} onChange={e=>setCancelPwd(e.target.value)} required disabled={isCancelling} /></div><div className="flex gap-2"><button type="button" onClick={() => {setCancelModal(null); setCancelPwd("");}} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 p-3 rounded-xl font-bold text-xs transition" disabled={isCancelling}>Retour</button><button type="submit" className="flex-1 bg-red-600 hover:bg-red-700 text-white p-3 rounded-xl font-black uppercase text-xs shadow-md transition" disabled={isCancelling}>{isCancelling ? 'En cours...' : 'Confirmer'}</button></div></form></div></div>)}
     </div>
