@@ -6,7 +6,7 @@ const supabaseUrl = 'https://wblginsktosypbmhmgbr.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndibGdpbnNrdG9zeXBibWhtZ2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjU3NTYsImV4cCI6MjA4OTk0MTc1Nn0.pmysPmutGjW2Tw7jFvrBE_0ue2pZmS32Pjncu1Rmr8w';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const LOGO_URL = "https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg";
+const LOGO_URL = "https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg"; // <-- N'oublie pas ton lien ImgBB ici
 
 const CATEGORIES_PRODUITS = ["Huile", "Épicerie Indienne", "Produits surgelés", "Boissons & Eaux", "Papeterie", "Produits ménagers", "Informatique", "Épicerie pratique", "Cosmétique", "Quincaillerie", "Divers"];
 
@@ -77,7 +77,7 @@ const lancerImpression = (type, data, params) => {
         <div class="no-print" style="background:#fff3cd; color:#856404; padding:10px; text-align:center; font-weight:bold; margin-bottom:20px; border-radius:5px; border: 1px solid #ffeeba;">
            💡 Pour télécharger en PDF : Choisissez "Enregistrer au format PDF" dans la case "Destination" (ou Imprimante) ci-contre.
         </div>
-        <div class="header-flex"><div><img src="${LOGO_URL}" style="height:50px; margin-bottom:5px;" onerror="this.style.display='none'"/><h3 style="margin:0; color:#800020;">${params.nom_entreprise || 'HAKIMI PLUS'}</h3><p style="margin:0; font-size:11px;">${params.adresse || ''}<br/>${params.nif_stat || ''}<br/>${params.contact || ''}</p></div><div style="text-align:right;"><h2 style="margin:0; color:#800020; font-size: 22px;">${titre}</h2>${data.numero ? `<h3 style="margin:5px 0;">N° ${data.numero}</h3>` : ''}<p style="margin:5px 0 0 0;">Date : ${dateDoc}</p>${data.methode && type !== 'admin_credit' ? `<p style="margin:5px 0 0 0; font-weight:bold; font-size:11px;">Payé par : ${data.methode}${data.banque ? \` (\${data.banque})\` : ''}</p>` : ''}</div></div>
+        <div class="header-flex"><div><img src="${LOGO_URL}" style="height:50px; margin-bottom:5px;" onerror="this.style.display='none'"/><h3 style="margin:0; color:#800020;">${params.nom_entreprise || 'HAKIMI PLUS'}</h3><p style="margin:0; font-size:11px;">${params.adresse || ''}<br/>${params.nif_stat || ''}<br/>${params.contact || ''}</p></div><div style="text-align:right;"><h2 style="margin:0; color:#800020; font-size: 22px;">${titre}</h2>${data.numero ? `<h3 style="margin:5px 0;">N° ${data.numero}</h3>` : ''}<p style="margin:5px 0 0 0;">Date : ${dateDoc}</p>${data.methode && type !== 'admin_credit' ? `<p style="margin:5px 0 0 0; font-weight:bold; font-size:11px;">Payé par : ${data.methode}${data.banque ? ` (${data.banque})` : ''}</p>` : ''}</div></div>
         <div class="client-box"><strong>Client :</strong> ${data.client_nom}<br/><strong>NIF :</strong> ${data.client_nif || '-'}<br/><strong>STAT :</strong> ${data.client_stat || '-'}<br/>${data.client_tel ? `<strong>Contact :</strong> ${data.client_tel}<br/>` : ''}${type === 'admin_credit' && data.echeance ? `<br/><strong style="color:red;">Échéance : ${formatDate(data.echeance)}</strong>` : ''}</div>
         <table><thead><tr><th>Désignation</th><th>Qté</th><th>Prix U.</th><th style="text-align:right;">Total</th></tr></thead><tbody>
             ${panierList.length > 0 ? panierList.map(i => {
@@ -179,8 +179,8 @@ export default function App() {
               <div className="mt-4 pt-4 border-t border-white/10 flex flex-col gap-1">
                 <p className="text-[10px] font-black text-red-400 uppercase tracking-widest px-4 mb-1">Direction</p>
                 <NavBtn active={view==='dashboard'} onClick={()=>changeView('dashboard')}>📊 Tableau de Bord</NavBtn>
-                <NavBtn active={view==='commandes_web'} onClick={()=>changeView('commandes_web')}>🌐 Commandes Site Web</NavBtn>
-                <NavBtn active={view==='gestion_site'} onClick={()=>changeView('gestion_site')}>🎨 Configuration Site</NavBtn>
+              <NavBtn active={view==='commandes_web'} onClick={()=>changeView('commandes_web')}>🌐 Commandes Site Web</NavBtn>
+<NavBtn active={view==='gestion_site'} onClick={()=>changeView('gestion_site')}>🎨 Configuration Site</NavBtn>
                 <NavBtn active={view==='admin_stock'} onClick={()=>changeView('admin_stock')}>📦 Stock & Réappro</NavBtn>
                 <NavBtn active={view==='depenses'} onClick={()=>changeView('depenses')}>💸 Dépenses</NavBtn>
                 <NavBtn active={view==='clients'} onClick={()=>changeView('clients')}>👥 Base Clients</NavBtn>
@@ -210,7 +210,7 @@ export default function App() {
 
       <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto relative">
         {view==='commandes_web' && <ModuleCommandesWeb />}
-        {view==='gestion_site' && <ModuleGestionSite />}
+{view==='gestion_site' && <ModuleGestionSite />}
         {(view==='caisse' || view==='facture_a4' || view==='admin_credit' || view==='devis') && <ModuleVente mode={view} params={parametres} categoriesDb={categoriesDb} />}
         {view==='admin_stock' && <AdminStock categoriesDb={categoriesDb} refreshCategories={loadCategories} />}
         {view==='admin_fournisseurs' && <AdminFournisseurs />}
@@ -231,13 +231,6 @@ export default function App() {
 
 const NavBtn = ({ active, onClick, disabled, children }) => (<button onClick={onClick} disabled={disabled} className={`p-3 rounded-xl text-left font-bold text-sm transition-all ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${active ? 'bg-white text-[#800020] shadow-xl translate-x-1' : (!disabled ? 'hover:bg-white/5 text-white/80' : 'text-white/80')}`}>{children}</button>);
 
-const LoginScreen = ({ onLogin }) => {
-  const [creds, setCreds] = useState({ id: '', mdp: '' });
-  const handle = async (e) => { e.preventDefault(); const { data } = await supabase.from('utilisateurs').select('*').eq('identifiant', creds.id).eq('mot_de_passe', creds.mdp).single(); if (data) onLogin(data); else alert("Identifiants incorrects."); };
-  return (
-    <div className="min-h-screen bg-[#800020] flex items-center justify-center p-4"><form onSubmit={handle} className="bg-white p-12 rounded-[2rem] shadow-2xl w-full max-w-md border-b-8 border-red-600"><div className="flex justify-center mb-6"><img src={LOGO_URL} alt="Logo" className="h-16" onError={(e) => e.target.style.display='none'} /></div><input type="text" placeholder="Utilisateur" className="w-full p-4 mb-4 bg-gray-50 border rounded-xl outline-none" onChange={e=>setCreds({...creds, id: e.target.value})} /><input type="password" placeholder="Mot de passe" className="w-full p-4 mb-6 bg-gray-50 border rounded-xl outline-none" onChange={e=>setCreds({...creds, mdp: e.target.value})} /><button className="w-full bg-[#800020] text-white p-4 rounded-xl font-black uppercase shadow-lg">Connexion</button></form></div>
-  );
-};
 const AdminUtilisateurs = ({ currentUser, onUpdateSession }) => {
   const [users, setUsers] = useState([]);
   const [form, setForm] = useState({ identifiant: '', mot_de_passe: '', role: 'vendeur' });
@@ -384,7 +377,6 @@ const AdminDashboard = () => {
     </div>
   );
 };
-
 const AdminStock = ({ categoriesDb, refreshCategories }) => { 
   const [produits, setProduits] = useState([]); const [fours, setFours] = useState([]); const [historique, setHistorique] = useState([]);
   const [selectedCatFilter, setSelectedCatFilter] = useState(""); const [searchStock, setSearchStock] = useState(""); const [sortConfig, setSortConfig] = useState({ key: 'nom', direction: 'asc' });
@@ -597,6 +589,7 @@ const ModuleJournalFactures = ({ params }) => {
     </div>
   );
 };
+
 const AdminParametres = ({ params, setParams }) => {
   const [form, setForm] = useState(params);
   const save = async (e) => { e.preventDefault(); const { data } = await supabase.from('parametres').update(form).eq('id', 1).select(); if (data) { setParams(data[0]); alert("Mise à jour OK !"); } };
@@ -744,24 +737,41 @@ const ModuleDepenses = () => {
   );
 };
 
+const LoginScreen = ({ onLogin }) => {
+  const [creds, setCreds] = useState({ id: '', mdp: '' });
+  const handle = async (e) => { e.preventDefault(); const { data } = await supabase.from('utilisateurs').select('*').eq('identifiant', creds.id).eq('mot_de_passe', creds.mdp).single(); if (data) onLogin(data); else alert("Identifiants incorrects."); };
+  return (
+    <div className="min-h-screen bg-[#800020] flex items-center justify-center p-4"><form onSubmit={handle} className="bg-white p-12 rounded-[2rem] shadow-2xl w-full max-w-md border-b-8 border-red-600"><div className="flex justify-center mb-6"><img src={LOGO_URL} alt="Logo" className="h-16" onerror="this.style.display='none'" /></div><input type="text" placeholder="Utilisateur" className="w-full p-4 mb-4 bg-gray-50 border rounded-xl outline-none" onChange={e=>setCreds({...creds, id: e.target.value})} /><input type="password" placeholder="Mot de passe" className="w-full p-4 mb-6 bg-gray-50 border rounded-xl outline-none" onChange={e=>setCreds({...creds, mdp: e.target.value})} /><button className="w-full bg-[#800020] text-white p-4 rounded-xl font-black uppercase shadow-lg">Connexion</button></form></div>
+  );
+};
 // ==========================================
-// COMPOSANT : GESTION DES COMMANDES WEB (CORRIGÉ & ALIGNÉ)
+// COMPOSANT 1 : GESTION DES COMMANDES WEB (CORRIGÉ SUPABASE)
+// ==========================================
+// ==========================================
+// ==========================================
+// COMPOSANT : GESTION DES COMMANDES WEB (ERP)
 // ==========================================
 const ModuleCommandesWeb = () => {
-  const [commandes, setCommandes] = useState([]);
+  const [commandes, setCommandes] = React.useState([]);
   
   const load = async () => {
     const { data } = await supabase.from('commandes_web').select('*').order('date_commande', { ascending: false });
     setCommandes(data || []);
   };
-  useEffect(() => { load(); }, []);
+  React.useEffect(() => { load(); }, []);
 
+  // --- ACTION 1 : VALIDER (Déduit le stock + crée facture) ---
   const validerCommandeWeb = async (cmd) => {
     if (!window.confirm("Confirmer la commande ? Le stock sera déduit et une facture générée.")) return;
+    
     const articles = cmd.articles_json.articles;
+    
+    // Déduction du stock physique
     for (let art of articles) {
       await supabase.rpc('decrement_stock_by_name', { p_nom: art.nom, amount: Number(art.qte) });
     }
+
+    // Création de la facture dans l'historique de l'ERP
     await supabase.from('historique_ventes').insert([{
       numero_facture: `WEB-${cmd.id.toString().slice(0,5)}`,
       type_vente: 'SITE_WEB',
@@ -771,30 +781,41 @@ const ModuleCommandesWeb = () => {
       details_json: cmd.articles_json,
       methode_paiement: 'LIVRAISON'
     }]);
+
+    // Mise à jour du statut
     await supabase.from('commandes_web').update({ statut: 'Validée' }).eq('id', cmd.id);
+    
     alert("✅ Commande validée et stock mis à jour !");
     load();
   };
 
+  // --- ACTION 2 : ANNULER (Ne touche pas au stock + WhatsApp) ---
   const annulerCommandeWeb = async (cmd) => {
     if (!window.confirm("Annuler cette commande ?")) return;
+    
     await supabase.from('commandes_web').update({ statut: 'Annulée' }).eq('id', cmd.id);
+    
+    // Préparation du message WhatsApp
     const num = String(cmd.client_whatsapp).replace(/[^0-9]/g, '');
-    const msg = encodeURIComponent(`Bonjour ${cmd.client_nom}, c'est Hakimi Plus. Votre commande sur notre site a été annulée.`);
+    const msg = encodeURIComponent(`Bonjour ${cmd.client_nom}, c'est Hakimi Plus. Votre commande sur notre site a été annulée car `);
+    
+    // Ouvre WhatsApp pour prévenir le client
     window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
+    
     load();
   };
 
+  // --- ACTION 3 : TELECHARGER ADRESSE (.txt) ---
   const telechargerAdresse = (cmd) => {
     const contenu = `
---- FICHE LIVRAISON HAKIMI PLUS ---
-CLIENT : ${cmd.client_nom}
-TEL 1 : ${cmd.client_whatsapp}
-TEL 2 : ${cmd.client_whatsapp2 || 'N/A'}
-QUARTIER : ${cmd.quartier}
-ADRESSE : ${cmd.adresse_detail}
-TOTAL : ${Number(cmd.montant_total).toLocaleString('fr-FR')} Ar
------------------------------------
+      --- FICHE LIVRAISON HAKIMI PLUS ---
+      CLIENT : ${cmd.client_nom}
+      TEL 1 : ${cmd.client_whatsapp}
+      TEL 2 : ${cmd.client_whatsapp2 || 'N/A'}
+      QUARTIER : ${cmd.quartier}
+      ADRESSE : ${cmd.adresse_detail}
+      TOTAL : ${Number(cmd.montant_total).toLocaleString()} Ar
+      -----------------------------------
     `;
     const element = document.createElement("a");
     const file = new Blob([contenu], {type: 'text/plain'});
@@ -805,90 +826,77 @@ TOTAL : ${Number(cmd.montant_total).toLocaleString('fr-FR')} Ar
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-4">
       <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Commandes Site Web</h2>
-      <div className="grid gap-5">
+      <div className="grid gap-4">
         {commandes.map(cmd => (
-          <div key={cmd.id} className={`bg-white p-6 rounded-3xl shadow-sm border-l-8 flex flex-col md:flex-row justify-between items-start md:items-stretch gap-6 transition ${
-            cmd.statut === 'Validée' ? 'border-green-500 opacity-70' : 
-            cmd.statut === 'Annulée' ? 'border-gray-400 opacity-60' : 'border-blue-600'
+          <div key={cmd.id} className={`bg-white p-6 rounded-3xl shadow-sm border-l-8 ${
+            cmd.statut === 'Validée' ? 'border-green-500 opacity-60' : 
+            cmd.statut === 'Annulée' ? 'border-gray-400 opacity-50' : 'border-blue-600'
           }`}>
-            
-            {/* Colonne Informations (Forcée à gauche) */}
-            <div className="flex-1 w-full flex flex-col justify-start items-start text-left space-y-4">
-              
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="font-black text-gray-800 text-lg uppercase">{cmd.client_nom}</span>
-                <span className="bg-red-50 text-[#800020] px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest">📍 {cmd.quartier}</span>
-              </div>
-              
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[11px] font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-md">📞 {cmd.client_whatsapp}</span>
-                {cmd.client_whatsapp2 && <span className="text-[11px] font-bold text-gray-500 bg-gray-50 px-3 py-1.5 rounded-md">📞 {cmd.client_whatsapp2}</span>}
+            <div className="flex flex-col md:flex-row justify-between gap-4">
+              <div className="flex-1 space-y-2">
+                <div className="flex items-center gap-3">
+                  <p className="font-black text-gray-800 uppercase">{cmd.client_nom}</p>
+                  <span className="bg-red-50 text-[#800020] px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter">📍 {cmd.quartier}</span>
+                </div>
+                
+                <div className="flex gap-2">
+                  <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">📞 {cmd.client_whatsapp}</span>
+                  {cmd.client_whatsapp2 && <span className="text-[10px] font-bold text-gray-500 bg-gray-50 px-2 py-1 rounded">📞 {cmd.client_whatsapp2}</span>}
+                </div>
+
+                <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                  <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Précisions Adresse :</p>
+                  <p className="text-xs font-bold text-gray-600 italic">{cmd.adresse_detail}</p>
+                  <button onClick={() => telechargerAdresse(cmd)} className="mt-2 text-[9px] font-black bg-gray-800 text-white px-2 py-1 rounded uppercase hover:bg-black">💾 Télécharger .txt</button>
+                </div>
+
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {cmd.articles_json?.articles?.map((a, i) => (
+                    <span key={i} className="text-[10px] font-bold bg-white border px-2 py-1 rounded-lg"> {a.qte}x {a.nom} </span>
+                  ))}
+                </div>
               </div>
 
-              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200 w-full max-w-md flex flex-col items-start text-left">
-                <span className="text-[10px] font-black text-gray-400 uppercase mb-1">Précisions Adresse :</span>
-                <span className="text-sm font-bold text-gray-700 italic mb-3">{cmd.adresse_detail}</span>
-                <button onClick={() => telechargerAdresse(cmd)} className="text-[10px] font-black bg-gray-800 text-white px-4 py-2 rounded-lg uppercase hover:bg-black transition">
-                  💾 Télécharger .txt
-                </button>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 pt-2">
-                {cmd.articles_json?.articles?.map((a, i) => (
-                  <span key={i} className="text-xs font-bold text-gray-800 bg-white border border-gray-200 px-3 py-1.5 rounded-lg shadow-sm"> 
-                    {a.qte}x {a.nom} 
-                  </span>
-                ))}
+              <div className="text-right flex flex-col justify-between items-end">
+                <p className="text-2xl font-black text-[#800020]">{Number(cmd.montant_total).toLocaleString()} Ar</p>
+                
+                <div className="flex gap-2 mt-4">
+                  {cmd.statut === 'En attente' ? (
+                    <>
+                      <button onClick={() => annulerCommandeWeb(cmd)} className="bg-gray-100 text-gray-500 px-4 py-2 rounded-xl font-black text-[10px] uppercase hover:bg-red-50 hover:text-red-600">❌ Annuler</button>
+                      <button onClick={() => validerCommandeWeb(cmd)} className="bg-[#800020] text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase shadow-lg">✅ Valider & Facturer</button>
+                    </>
+                  ) : (
+                    <span className={`font-black text-[10px] uppercase px-3 py-1 rounded-full ${cmd.statut === 'Validée' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {cmd.statut === 'Validée' ? 'Traitée ✅' : 'Annulée ❌'}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
-
-            {/* Colonne Totaux et Actions (Forcée à droite) */}
-            <div className="flex flex-col justify-between items-end text-right min-w-[200px] border-t md:border-t-0 md:border-l border-gray-100 pt-5 md:pt-0 md:pl-6 w-full md:w-auto">
-              <div className="flex flex-col items-end">
-                <span className="text-[10px] uppercase font-bold text-gray-400 mb-1">Total à payer</span>
-                <span className="text-3xl font-black text-[#800020]">{Number(cmd.montant_total).toLocaleString('fr-FR')} Ar</span>
-              </div>
-              
-              <div className="flex flex-col items-end justify-end mt-4 w-full">
-                {cmd.statut === 'En attente' ? (
-                  <div className="flex flex-col xl:flex-row gap-2 w-full justify-end">
-                    <button onClick={() => annulerCommandeWeb(cmd)} className="bg-gray-100 text-gray-500 px-5 py-3 rounded-xl font-black text-[10px] uppercase hover:bg-red-50 hover:text-red-600 transition">
-                      ❌ Annuler
-                    </button>
-                    <button onClick={() => validerCommandeWeb(cmd)} className="bg-[#800020] text-white px-5 py-3 rounded-xl font-black text-[10px] uppercase shadow-lg hover:bg-red-900 transition whitespace-nowrap">
-                      ✅ Valider & Facturer
-                    </button>
-                  </div>
-                ) : (
-                  <span className={`inline-block font-black text-[11px] uppercase px-5 py-2.5 rounded-xl ${cmd.statut === 'Validée' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-500 border border-gray-200'}`}>
-                    {cmd.statut === 'Validée' ? 'Traitée ✅' : 'Annulée ❌'}
-                  </span>
-                )}
-              </div>
-            </div>
-
           </div>
         ))}
       </div>
     </div>
   );
 };
-
 // ==========================================
-// COMPOSANT : CONFIGURATION DU SITE (CORRIGÉ & ALIGNÉ)
+// COMPOSANT 2 : CONFIGURATION DU SITE (CORRIGÉ SUPABASE)
 // ==========================================
 const ModuleGestionSite = () => {
-  const [config, setConfig] = useState({ carousel_urls: ["", "", ""], texte_livraison: "", texte_conditions: "" });
+  // On utilise les noms exacts de ta table parametres_web
+  const [config, setConfig] = React.useState({ carousel_urls: ["", "", ""], texte_livraison: "", texte_conditions: "" });
   
   const load = async () => {
     const { data } = await supabase.from('parametres_web').select('*').eq('id', 1).single();
     if (data) setConfig(data);
   };
-  useEffect(() => { load(); }, []);
+  React.useEffect(() => { load(); }, []);
 
   const save = async () => {
+    // Mise à jour vers la table parametres_web
     await supabase.from('parametres_web').update({
         carousel_urls: config.carousel_urls,
         texte_livraison: config.texte_livraison,
@@ -901,46 +909,35 @@ const ModuleGestionSite = () => {
     <div className="max-w-4xl mx-auto space-y-6">
       <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Gestion Hakimi Plus (Configuration)</h2>
       <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100 space-y-6">
-        
-        <div className="flex flex-col items-start w-full">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-3 text-left w-full">Photos du Carrousel (Liens directs)</label>
-          <div className="w-full space-y-3">
-            {config.carousel_urls?.map((url, idx) => (
-              <div key={idx} className="flex flex-row gap-3 items-center w-full">
-                 <span className="bg-gray-100 p-3 rounded-xl text-xs font-black w-10 text-center text-gray-500 shrink-0">{idx+1}</span>
-                 <input className="flex-1 w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#800020] transition" 
-                  value={url} 
-                  onChange={e => {
-                    const newC = [...config.carousel_urls]; 
-                    newC[idx] = e.target.value; 
-                    setConfig({...config, carousel_urls: newC});
-                  }} 
-                  placeholder="Lien image ImgBB / Supabase" 
-                />
-              </div>
-            ))}
-          </div>
+        <div>
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Photos du Carrousel (Liens directes)</label>
+          {config.carousel_urls?.map((url, idx) => (
+            <div key={idx} className="flex gap-2 mb-2">
+               <span className="bg-gray-100 p-2 rounded-lg text-[10px] font-black w-8 text-center">{idx+1}</span>
+               <input className="flex-1 p-2 bg-gray-50 border rounded-xl text-xs outline-none focus:border-[#800020]" value={url} 
+                onChange={e => {
+                  const newC = [...config.carousel_urls]; newC[idx] = e.target.value; 
+                  setConfig({...config, carousel_urls: newC});
+                }} placeholder="Lien image ImgBB / Supabase" 
+              />
+            </div>
+          ))}
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-          <div className="flex flex-col items-start w-full">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2 text-left w-full">Infos Livraison</label>
-            <textarea className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm h-32 outline-none focus:border-[#800020] transition resize-none" 
-              value={config.texte_livraison} 
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Infos Livraison</label>
+            <textarea className="w-full p-4 bg-gray-50 border rounded-2xl text-xs h-32 outline-none focus:border-[#800020]" value={config.texte_livraison} 
               onChange={e => setConfig({...config, texte_livraison: e.target.value})} />
           </div>
-          <div className="flex flex-col items-start w-full">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2 text-left w-full">Conditions de vente</label>
-            <textarea className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm h-32 outline-none focus:border-[#800020] transition resize-none" 
-              value={config.texte_conditions} 
+          <div>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Conditions de vente</label>
+            <textarea className="w-full p-4 bg-gray-50 border rounded-2xl text-xs h-32 outline-none focus:border-[#800020]" value={config.texte_conditions} 
               onChange={e => setConfig({...config, texte_conditions: e.target.value})} />
           </div>
         </div>
-
-        <button onClick={save} className="w-full bg-[#800020] text-white p-5 rounded-2xl font-black uppercase shadow-xl hover:bg-black transition mt-4">
+        <button onClick={save} className="w-full bg-[#800020] text-white p-5 rounded-2xl font-black uppercase shadow-xl hover:bg-black transition">
           Mettre à jour le site Hakimi Plus
         </button>
-
       </div>
     </div>
   );
