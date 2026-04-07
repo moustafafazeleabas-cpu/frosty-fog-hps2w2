@@ -811,3 +811,172 @@ const LoginScreen = ({ onLogin }) => {
     <div className="min-h-screen bg-[#800020] flex items-center justify-center p-4"><form onSubmit={handle} className="bg-white p-12 rounded-[2rem] shadow-2xl w-full max-w-md border-b-8 border-red-600"><div className="flex justify-center mb-6"><img src={LOGO_URL} alt="Logo" className="h-16" onError={(e) => e.target.style.display='none'} /></div><input type="text" placeholder="Utilisateur" className="w-full p-4 mb-4 bg-gray-50 border rounded-xl outline-none" onChange={e=>setCreds({...creds, id: e.target.value})} /><input type="password" placeholder="Mot de passe" className="w-full p-4 mb-6 bg-gray-50 border rounded-xl outline-none" onChange={e=>setCreds({...creds, mdp: e.target.value})} /><button className="w-full bg-[#800020] text-white p-4 rounded-xl font-black uppercase shadow-lg">Connexion</button></form></div>
   );
 };
+// ==========================================
+// 🛒 MODULE : COMMANDES DU SITE WEB
+// ==========================================
+const ModuleCommandesWeb = () => {
+  const [commandes, setCommandes] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = async () => {
+    // Récupération des commandes depuis la table Supabase (assurez-vous que cette table existe)
+    const { data } = await supabase.from('commandes_web').select('*').order('date_commande', { ascending: false });
+    setCommandes(data || []);
+    setLoading(false);
+  };
+  
+  useEffect(() => { load(); }, []);
+
+  const changeStatut = async (id, statut) => {
+    await supabase.from('commandes_web').update({ statut }).eq('id', id);
+    load(); // Recharge la liste pour afficher le nouveau statut
+  };
+
+  if (loading) return <div className="flex justify-center mt-10"><div className="animate-spin w-8 h-8 border-4 border-[#800020] border-t-transparent rounded-full"></div></div>;
+
+  return (
+    <div className="max-w-6xl mx-auto space-y-6">
+      <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">🌐 Commandes du Site Web</h2>
+      <div className="grid gap-4">
+        {commandes.length === 0 && <p className="text-center text-gray-400 italic bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">Aucune commande web pour le moment.</p>}
+        {commandes.map(c => (
+          <div key={c.id} className="bg-white p-5 rounded-3xl shadow-sm border border-gray-200 flex flex-col md:flex-row gap-4 justify-between transition hover:shadow-md">
+            <div className="flex-1">
+              <div className="flex gap-2 items-center mb-2">
+                <span className="font-black text-lg text-gray-800">#{c.numero_commande || c.id}</span>
+                <span className="text-[10px] text-gray-500 font-bold bg-gray-100 px-2 py-1 rounded">{formatDateTime(c.date_commande)}</span>
+              </div>
+              <p className="font-bold text-sm uppercase">👤 {c.client_nom} <span className="text-gray-500 text-xs ml-2">📞 {c.client_telephone}</span></p>
+              <p className="text-xs text-gray-600 mt-1 font-bold">📍 Livraison : <span className="font-normal">{c.adresse_livraison || 'Retrait en magasin'}</span></p>
+              
+              <div className="mt-3 p-3 bg-gray-50 rounded-xl max-h-32 overflow-y-auto custom-scrollbar text-xs border border-gray-100">
+                {Array.isArray(c.panier) ? c.panier.map((item, i) => (
+                  <div key={i} className="flex justify-between border-b border-gray-200 last:border-0 py-1.5">
+                    <span><span className="font-black">{item.qte}x</span> {item.nom}</span>
+                    <span className="font-bold">{formatAr(item.prix_vente * item.qte)} Ar</span>
+                  </div>
+                )) : <p className="italic text-gray-400">Détails du panier indisponibles</p>}
+              </div>
+            </div>
+            
+            <div className="flex flex-col items-end justify-between min-w-[200px] border-t md:border-t-0 md:border-l border-gray-100 pt-3 md:pt-0 md:pl-4 mt-3 md:mt-0">
+              <div className="text-right w-full">
+                <p className="text-[10px] uppercase font-bold text-gray-400">Total à payer</p>
+                <p className="text-2xl font-black text-[#800020]">{formatAr(c.total)} Ar</p>
+                {c.methode_paiement && <p className="text-[10px] text-gray-500 mt-1">Via {c.methode_paiement}</p>}
+              </div>
+              <div className="w-full mt-4">
+                <label className="text-[10px] uppercase font-bold text-gray-500 block mb-1">Statut de traitement :</label>
+                <select
+                  className={`w-full p-3 border rounded-xl font-black text-xs outline-none transition cursor-pointer
+                    ${c.statut === 'En attente' ? 'bg-orange-50 text-orange-700 border-orange-200' : 
+                      c.statut === 'En préparation' ? 'bg-blue-50 text-blue-700 border-blue-200' : 
+                      c.statut === 'Livrée' ? 'bg-green-50 text-green-700 border-green-200' : 
+                      c.statut === 'Annulée' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-gray-50 text-gray-700 border-gray-200'}`}
+                  value={c.statut || 'En attente'}
+                  onChange={(e) => changeStatut(c.id, e.target.value)}
+                >
+                  <option value="En attente">🟠 En attente</option>
+                  <option value="En préparation">🔵 En préparation</option>
+                  <option value="Livrée">🟢 Livrée</option>
+                  <option value="Annulée">🔴 Annulée</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// 🎨 MODULE : GESTION VITRINE / SITE WEB
+// ==========================================
+const ModuleGestionSite = () => {
+  const [settings, setSettings] = useState({ 
+    banniere_active: false, 
+    message_banniere: '', 
+    whatsapp_commande: '', 
+    description_boutique: '' 
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      // Table pour gérer les textes dynamiques de votre front-end
+      const { data } = await supabase.from('parametres_site').select('*').eq('id', 1).single();
+      if (data) setSettings(data);
+      setLoading(false);
+    };
+    load();
+  }, []);
+
+  const save = async (e) => {
+    e.preventDefault();
+    await supabase.from('parametres_site').upsert({ id: 1, ...settings });
+    alert("Configuration de la vitrine web mise à jour avec succès !");
+  };
+
+  if (loading) return <div className="flex justify-center mt-10"><div className="animate-spin w-8 h-8 border-4 border-[#800020] border-t-transparent rounded-full"></div></div>;
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">🎨 Configuration du Site Web</h2>
+      
+      <form onSubmit={save} className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-gray-100 space-y-5">
+        
+        <div className="bg-blue-50 p-5 rounded-2xl border border-blue-100">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input 
+              type="checkbox" 
+              className="w-5 h-5 accent-blue-600 rounded" 
+              checked={settings.banniere_active} 
+              onChange={(e) => setSettings({...settings, banniere_active: e.target.checked})} 
+            />
+            <span className="font-black uppercase text-blue-900 text-sm">Activer la bannière d'annonce globale</span>
+          </label>
+          <p className="text-[10px] text-blue-700 mt-1 ml-8">S'affiche tout en haut de votre site e-commerce.</p>
+          
+          {settings.banniere_active && (
+            <input 
+              type="text" 
+              placeholder="Ex: Livraison gratuite à Antananarivo à partir de 100 000 Ar !" 
+              className="mt-4 w-full p-3 bg-white border border-blue-200 rounded-xl outline-none font-bold text-sm text-blue-900 focus:border-blue-500" 
+              value={settings.message_banniere || ''} 
+              onChange={(e) => setSettings({...settings, message_banniere: e.target.value})} 
+            />
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div>
+            <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Numéro WhatsApp Réception Commandes</label>
+            <input 
+              type="text" 
+              placeholder="Ex: +261340000000" 
+              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none font-bold focus:border-[#800020]" 
+              value={settings.whatsapp_commande || ''} 
+              onChange={(e) => setSettings({...settings, whatsapp_commande: e.target.value})} 
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Texte de présentation / Description boutique</label>
+          <textarea 
+            rows="4" 
+            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none text-sm resize-none focus:border-[#800020]" 
+            value={settings.description_boutique || ''} 
+            onChange={(e) => setSettings({...settings, description_boutique: e.target.value})} 
+            placeholder="Écrivez un message d'accueil pour vos visiteurs..." 
+          />
+        </div>
+
+        <button type="submit" className="w-full bg-[#800020] hover:bg-[#5a0016] text-white p-4 rounded-xl font-black uppercase shadow-md transition-colors mt-4">
+          Enregistrer la configuration
+        </button>
+      </form>
+    </div>
+  );
+};
