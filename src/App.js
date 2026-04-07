@@ -834,14 +834,7 @@ const LoginScreen = ({ onLogin }) => {
 };
 // ==========================================
 // COMPOSANT 1 : GESTION DES COMMANDES WEB (CORRIGÉ SUPABASE)
-// ==========================================
-// ==========================================
-// ==========================================
-// COMPOSANT : GESTION DES COMMANDES WEB (ERP)
-// ==========================================
-// ==========================================
-// COMPOSANT : GESTION DES COMMANDES WEB (ERP)
-// ==========================================
+
 const ModuleCommandesWeb = () => {
   const [commandes, setCommandes] = React.useState([]);
   
@@ -851,204 +844,184 @@ const ModuleCommandesWeb = () => {
   };
   React.useEffect(() => { load(); }, []);
 
-  // --- ACTION 1 : VALIDER (Déduit le stock + crée facture + ✨ CRÉE LE CLIENT) ---
   const validerCommandeWeb = async (cmd) => {
     if (!window.confirm("Confirmer la commande ? Le stock sera déduit et une facture générée.")) return;
-    
     const articles = cmd.articles_json.articles;
     
-    // 1. Déduction du stock physique
+    // Déduction du stock
     for (let art of articles) {
       await supabase.rpc('decrement_stock_by_name', { p_nom: art.nom, amount: Number(art.qte) });
     }
 
-    // 2. Création de la facture dans l'historique de l'ERP
+    // ✨ NOUVEAU : On récupère la méthode de paiement et les frais
+    const modePaiement = cmd.articles_json.methode_paiement || 'LIVRAISON';
+    const fraisLivraison = Number(cmd.frais_livraison || 0);
+
+    // Création de la facture
     await supabase.from('historique_ventes').insert([{
       numero_facture: `WEB-${cmd.id.toString().slice(0,5)}`,
       type_vente: 'SITE_WEB',
       client_nom: cmd.client_nom,
       articles_liste: articles.map(a => `${a.qte}x ${a.nom}`).join(', '),
-      montant_total: Number(cmd.montant_total),
-      details_json: cmd.articles_json,
-      methode_paiement: 'LIVRAISON'
+      montant_total: Number(cmd.montant_total), // Total des articles
+      details_json: { ...cmd.articles_json, frais_livraison: fraisLivraison }, // On garde une trace des frais
+      methode_paiement: modePaiement
     }]);
 
-    // ✨ NOUVEAU : 3. Vérification et Création automatique du Client
-    // On vérifie s'il existe déjà un client avec ce numéro WhatsApp
-    const { data: existingClient } = await supabase
-      .from('clients')
-      .select('id')
-      .eq('contact_whatsapp', cmd.client_whatsapp)
-      .maybeSingle();
-
+    // Création client
+    const { data: existingClient } = await supabase.from('clients').select('id').eq('contact_whatsapp', cmd.client_whatsapp).maybeSingle();
     if (!existingClient) {
-      // S'il n'existe pas, on l'ajoute automatiquement au répertoire !
-      await supabase.from('clients').insert([{
-        nom: cmd.client_nom,
-        telephone: cmd.client_whatsapp, // On le met aussi dans téléphone classique
-        contact_whatsapp: cmd.client_whatsapp,
-        adresse: `${cmd.quartier} - ${cmd.adresse_detail}`
-      }]);
+      await supabase.from('clients').insert([{ nom: cmd.client_nom, telephone: cmd.client_whatsapp, contact_whatsapp: cmd.client_whatsapp, adresse: `${cmd.quartier} - ${cmd.adresse_detail}` }]);
     }
 
-    // 4. Mise à jour du statut de la commande
     await supabase.from('commandes_web').update({ statut: 'Validée' }).eq('id', cmd.id);
-    
-    alert("✅ Commande validée, stock mis à jour, et client enregistré !");
-    load();
+    alert("✅ Commande traitée avec succès !"); load();
   };
 
-  // --- ACTION 2 : ANNULER (Ne touche pas au stock + WhatsApp) ---
   const annulerCommandeWeb = async (cmd) => {
     if (!window.confirm("Annuler cette commande ?")) return;
-    
     await supabase.from('commandes_web').update({ statut: 'Annulée' }).eq('id', cmd.id);
-    
-    // Préparation du message WhatsApp
     const num = String(cmd.client_whatsapp).replace(/[^0-9]/g, '');
-    const msg = encodeURIComponent(`Bonjour ${cmd.client_nom}, c'est Hakimi Plus. Votre commande sur notre site a été annulée car `);
-    
-    // Ouvre WhatsApp pour prévenir le client
+    const msg = encodeURIComponent(`Bonjour ${cmd.client_nom}, c'est Hakimi Plus. Votre commande a été annulée car `);
     window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
-    
     load();
-  };
-
-  // --- ACTION 3 : TELECHARGER ADRESSE (.txt) ---
-  const telechargerAdresse = (cmd) => {
-    const contenu = `
-      --- FICHE LIVRAISON HAKIMI PLUS ---
-      CLIENT : ${cmd.client_nom}
-      TEL 1 : ${cmd.client_whatsapp}
-      TEL 2 : ${cmd.client_whatsapp2 || 'N/A'}
-      QUARTIER : ${cmd.quartier}
-      ADRESSE : ${cmd.adresse_detail}
-      TOTAL : ${Number(cmd.montant_total).toLocaleString()} Ar
-      -----------------------------------
-    `;
-    const element = document.createElement("a");
-    const file = new Blob([contenu], {type: 'text/plain'});
-    element.href = URL.createObjectURL(file);
-    element.download = `LIVRAISON_${cmd.client_nom.replace(/\s+/g, '_')}.txt`;
-    document.body.appendChild(element);
-    element.click();
   };
 
   return (
     <div className="max-w-5xl mx-auto space-y-4">
       <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Commandes Site Web</h2>
       <div className="grid gap-4">
-        {commandes.map(cmd => (
-          <div key={cmd.id} className={`bg-white p-6 rounded-3xl shadow-sm border-l-8 ${
-            cmd.statut === 'Validée' ? 'border-green-500 opacity-60' : 
-            cmd.statut === 'Annulée' ? 'border-gray-400 opacity-50' : 'border-blue-600'
-          }`}>
-            <div className="flex flex-col md:flex-row justify-between gap-4">
-              <div className="flex-1 space-y-2">
-                <div className="flex items-center gap-3">
-                  <p className="font-black text-gray-800 uppercase">{cmd.client_nom}</p>
-                  <span className="bg-red-50 text-[#800020] px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter">📍 {cmd.quartier}</span>
-                </div>
-                
-                <div className="flex gap-2">
-                  <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">📞 {cmd.client_whatsapp}</span>
-                  {cmd.client_whatsapp2 && <span className="text-[10px] font-bold text-gray-500 bg-gray-50 px-2 py-1 rounded">📞 {cmd.client_whatsapp2}</span>}
+        {commandes.map(cmd => {
+           // ✨ NOUVEAU : Badge visuel pour le paiement
+           const pMeth = cmd.articles_json?.methode_paiement;
+           let badgeColor = "bg-gray-100 text-gray-600";
+           if(pMeth === 'CASH') badgeColor = "bg-blue-100 text-blue-700";
+           if(pMeth === 'MVOLA') badgeColor = "bg-green-100 text-green-700";
+           if(pMeth === 'ORANGE MONEY') badgeColor = "bg-orange-100 text-orange-700";
+
+           return (
+            <div key={cmd.id} className={`bg-white p-6 rounded-3xl shadow-sm border-l-8 ${cmd.statut === 'Validée' ? 'border-green-500 opacity-60' : cmd.statut === 'Annulée' ? 'border-gray-400 opacity-50' : 'border-blue-600'}`}>
+              <div className="flex flex-col md:flex-row justify-between gap-4">
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-3">
+                    <p className="font-black text-gray-800 uppercase">{cmd.client_nom}</p>
+                    <span className="bg-red-50 text-[#800020] px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter">📍 {cmd.quartier}</span>
+                    {/* ✨ NOUVEAU : Affichage de la méthode de paiement */}
+                    <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase ${badgeColor}`}>💳 {pMeth || 'À DÉFINIR'}</span>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">📞 {cmd.client_whatsapp}</span>
+                  </div>
+
+                  <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                    <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Précisions Adresse :</p>
+                    <p className="text-xs font-bold text-gray-600 italic">{cmd.adresse_detail}</p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {cmd.articles_json?.articles?.map((a, i) => (
+                      <span key={i} className="text-[10px] font-bold bg-white border px-2 py-1 rounded-lg"> {a.qte}x {a.nom} </span>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
-                  <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Précisions Adresse :</p>
-                  <p className="text-xs font-bold text-gray-600 italic">{cmd.adresse_detail}</p>
-                  <button onClick={() => telechargerAdresse(cmd)} className="mt-2 text-[9px] font-black bg-gray-800 text-white px-2 py-1 rounded uppercase hover:bg-black">💾 Télécharger .txt</button>
-                </div>
-
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {cmd.articles_json?.articles?.map((a, i) => (
-                    <span key={i} className="text-[10px] font-bold bg-white border px-2 py-1 rounded-lg"> {a.qte}x {a.nom} </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="text-right flex flex-col justify-between items-end">
-                <p className="text-2xl font-black text-[#800020]">{Number(cmd.montant_total).toLocaleString()} Ar</p>
-                
-                <div className="flex gap-2 mt-4">
-                  {cmd.statut === 'En attente' ? (
-                    <>
-                      <button onClick={() => annulerCommandeWeb(cmd)} className="bg-gray-100 text-gray-500 px-4 py-2 rounded-xl font-black text-[10px] uppercase hover:bg-red-50 hover:text-red-600">❌ Annuler</button>
-                      <button onClick={() => validerCommandeWeb(cmd)} className="bg-[#800020] text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase shadow-lg">✅ Valider & Facturer</button>
-                    </>
-                  ) : (
-                    <span className={`font-black text-[10px] uppercase px-3 py-1 rounded-full ${cmd.statut === 'Validée' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                      {cmd.statut === 'Validée' ? 'Traitée ✅' : 'Annulée ❌'}
-                    </span>
-                  )}
+                <div className="text-right flex flex-col justify-between items-end">
+                  {/* ✨ NOUVEAU : Détail Frais et Total */}
+                  <div className="text-right">
+                    <p className="text-[10px] text-gray-500 font-bold">Articles : {formatAr(cmd.montant_total)} Ar</p>
+                    <p className="text-[10px] text-orange-500 font-bold mb-1">+ Liv. : {formatAr(cmd.frais_livraison)} Ar</p>
+                    <p className="text-2xl font-black text-[#800020]">Total : {formatAr(Number(cmd.montant_total) + Number(cmd.frais_livraison))} Ar</p>
+                  </div>
+                  
+                  <div className="flex gap-2 mt-4">
+                    {cmd.statut === 'En attente' ? (
+                      <>
+                        <button onClick={() => annulerCommandeWeb(cmd)} className="bg-gray-100 text-gray-500 px-4 py-2 rounded-xl font-black text-[10px] uppercase hover:bg-red-50 hover:text-red-600">❌ Annuler</button>
+                        <button onClick={() => validerCommandeWeb(cmd)} className="bg-[#800020] text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase shadow-lg">✅ Valider</button>
+                      </>
+                    ) : (
+                      <span className={`font-black text-[10px] uppercase px-3 py-1 rounded-full ${cmd.statut === 'Validée' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{cmd.statut === 'Validée' ? 'Traitée ✅' : 'Annulée ❌'}</span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
-        {commandes.length === 0 && <p className="text-center text-gray-400 italic py-10">Aucune commande web pour le moment.</p>}
+          )
+        })}
       </div>
     </div>
   );
 };
-// ==========================================
-// COMPOSANT 2 : CONFIGURATION DU SITE (CORRIGÉ SUPABASE)
+
+====================================
+// COMPOSANT : GESTION DU SITE (PARAMÈTRES & QUARTIERS)
 // ==========================================
 const ModuleGestionSite = () => {
-  // On utilise les noms exacts de ta table parametres_web
-  const [config, setConfig] = React.useState({ carousel_urls: ["", "", ""], texte_livraison: "", texte_conditions: "" });
+  const [config, setConfig] = React.useState({ carousel_urls: ["", "", ""], texte_livraison: "", texte_conditions: "", quartiers_json: [] });
   
   const load = async () => {
     const { data } = await supabase.from('parametres_web').select('*').eq('id', 1).single();
-    if (data) setConfig(data);
+    if (data) setConfig({ ...data, quartiers_json: data.quartiers_json || [] });
   };
   React.useEffect(() => { load(); }, []);
 
   const save = async () => {
-    // Mise à jour vers la table parametres_web
     await supabase.from('parametres_web').update({
         carousel_urls: config.carousel_urls,
         texte_livraison: config.texte_livraison,
-        texte_conditions: config.texte_conditions
+        texte_conditions: config.texte_conditions,
+        quartiers_json: config.quartiers_json // ✨ NOUVEAU
     }).eq('id', 1);
     alert("🚀 Site Hakimi Plus mis à jour avec succès !");
   };
 
+  const addQuartier = () => setConfig({...config, quartiers_json: [...config.quartiers_json, { nom: "", frais: 0 }]});
+  const removeQuartier = (index) => {
+    const newQ = [...config.quartiers_json]; newQ.splice(index, 1);
+    setConfig({...config, quartiers_json: newQ});
+  };
+  const updateQuartier = (index, champ, valeur) => {
+    const newQ = [...config.quartiers_json]; newQ[index][champ] = valeur;
+    setConfig({...config, quartiers_json: newQ});
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Gestion Hakimi Plus (Configuration)</h2>
-      <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100 space-y-6">
+      <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Gestion Hakimi Plus</h2>
+      <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-gray-100 space-y-6">
+        
+        {/* ✨ NOUVELLE SECTION : QUARTIERS ET FRAIS */}
+        <div className="bg-red-50 p-4 rounded-xl border border-red-100">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-black text-[#800020] uppercase text-sm">📍 Quartiers & Frais de Livraison</h3>
+            <button onClick={addQuartier} className="bg-[#800020] text-white px-3 py-1 rounded-lg text-xs font-black">+ Ajouter</button>
+          </div>
+          <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar pr-2">
+            {config.quartiers_json.map((q, idx) => (
+              <div key={idx} className="flex gap-2 items-center bg-white p-2 rounded-lg border">
+                <input placeholder="Nom du quartier" className="flex-1 p-2 bg-gray-50 border rounded outline-none text-xs font-bold" value={q.nom} onChange={e => updateQuartier(idx, 'nom', e.target.value)} />
+                <input type="number" placeholder="Frais (Ar)" className="w-24 p-2 bg-gray-50 border rounded outline-none text-xs font-black text-red-600" value={q.frais} onChange={e => updateQuartier(idx, 'frais', Number(e.target.value))} />
+                <button onClick={() => removeQuartier(idx)} className="text-red-500 font-black px-2">X</button>
+              </div>
+            ))}
+            {config.quartiers_json.length === 0 && <p className="text-xs text-gray-500 italic">Aucun quartier défini. Le client ne pourra pas commander.</p>}
+          </div>
+        </div>
+
         <div>
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Photos du Carrousel (Liens directes)</label>
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Photos du Carrousel (Liens directs)</label>
           {config.carousel_urls?.map((url, idx) => (
             <div key={idx} className="flex gap-2 mb-2">
                <span className="bg-gray-100 p-2 rounded-lg text-[10px] font-black w-8 text-center">{idx+1}</span>
-               <input className="flex-1 p-2 bg-gray-50 border rounded-xl text-xs outline-none focus:border-[#800020]" value={url} 
-                onChange={e => {
-                  const newC = [...config.carousel_urls]; newC[idx] = e.target.value; 
-                  setConfig({...config, carousel_urls: newC});
-                }} placeholder="Lien image ImgBB / Supabase" 
-              />
+               <input className="flex-1 p-2 bg-gray-50 border rounded-xl text-xs outline-none focus:border-[#800020]" value={url} onChange={e => { const newC = [...config.carousel_urls]; newC[idx] = e.target.value; setConfig({...config, carousel_urls: newC}); }} placeholder="Lien image ImgBB / Supabase" />
             </div>
           ))}
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Infos Livraison</label>
-            <textarea className="w-full p-4 bg-gray-50 border rounded-2xl text-xs h-32 outline-none focus:border-[#800020]" value={config.texte_livraison} 
-              onChange={e => setConfig({...config, texte_livraison: e.target.value})} />
-          </div>
-          <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Conditions de vente</label>
-            <textarea className="w-full p-4 bg-gray-50 border rounded-2xl text-xs h-32 outline-none focus:border-[#800020]" value={config.texte_conditions} 
-              onChange={e => setConfig({...config, texte_conditions: e.target.value})} />
-          </div>
-        </div>
-        <button onClick={save} className="w-full bg-[#800020] text-white p-5 rounded-2xl font-black uppercase shadow-xl hover:bg-black transition">
-          Mettre à jour le site Hakimi Plus
-        </button>
+        
+        <button onClick={save} className="w-full bg-[#800020] text-white p-4 rounded-2xl font-black uppercase shadow-xl hover:bg-black transition">💾 Sauvegarder la configuration</button>
       </div>
     </div>
   );
 };
+                    
