@@ -814,12 +814,14 @@ const LoginScreen = ({ onLogin }) => {
 // ==========================================
 // 🛒 MODULE : COMMANDES DU SITE WEB
 // ==========================================
+// ==========================================
+// 🛒 MODULE : COMMANDES DU SITE WEB (Version Robuste)
+// ==========================================
 const ModuleCommandesWeb = () => {
   const [commandes, setCommandes] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
-    // Récupération des commandes depuis la table Supabase (assurez-vous que cette table existe)
     const { data } = await supabase.from('commandes_web').select('*').order('date_commande', { ascending: false });
     setCommandes(data || []);
     setLoading(false);
@@ -829,7 +831,7 @@ const ModuleCommandesWeb = () => {
 
   const changeStatut = async (id, statut) => {
     await supabase.from('commandes_web').update({ statut }).eq('id', id);
-    load(); // Recharge la liste pour afficher le nouveau statut
+    load(); 
   };
 
   if (loading) return <div className="flex justify-center mt-10"><div className="animate-spin w-8 h-8 border-4 border-[#800020] border-t-transparent rounded-full"></div></div>;
@@ -839,30 +841,53 @@ const ModuleCommandesWeb = () => {
       <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">🌐 Commandes du Site Web</h2>
       <div className="grid gap-4">
         {commandes.length === 0 && <p className="text-center text-gray-400 italic bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">Aucune commande web pour le moment.</p>}
-        {commandes.map(c => (
+        
+        {commandes.map(c => {
+          // --- 🔒 CORRECTION : SÉCURISATION DU PARSING DU PANIER ET DU TOTAL ---
+          let panierAffiche = [];
+          try {
+            // Teste tous les formats et noms de colonnes possibles pour le panier
+            if (Array.isArray(c.panier)) panierAffiche = c.panier;
+            else if (typeof c.panier === 'string') panierAffiche = JSON.parse(c.panier);
+            else if (Array.isArray(c.details_panier)) panierAffiche = c.details_panier;
+            else if (typeof c.details_panier === 'string') panierAffiche = JSON.parse(c.details_panier);
+            else if (c.details_json && Array.isArray(c.details_json.articles)) panierAffiche = c.details_json.articles;
+          } catch (e) { 
+            console.error("Erreur de lecture du panier pour la commande", c.id, e); 
+          }
+
+          // Teste tous les noms de colonnes possibles pour le total
+          const totalAffiche = c.montant_total || c.total || c.total_commande || 0;
+
+          return (
           <div key={c.id} className="bg-white p-5 rounded-3xl shadow-sm border border-gray-200 flex flex-col md:flex-row gap-4 justify-between transition hover:shadow-md">
             <div className="flex-1">
               <div className="flex gap-2 items-center mb-2">
-                <span className="font-black text-lg text-gray-800">#{c.numero_commande || c.id}</span>
+                <span className="font-black text-lg text-gray-800">#{c.numero_commande || String(c.id).substring(0,8)}</span>
                 <span className="text-[10px] text-gray-500 font-bold bg-gray-100 px-2 py-1 rounded">{formatDateTime(c.date_commande)}</span>
               </div>
-              <p className="font-bold text-sm uppercase">👤 {c.client_nom} <span className="text-gray-500 text-xs ml-2">📞 {c.client_telephone}</span></p>
+              <p className="font-bold text-sm uppercase">👤 {c.client_nom || c.nom_client} <span className="text-gray-500 text-xs ml-2">📞 {c.client_telephone || c.telephone}</span></p>
               <p className="text-xs text-gray-600 mt-1 font-bold">📍 Livraison : <span className="font-normal">{c.adresse_livraison || 'Retrait en magasin'}</span></p>
               
               <div className="mt-3 p-3 bg-gray-50 rounded-xl max-h-32 overflow-y-auto custom-scrollbar text-xs border border-gray-100">
-                {Array.isArray(c.panier) ? c.panier.map((item, i) => (
-                  <div key={i} className="flex justify-between border-b border-gray-200 last:border-0 py-1.5">
-                    <span><span className="font-black">{item.qte}x</span> {item.nom}</span>
-                    <span className="font-bold">{formatAr(item.prix_vente * item.qte)} Ar</span>
-                  </div>
-                )) : <p className="italic text-gray-400">Détails du panier indisponibles</p>}
+                {panierAffiche.length > 0 ? panierAffiche.map((item, i) => {
+                  // Adaptation aux différentes clés d'objets possibles depuis le site web
+                  const qte = item.qte || item.quantite || 1;
+                  const prixU = item.prix_vente || item.prix || item.prix_unitaire || 0;
+                  return (
+                    <div key={i} className="flex justify-between border-b border-gray-200 last:border-0 py-1.5">
+                      <span><span className="font-black">{qte}x</span> {item.nom || item.article || item.designation}</span>
+                      <span className="font-bold">{formatAr(prixU * qte)} Ar</span>
+                    </div>
+                  )
+                }) : <p className="italic text-gray-400">Détails du panier indisponibles (Format de données inconnu dans Supabase)</p>}
               </div>
             </div>
             
             <div className="flex flex-col items-end justify-between min-w-[200px] border-t md:border-t-0 md:border-l border-gray-100 pt-3 md:pt-0 md:pl-4 mt-3 md:mt-0">
               <div className="text-right w-full">
                 <p className="text-[10px] uppercase font-bold text-gray-400">Total à payer</p>
-                <p className="text-2xl font-black text-[#800020]">{formatAr(c.total)} Ar</p>
+                <p className="text-2xl font-black text-[#800020]">{formatAr(totalAffiche)} Ar</p>
                 {c.methode_paiement && <p className="text-[10px] text-gray-500 mt-1">Via {c.methode_paiement}</p>}
               </div>
               <div className="w-full mt-4">
@@ -884,7 +909,7 @@ const ModuleCommandesWeb = () => {
               </div>
             </div>
           </div>
-        ))}
+        )})}
       </div>
     </div>
   );
