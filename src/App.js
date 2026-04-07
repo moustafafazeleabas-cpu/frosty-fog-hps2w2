@@ -748,69 +748,132 @@ const LoginScreen = ({ onLogin }) => {
 // COMPOSANT 1 : GESTION DES COMMANDES WEB (CORRIGÉ SUPABASE)
 // ==========================================
 // ==========================================
+// ==========================================
+// COMPOSANT : GESTION DES COMMANDES WEB (ERP)
+// ==========================================
 const ModuleCommandesWeb = () => {
   const [commandes, setCommandes] = React.useState([]);
+  
   const load = async () => {
     const { data } = await supabase.from('commandes_web').select('*').order('date_commande', { ascending: false });
     setCommandes(data || []);
   };
   React.useEffect(() => { load(); }, []);
 
-  // --- NOUVELLE FONCTION : TELECHARGER TXT ---
+  // --- ACTION 1 : VALIDER (Déduit le stock + crée facture) ---
+  const validerCommandeWeb = async (cmd) => {
+    if (!window.confirm("Confirmer la commande ? Le stock sera déduit et une facture générée.")) return;
+    
+    const articles = cmd.articles_json.articles;
+    
+    // Déduction du stock physique
+    for (let art of articles) {
+      await supabase.rpc('decrement_stock_by_name', { p_nom: art.nom, amount: Number(art.qte) });
+    }
+
+    // Création de la facture dans l'historique de l'ERP
+    await supabase.from('historique_ventes').insert([{
+      numero_facture: `WEB-${cmd.id.toString().slice(0,5)}`,
+      type_vente: 'SITE_WEB',
+      client_nom: cmd.client_nom,
+      articles_liste: articles.map(a => `${a.qte}x ${a.nom}`).join(', '),
+      montant_total: Number(cmd.montant_total),
+      details_json: cmd.articles_json,
+      methode_paiement: 'LIVRAISON'
+    }]);
+
+    // Mise à jour du statut
+    await supabase.from('commandes_web').update({ statut: 'Validée' }).eq('id', cmd.id);
+    
+    alert("✅ Commande validée et stock mis à jour !");
+    load();
+  };
+
+  // --- ACTION 2 : ANNULER (Ne touche pas au stock + WhatsApp) ---
+  const annulerCommandeWeb = async (cmd) => {
+    if (!window.confirm("Annuler cette commande ?")) return;
+    
+    await supabase.from('commandes_web').update({ statut: 'Annulée' }).eq('id', cmd.id);
+    
+    // Préparation du message WhatsApp
+    const num = String(cmd.client_whatsapp).replace(/[^0-9]/g, '');
+    const msg = encodeURIComponent(`Bonjour ${cmd.client_nom}, c'est Hakimi Plus. Votre commande sur notre site a été annulée car `);
+    
+    // Ouvre WhatsApp pour prévenir le client
+    window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
+    
+    load();
+  };
+
+  // --- ACTION 3 : TELECHARGER ADRESSE (.txt) ---
   const telechargerAdresse = (cmd) => {
     const contenu = `
-      FACTURE WEB : WEB-${cmd.id.toString().slice(0,5)}
+      --- FICHE LIVRAISON HAKIMI PLUS ---
       CLIENT : ${cmd.client_nom}
-      WHATSAPP 1 : ${cmd.client_whatsapp}
-      WHATSAPP 2 : ${cmd.client_whatsapp2 || 'Non renseigné'}
+      TEL 1 : ${cmd.client_whatsapp}
+      TEL 2 : ${cmd.client_whatsapp2 || 'N/A'}
       QUARTIER : ${cmd.quartier}
-      -----------------------------------------
-      ADRESSE DETAILLEE :
-      ${cmd.adresse_detail}
-      -----------------------------------------
-      DATE : ${new Date(cmd.date_commande).toLocaleString()}
+      ADRESSE : ${cmd.adresse_detail}
+      TOTAL : ${Number(cmd.montant_total).toLocaleString()} Ar
+      -----------------------------------
     `;
     const element = document.createElement("a");
     const file = new Blob([contenu], {type: 'text/plain'});
     element.href = URL.createObjectURL(file);
-    element.download = `adresse_${cmd.client_nom.replace(/\s+/g, '_')}.txt`;
+    element.download = `LIVRAISON_${cmd.client_nom.replace(/\s+/g, '_')}.txt`;
     document.body.appendChild(element);
     element.click();
   };
 
-  // ... (Garder tes fonctions valider et annuler existantes) ...
-
   return (
     <div className="max-w-5xl mx-auto space-y-4">
-      <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Commandes du Site</h2>
-      <div className="grid gap-3">
+      <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Commandes Site Web</h2>
+      <div className="grid gap-4">
         {commandes.map(cmd => (
-          <div key={cmd.id} className={`bg-white p-5 rounded-2xl shadow-sm border-l-8 ${cmd.statut === 'Validée' ? 'border-green-500 opacity-60' : 'border-blue-500'}`}>
-            <div className="flex justify-between items-start">
-              <div className="flex-1">
-                <p className="font-black text-gray-800 uppercase text-sm">{cmd.client_nom}</p>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">📞 {cmd.client_whatsapp}</span>
-                  {cmd.client_whatsapp2 && <span className="text-[10px] font-bold text-gray-600 bg-gray-50 px-2 py-1 rounded">📞 {cmd.client_whatsapp2}</span>}
-                  <span className="text-[10px] font-black text-[#800020] bg-red-50 px-2 py-1 rounded uppercase">📍 {cmd.quartier}</span>
+          <div key={cmd.id} className={`bg-white p-6 rounded-3xl shadow-sm border-l-8 ${
+            cmd.statut === 'Validée' ? 'border-green-500 opacity-60' : 
+            cmd.statut === 'Annulée' ? 'border-gray-400 opacity-50' : 'border-blue-600'
+          }`}>
+            <div className="flex flex-col md:flex-row justify-between gap-4">
+              <div className="flex-1 space-y-2">
+                <div className="flex items-center gap-3">
+                  <p className="font-black text-gray-800 uppercase">{cmd.client_nom}</p>
+                  <span className="bg-red-50 text-[#800020] px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter">📍 {cmd.quartier}</span>
                 </div>
                 
-                {/* AFFICHAGE DU COMPLEMENT D'ADRESSE DANS L'ERP */}
-                <div className="mt-3 p-3 bg-red-50 border border-red-100 rounded-xl">
-                  <p className="text-[9px] font-black text-red-600 uppercase mb-1">Détails Adresse :</p>
-                  <p className="text-xs font-bold text-gray-700 italic">{cmd.adresse_detail}</p>
-                  <button 
-                    onClick={() => telechargerAdresse(cmd)}
-                    className="mt-2 text-[9px] font-black text-white bg-red-600 px-2 py-1 rounded hover:bg-black transition flex items-center gap-1"
-                  >
-                    💾 Télécharger .txt pour livreur
-                  </button>
+                <div className="flex gap-2">
+                  <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">📞 {cmd.client_whatsapp}</span>
+                  {cmd.client_whatsapp2 && <span className="text-[10px] font-bold text-gray-500 bg-gray-50 px-2 py-1 rounded">📞 {cmd.client_whatsapp2}</span>}
+                </div>
+
+                <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                  <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Précisions Adresse :</p>
+                  <p className="text-xs font-bold text-gray-600 italic">{cmd.adresse_detail}</p>
+                  <button onClick={() => telechargerAdresse(cmd)} className="mt-2 text-[9px] font-black bg-gray-800 text-white px-2 py-1 rounded uppercase hover:bg-black">💾 Télécharger .txt</button>
+                </div>
+
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {cmd.articles_json?.articles?.map((a, i) => (
+                    <span key={i} className="text-[10px] font-bold bg-white border px-2 py-1 rounded-lg"> {a.qte}x {a.nom} </span>
+                  ))}
                 </div>
               </div>
-              
-              <div className="text-right">
-                <p className="text-xl font-black text-[#800020]">{Number(cmd.montant_total).toLocaleString()} Ar</p>
-                {/* ... (Tes boutons Valider / Annuler habituels) ... */}
+
+              <div className="text-right flex flex-col justify-between items-end">
+                <p className="text-2xl font-black text-[#800020]">{Number(cmd.montant_total).toLocaleString()} Ar</p>
+                
+                <div className="flex gap-2 mt-4">
+                  {cmd.statut === 'En attente' ? (
+                    <>
+                      <button onClick={() => annulerCommandeWeb(cmd)} className="bg-gray-100 text-gray-500 px-4 py-2 rounded-xl font-black text-[10px] uppercase hover:bg-red-50 hover:text-red-600">❌ Annuler</button>
+                      <button onClick={() => validerCommandeWeb(cmd)} className="bg-[#800020] text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase shadow-lg">✅ Valider & Facturer</button>
+                    </>
+                  ) : (
+                    <span className={`font-black text-[10px] uppercase px-3 py-1 rounded-full ${cmd.statut === 'Validée' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {cmd.statut === 'Validée' ? 'Traitée ✅' : 'Annulée ❌'}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
