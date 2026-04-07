@@ -6,7 +6,7 @@ const supabaseUrl = 'https://wblginsktosypbmhmgbr.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndibGdpbnNrdG9zeXBibWhtZ2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjU3NTYsImV4cCI6MjA4OTk0MTc1Nn0.pmysPmutGjW2Tw7jFvrBE_0ue2pZmS32Pjncu1Rmr8w';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const LOGO_URL = "https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg"; // <-- N'oublie pas ton lien ImgBB ici
+const LOGO_URL = "https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg";
 
 const CATEGORIES_PRODUITS = ["Huile", "Épicerie Indienne", "Produits surgelés", "Boissons & Eaux", "Papeterie", "Produits ménagers", "Informatique", "Épicerie pratique", "Cosmétique", "Quincaillerie", "Divers"];
 
@@ -179,8 +179,8 @@ export default function App() {
               <div className="mt-4 pt-4 border-t border-white/10 flex flex-col gap-1">
                 <p className="text-[10px] font-black text-red-400 uppercase tracking-widest px-4 mb-1">Direction</p>
                 <NavBtn active={view==='dashboard'} onClick={()=>changeView('dashboard')}>📊 Tableau de Bord</NavBtn>
-              <NavBtn active={view==='commandes_web'} onClick={()=>changeView('commandes_web')}>🌐 Commandes Site Web</NavBtn>
-<NavBtn active={view==='gestion_site'} onClick={()=>changeView('gestion_site')}>🎨 Configuration Site</NavBtn>
+                <NavBtn active={view==='commandes_web'} onClick={()=>changeView('commandes_web')}>🌐 Commandes Site Web</NavBtn>
+                <NavBtn active={view==='gestion_site'} onClick={()=>changeView('gestion_site')}>🎨 Configuration Site</NavBtn>
                 <NavBtn active={view==='admin_stock'} onClick={()=>changeView('admin_stock')}>📦 Stock & Réappro</NavBtn>
                 <NavBtn active={view==='depenses'} onClick={()=>changeView('depenses')}>💸 Dépenses</NavBtn>
                 <NavBtn active={view==='clients'} onClick={()=>changeView('clients')}>👥 Base Clients</NavBtn>
@@ -210,7 +210,7 @@ export default function App() {
 
       <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto relative">
         {view==='commandes_web' && <ModuleCommandesWeb />}
-{view==='gestion_site' && <ModuleGestionSite />}
+        {view==='gestion_site' && <ModuleGestionSite />}
         {(view==='caisse' || view==='facture_a4' || view==='admin_credit' || view==='devis') && <ModuleVente mode={view} params={parametres} categoriesDb={categoriesDb} />}
         {view==='admin_stock' && <AdminStock categoriesDb={categoriesDb} refreshCategories={loadCategories} />}
         {view==='admin_fournisseurs' && <AdminFournisseurs />}
@@ -380,9 +380,12 @@ const AdminDashboard = () => {
 const AdminStock = ({ categoriesDb, refreshCategories }) => { 
   const [produits, setProduits] = useState([]); const [fours, setFours] = useState([]); const [historique, setHistorique] = useState([]);
   const [selectedCatFilter, setSelectedCatFilter] = useState(""); const [searchStock, setSearchStock] = useState(""); const [sortConfig, setSortConfig] = useState({ key: 'nom', direction: 'asc' });
-  const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', stock: '', fournisseur: '', categorie: 'Divers', dlc: '', image_file: null }); 
+  // NOUVEAU : On ajoute afficher_web et categorie_web dans le formulaire
+  const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', stock: '', fournisseur: '', categorie: 'Divers', dlc: '', image_file: null, afficher_web: true, categorie_web: '' }); 
   const [reapproProd, setReapproProd] = useState(null); const [reapproForm, setReapproForm] = useState({ qte: '', prix_a: '', prix_v: '', marge: '', dlc: '' }); const [showHistoProd, setShowHistoProd] = useState(null); 
-  const [editProd, setEditProd] = useState(null); const [editForm, setEditForm] = useState({ nom: '', prix_v: '', marge: '', pwd: '', image_file: null });
+  const [editProd, setEditProd] = useState(null); 
+  // NOUVEAU : On ajoute afficher_web et categorie_web dans le formulaire d'édition
+  const [editForm, setEditForm] = useState({ nom: '', prix_v: '', marge: '', pwd: '', image_file: null, afficher_web: true, categorie_web: '' });
   const [deleteProd, setDeleteProd] = useState(null); const [deletePwd, setDeletePwd] = useState(""); const [isSubmitting, setIsSubmitting] = useState(false);
 
   const load = async () => { const p = await supabase.from('produits').select('*').order('nom'); const f = await supabase.from('fournisseurs').select('nom'); const h = await supabase.from('historique_stock').select('*').order('date_ajout', { ascending: false }); setProduits(p.data || []); setFours(f.data || []); setHistorique(h.data || []); };
@@ -411,9 +414,10 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
       if (imageUrl === 'TOO_BIG') { setIsSubmitting(false); return; }
     }
 
-    await supabase.from('produits').insert([{ nom: form.nom.trim(), prix_achat: safeNum(form.prix_a), prix_vente: safeNum(form.prix_v), marge_pourcent: safeNum(form.marge), stock_actuel: safeNum(form.stock), fournisseur_nom: form.fournisseur, categorie: form.categorie, date_peremption: form.dlc || null, image_url: imageUrl }]); 
+    // NOUVEAU : On inclut afficher_web et categorie_web
+    await supabase.from('produits').insert([{ nom: form.nom.trim(), prix_achat: safeNum(form.prix_a), prix_vente: safeNum(form.prix_v), marge_pourcent: safeNum(form.marge), stock_actuel: safeNum(form.stock), fournisseur_nom: form.fournisseur, categorie: form.categorie, date_peremption: form.dlc || null, image_url: imageUrl, afficher_web: form.afficher_web, categorie_web: form.categorie_web }]); 
     await supabase.from('historique_stock').insert([{ produit_nom: form.nom.trim(), quantite: safeNum(form.stock), prix_achat: safeNum(form.prix_a) }]); 
-    setForm({ nom:'', prix_a:'', prix_v:'', marge:'', stock:'', fournisseur:'', categorie: 'Divers', dlc: '', image_file: null }); load(); setIsSubmitting(false); alert("Produit ajouté avec succès !");
+    setForm({ nom:'', prix_a:'', prix_v:'', marge:'', stock:'', fournisseur:'', categorie: 'Divers', dlc: '', image_file: null, afficher_web: true, categorie_web: '' }); load(); setIsSubmitting(false); alert("Produit ajouté avec succès !");
   };
   
   const addCategory = async () => { const newCat = prompt("Nouvelle catégorie :"); if(newCat) { await supabase.from('categories').insert([{ nom: newCat }]); await refreshCategories(); setForm({...form, categorie: newCat}); } };
@@ -444,7 +448,8 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
     }
 
     const oldName = editProd.nom; const newName = editForm.nom;
-    await supabase.from('produits').update({ nom: newName, prix_vente: safeNum(editForm.prix_v), marge_pourcent: safeNum(editForm.marge), image_url: imageUrl }).eq('id', editProd.id); 
+    // NOUVEAU : On met à jour afficher_web et categorie_web
+    await supabase.from('produits').update({ nom: newName, prix_vente: safeNum(editForm.prix_v), marge_pourcent: safeNum(editForm.marge), image_url: imageUrl, afficher_web: editForm.afficher_web, categorie_web: editForm.categorie_web }).eq('id', editProd.id); 
     if (oldName !== newName) { await supabase.from('historique_stock').update({ produit_nom: newName }).eq('produit_nom', oldName); }
     setEditProd(null); load(); setIsSubmitting(false); alert("Produit modifié avec succès !"); 
   };
@@ -481,13 +486,28 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
             <label className="text-[10px] font-bold text-gray-400 uppercase">Photo (Max 200Ko) - Optionnel</label>
             <input type="file" accept="image/*" className="w-full p-2 bg-gray-50 border rounded-xl text-xs" onChange={e=>setForm({...form, image_file: e.target.files[0]})} disabled={isSubmitting}/>
           </div>
-          <button className="w-full bg-[#800020] text-white p-3 rounded-xl font-black uppercase shadow-md md:col-span-2 mt-4" disabled={isSubmitting}>{isSubmitting ? 'Ajout...' : 'Ajouter au Stock'}</button>
+          
+          {/* NOUVEAU : Options Web */}
+          <div className="md:col-span-4 bg-blue-50 p-4 rounded-xl border border-blue-100 flex flex-col md:flex-row gap-4 items-center">
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              <input type="checkbox" id="afficherWeb" className="w-5 h-5 accent-blue-600" checked={form.afficher_web} onChange={(e) => setForm({ ...form, afficher_web: e.target.checked })} disabled={isSubmitting} />
+              <label htmlFor="afficherWeb" className="text-xs font-black uppercase text-blue-800 cursor-pointer">Afficher sur le site Web Hakimi Plus</label>
+            </div>
+            {form.afficher_web && (
+              <div className="flex-1 w-full flex items-center gap-2">
+                <label className="text-[10px] font-bold text-blue-800 uppercase whitespace-nowrap">Catégorie Web (Opt.) :</label>
+                <input type="text" className="flex-1 p-2 bg-white border rounded-xl text-xs outline-none" placeholder="Ex: Promos (Laissez vide pour utiliser la catégorie normale)" value={form.categorie_web} onChange={(e) => setForm({ ...form, categorie_web: e.target.value })} disabled={isSubmitting}/>
+              </div>
+            )}
+          </div>
+
+          <button className="w-full bg-[#800020] text-white p-3 rounded-xl font-black uppercase shadow-md md:col-span-4 mt-2" disabled={isSubmitting}>{isSubmitting ? 'Ajout...' : 'Ajouter au Stock'}</button>
         </form>
       </div>
 
       <div className="bg-white rounded-3xl shadow-sm overflow-hidden border border-gray-200">
         <div className="p-4 border-b bg-gray-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-3"><h3 className="font-black text-[#800020] uppercase">Inventaire Global</h3><div className="flex w-full md:w-auto gap-2"><input type="text" placeholder="🔍 Rechercher un produit..." className="p-2 border rounded-lg text-xs outline-none flex-1 md:w-48" value={searchStock} onChange={e=>setSearchStock(e.target.value)} /><select className="p-2 border rounded-lg text-xs font-bold outline-none" value={selectedCatFilter} onChange={e=>setSelectedCatFilter(e.target.value)}><option value="">Toutes Catégories</option>{(categoriesDb||[]).map(c => <option key={c} value={c}>{c}</option>)}</select></div></div>
-        <div className="overflow-x-auto"><table className="w-full text-left text-sm min-w-[900px]"><thead className="bg-gray-100 text-gray-600 font-bold uppercase text-[10px]"><tr><th className="p-4 cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('nom')}>Article {getSortIcon('nom')}</th><th className="p-4 cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('prix_achat')}>Achat {getSortIcon('prix_achat')}</th><th className="p-4 cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('prix_vente')}>Vente {getSortIcon('prix_vente')}</th><th className="p-4 text-center cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('stock_actuel')}>Stock {getSortIcon('stock_actuel')}</th><th className="p-4 text-center cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('date_peremption')}>Péremption {getSortIcon('date_peremption')}</th><th className="p-4 text-center">Actions</th></tr></thead><tbody className="divide-y divide-gray-100">{produitsAffiches.map(p => (<tr key={p.id} className="hover:bg-gray-50 transition"><td className="p-4 flex items-center gap-3">{p.image_url ? <img src={p.image_url} alt="img" className="w-8 h-8 object-cover rounded shadow-sm border border-gray-200" onError={(e)=>e.target.outerHTML="<div class='w-8 h-8 bg-red-100 flex items-center justify-center rounded text-[8px]'>Err</div>"} /> : <div className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center text-[8px] text-gray-400">Pas d'img</div>}<div><p className="font-bold uppercase text-gray-800">{p.nom}</p><p className="text-[9px] text-gray-400 uppercase font-bold">{p.categorie || 'DIVERS'}</p></div></td><td className="p-4 text-gray-500">{formatAr(p.prix_achat)}</td><td className="p-4 font-black text-red-600">{formatAr(p.prix_vente)}</td><td className="p-4 text-center"><span className={`px-2 py-1 rounded font-black text-[10px] text-white ${safeNum(p.stock_actuel)<=5?'bg-red-600 animate-pulse':'bg-green-600'}`}>{p.stock_actuel}</span></td><td className="p-4 text-center text-xs font-bold">{p.date_peremption ? (<span className={`${isDlcProche(p.date_peremption) ? 'text-red-600 bg-red-50 px-2 py-1 rounded' : 'text-gray-500'}`}>{formatDate(p.date_peremption)}</span>) : '-'}</td><td className="p-4 text-center flex justify-center gap-1"><button onClick={() => { setEditProd(p); setEditForm({ nom: p.nom, prix_v: p.prix_vente, marge: p.marge_pourcent, pwd: '', image_file: null }); }} className="bg-blue-600 text-white px-2 py-1 rounded shadow text-[9px] font-bold uppercase">✏️ Modifier</button><button onClick={() => { setReapproProd(p); setReapproForm({ qte: '', prix_a: p.prix_achat, prix_v: p.prix_vente, marge: p.marge_pourcent, dlc: p.date_peremption || '' }); }} className="bg-[#800020] text-white px-2 py-1 rounded shadow text-[9px] font-bold uppercase">Réappro</button><button onClick={() => setShowHistoProd(p)} className="bg-gray-200 px-2 py-1 rounded shadow text-[9px] font-bold uppercase">Histo</button><button onClick={() => setDeleteProd(p)} className="bg-red-600 text-white px-2 py-1 rounded shadow text-[9px] font-bold uppercase">🗑️ Suppr</button></td></tr>))}{produitsAffiches.length === 0 && (<tr><td colSpan="6" className="text-center p-8 text-gray-400 italic">Aucun produit trouvé.</td></tr>)}</tbody></table></div>
+        <div className="overflow-x-auto"><table className="w-full text-left text-sm min-w-[900px]"><thead className="bg-gray-100 text-gray-600 font-bold uppercase text-[10px]"><tr><th className="p-4 cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('nom')}>Article {getSortIcon('nom')}</th><th className="p-4 cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('prix_achat')}>Achat {getSortIcon('prix_achat')}</th><th className="p-4 cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('prix_vente')}>Vente {getSortIcon('prix_vente')}</th><th className="p-4 text-center cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('stock_actuel')}>Stock {getSortIcon('stock_actuel')}</th><th className="p-4 text-center cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('date_peremption')}>Péremption {getSortIcon('date_peremption')}</th><th className="p-4 text-center">Actions</th></tr></thead><tbody className="divide-y divide-gray-100">{produitsAffiches.map(p => (<tr key={p.id} className="hover:bg-gray-50 transition"><td className="p-4 flex items-center gap-3">{p.image_url ? <img src={p.image_url} alt="img" className="w-8 h-8 object-cover rounded shadow-sm border border-gray-200" onError={(e)=>e.target.outerHTML="<div class='w-8 h-8 bg-red-100 flex items-center justify-center rounded text-[8px]'>Err</div>"} /> : <div className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center text-[8px] text-gray-400">Pas d'img</div>}<div><p className="font-bold uppercase text-gray-800">{p.nom}</p><div className="flex gap-1 mt-1"><p className="text-[9px] text-gray-400 uppercase font-bold px-1 bg-gray-100 rounded">{p.categorie || 'DIVERS'}</p>{p.afficher_web && <span className="text-[9px] text-blue-600 bg-blue-50 font-bold px-1 rounded" title="Visible sur le site web">🌐 {p.categorie_web || 'Web'}</span>}</div></div></td><td className="p-4 text-gray-500">{formatAr(p.prix_achat)}</td><td className="p-4 font-black text-red-600">{formatAr(p.prix_vente)}</td><td className="p-4 text-center"><span className={`px-2 py-1 rounded font-black text-[10px] text-white ${safeNum(p.stock_actuel)<=5?'bg-red-600 animate-pulse':'bg-green-600'}`}>{p.stock_actuel}</span></td><td className="p-4 text-center text-xs font-bold">{p.date_peremption ? (<span className={`${isDlcProche(p.date_peremption) ? 'text-red-600 bg-red-50 px-2 py-1 rounded' : 'text-gray-500'}`}>{formatDate(p.date_peremption)}</span>) : '-'}</td><td className="p-4 text-center flex justify-center gap-1"><button onClick={() => { setEditProd(p); setEditForm({ nom: p.nom, prix_v: p.prix_vente, marge: p.marge_pourcent, pwd: '', image_file: null, afficher_web: p.afficher_web !== false, categorie_web: p.categorie_web || '' }); }} className="bg-blue-600 text-white px-2 py-1 rounded shadow text-[9px] font-bold uppercase">✏️ Modifier</button><button onClick={() => { setReapproProd(p); setReapproForm({ qte: '', prix_a: p.prix_achat, prix_v: p.prix_vente, marge: p.marge_pourcent, dlc: p.date_peremption || '' }); }} className="bg-[#800020] text-white px-2 py-1 rounded shadow text-[9px] font-bold uppercase">Réappro</button><button onClick={() => setShowHistoProd(p)} className="bg-gray-200 px-2 py-1 rounded shadow text-[9px] font-bold uppercase">Histo</button><button onClick={() => setDeleteProd(p)} className="bg-red-600 text-white px-2 py-1 rounded shadow text-[9px] font-bold uppercase">🗑️ Suppr</button></td></tr>))}{produitsAffiches.length === 0 && (<tr><td colSpan="6" className="text-center p-8 text-gray-400 italic">Aucun produit trouvé.</td></tr>)}</tbody></table></div>
       </div>
 
       {editProd && (
@@ -502,6 +522,21 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
                  {editProd.image_url && <img src={editProd.image_url} alt="actuelle" className="h-10 mb-2 rounded object-cover" />}
                  <input type="file" accept="image/*" className="w-full p-2 border rounded-xl text-xs" onChange={e=>setEditForm({...editForm, image_file: e.target.files[0]})} disabled={isSubmitting}/>
               </div>
+
+              {/* NOUVEAU : Options Web (Édition) */}
+              <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 space-y-2">
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="editAfficherWeb" className="w-4 h-4 accent-blue-600" checked={editForm.afficher_web} onChange={(e) => setEditForm({ ...editForm, afficher_web: e.target.checked })} disabled={isSubmitting} />
+                  <label htmlFor="editAfficherWeb" className="text-[10px] font-black uppercase text-blue-800 cursor-pointer">Visible sur le site Web</label>
+                </div>
+                {editForm.afficher_web && (
+                  <div>
+                    <label className="text-[9px] font-bold text-blue-800 uppercase block mb-1">Catégorie Web (Optionnelle) :</label>
+                    <input type="text" className="w-full p-2 bg-white border rounded-lg text-xs outline-none" placeholder="Ex: Promos" value={editForm.categorie_web} onChange={(e) => setEditForm({ ...editForm, categorie_web: e.target.value })} disabled={isSubmitting}/>
+                  </div>
+                )}
+              </div>
+
               <div className="pt-2 border-t"><label className="text-[10px] font-bold text-gray-400 uppercase">Code Superadmin</label><input type="password" placeholder="Mot de passe requis" className="w-full p-3 border rounded-xl font-bold outline-none text-center" value={editForm.pwd} onChange={e=>setEditForm({...editForm, pwd: e.target.value})} required disabled={isSubmitting}/></div>
               <div className="flex gap-2 pt-2"><button type="button" onClick={()=>setEditProd(null)} className="p-3 bg-gray-100 rounded-xl flex-1 font-bold text-gray-600" disabled={isSubmitting}>Annuler</button><button type="submit" className="p-3 bg-blue-600 text-white rounded-xl font-bold flex-1 shadow-md" disabled={isSubmitting}>{isSubmitting ? '...' : 'Enregistrer'}</button></div>
             </form>
@@ -742,203 +777,5 @@ const LoginScreen = ({ onLogin }) => {
   const handle = async (e) => { e.preventDefault(); const { data } = await supabase.from('utilisateurs').select('*').eq('identifiant', creds.id).eq('mot_de_passe', creds.mdp).single(); if (data) onLogin(data); else alert("Identifiants incorrects."); };
   return (
     <div className="min-h-screen bg-[#800020] flex items-center justify-center p-4"><form onSubmit={handle} className="bg-white p-12 rounded-[2rem] shadow-2xl w-full max-w-md border-b-8 border-red-600"><div className="flex justify-center mb-6"><img src={LOGO_URL} alt="Logo" className="h-16" onerror="this.style.display='none'" /></div><input type="text" placeholder="Utilisateur" className="w-full p-4 mb-4 bg-gray-50 border rounded-xl outline-none" onChange={e=>setCreds({...creds, id: e.target.value})} /><input type="password" placeholder="Mot de passe" className="w-full p-4 mb-6 bg-gray-50 border rounded-xl outline-none" onChange={e=>setCreds({...creds, mdp: e.target.value})} /><button className="w-full bg-[#800020] text-white p-4 rounded-xl font-black uppercase shadow-lg">Connexion</button></form></div>
-  );
-};
-// ==========================================
-// COMPOSANT 1 : GESTION DES COMMANDES WEB (CORRIGÉ SUPABASE)
-// ==========================================
-// ==========================================
-// ==========================================
-// COMPOSANT : GESTION DES COMMANDES WEB (ERP)
-// ==========================================
-const ModuleCommandesWeb = () => {
-  const [commandes, setCommandes] = React.useState([]);
-  
-  const load = async () => {
-    const { data } = await supabase.from('commandes_web').select('*').order('date_commande', { ascending: false });
-    setCommandes(data || []);
-  };
-  React.useEffect(() => { load(); }, []);
-
-  // --- ACTION 1 : VALIDER (Déduit le stock + crée facture) ---
-  const validerCommandeWeb = async (cmd) => {
-    if (!window.confirm("Confirmer la commande ? Le stock sera déduit et une facture générée.")) return;
-    
-    const articles = cmd.articles_json.articles;
-    
-    // Déduction du stock physique
-    for (let art of articles) {
-      await supabase.rpc('decrement_stock_by_name', { p_nom: art.nom, amount: Number(art.qte) });
-    }
-
-    // Création de la facture dans l'historique de l'ERP
-    await supabase.from('historique_ventes').insert([{
-      numero_facture: `WEB-${cmd.id.toString().slice(0,5)}`,
-      type_vente: 'SITE_WEB',
-      client_nom: cmd.client_nom,
-      articles_liste: articles.map(a => `${a.qte}x ${a.nom}`).join(', '),
-      montant_total: Number(cmd.montant_total),
-      details_json: cmd.articles_json,
-      methode_paiement: 'LIVRAISON'
-    }]);
-
-    // Mise à jour du statut
-    await supabase.from('commandes_web').update({ statut: 'Validée' }).eq('id', cmd.id);
-    
-    alert("✅ Commande validée et stock mis à jour !");
-    load();
-  };
-
-  // --- ACTION 2 : ANNULER (Ne touche pas au stock + WhatsApp) ---
-  const annulerCommandeWeb = async (cmd) => {
-    if (!window.confirm("Annuler cette commande ?")) return;
-    
-    await supabase.from('commandes_web').update({ statut: 'Annulée' }).eq('id', cmd.id);
-    
-    // Préparation du message WhatsApp
-    const num = String(cmd.client_whatsapp).replace(/[^0-9]/g, '');
-    const msg = encodeURIComponent(`Bonjour ${cmd.client_nom}, c'est Hakimi Plus. Votre commande sur notre site a été annulée car `);
-    
-    // Ouvre WhatsApp pour prévenir le client
-    window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
-    
-    load();
-  };
-
-  // --- ACTION 3 : TELECHARGER ADRESSE (.txt) ---
-  const telechargerAdresse = (cmd) => {
-    const contenu = `
-      --- FICHE LIVRAISON HAKIMI PLUS ---
-      CLIENT : ${cmd.client_nom}
-      TEL 1 : ${cmd.client_whatsapp}
-      TEL 2 : ${cmd.client_whatsapp2 || 'N/A'}
-      QUARTIER : ${cmd.quartier}
-      ADRESSE : ${cmd.adresse_detail}
-      TOTAL : ${Number(cmd.montant_total).toLocaleString()} Ar
-      -----------------------------------
-    `;
-    const element = document.createElement("a");
-    const file = new Blob([contenu], {type: 'text/plain'});
-    element.href = URL.createObjectURL(file);
-    element.download = `LIVRAISON_${cmd.client_nom.replace(/\s+/g, '_')}.txt`;
-    document.body.appendChild(element);
-    element.click();
-  };
-
-  return (
-    <div className="max-w-5xl mx-auto space-y-4">
-      <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Commandes Site Web</h2>
-      <div className="grid gap-4">
-        {commandes.map(cmd => (
-          <div key={cmd.id} className={`bg-white p-6 rounded-3xl shadow-sm border-l-8 ${
-            cmd.statut === 'Validée' ? 'border-green-500 opacity-60' : 
-            cmd.statut === 'Annulée' ? 'border-gray-400 opacity-50' : 'border-blue-600'
-          }`}>
-            <div className="flex flex-col md:flex-row justify-between gap-4">
-              <div className="flex-1 space-y-2">
-                <div className="flex items-center gap-3">
-                  <p className="font-black text-gray-800 uppercase">{cmd.client_nom}</p>
-                  <span className="bg-red-50 text-[#800020] px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter">📍 {cmd.quartier}</span>
-                </div>
-                
-                <div className="flex gap-2">
-                  <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">📞 {cmd.client_whatsapp}</span>
-                  {cmd.client_whatsapp2 && <span className="text-[10px] font-bold text-gray-500 bg-gray-50 px-2 py-1 rounded">📞 {cmd.client_whatsapp2}</span>}
-                </div>
-
-                <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
-                  <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Précisions Adresse :</p>
-                  <p className="text-xs font-bold text-gray-600 italic">{cmd.adresse_detail}</p>
-                  <button onClick={() => telechargerAdresse(cmd)} className="mt-2 text-[9px] font-black bg-gray-800 text-white px-2 py-1 rounded uppercase hover:bg-black">💾 Télécharger .txt</button>
-                </div>
-
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {cmd.articles_json?.articles?.map((a, i) => (
-                    <span key={i} className="text-[10px] font-bold bg-white border px-2 py-1 rounded-lg"> {a.qte}x {a.nom} </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="text-right flex flex-col justify-between items-end">
-                <p className="text-2xl font-black text-[#800020]">{Number(cmd.montant_total).toLocaleString()} Ar</p>
-                
-                <div className="flex gap-2 mt-4">
-                  {cmd.statut === 'En attente' ? (
-                    <>
-                      <button onClick={() => annulerCommandeWeb(cmd)} className="bg-gray-100 text-gray-500 px-4 py-2 rounded-xl font-black text-[10px] uppercase hover:bg-red-50 hover:text-red-600">❌ Annuler</button>
-                      <button onClick={() => validerCommandeWeb(cmd)} className="bg-[#800020] text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase shadow-lg">✅ Valider & Facturer</button>
-                    </>
-                  ) : (
-                    <span className={`font-black text-[10px] uppercase px-3 py-1 rounded-full ${cmd.statut === 'Validée' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                      {cmd.statut === 'Validée' ? 'Traitée ✅' : 'Annulée ❌'}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-// ==========================================
-// COMPOSANT 2 : CONFIGURATION DU SITE (CORRIGÉ SUPABASE)
-// ==========================================
-const ModuleGestionSite = () => {
-  // On utilise les noms exacts de ta table parametres_web
-  const [config, setConfig] = React.useState({ carousel_urls: ["", "", ""], texte_livraison: "", texte_conditions: "" });
-  
-  const load = async () => {
-    const { data } = await supabase.from('parametres_web').select('*').eq('id', 1).single();
-    if (data) setConfig(data);
-  };
-  React.useEffect(() => { load(); }, []);
-
-  const save = async () => {
-    // Mise à jour vers la table parametres_web
-    await supabase.from('parametres_web').update({
-        carousel_urls: config.carousel_urls,
-        texte_livraison: config.texte_livraison,
-        texte_conditions: config.texte_conditions
-    }).eq('id', 1);
-    alert("🚀 Site Hakimi Plus mis à jour avec succès !");
-  };
-
-  return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Gestion Hakimi Plus (Configuration)</h2>
-      <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100 space-y-6">
-        <div>
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Photos du Carrousel (Liens directes)</label>
-          {config.carousel_urls?.map((url, idx) => (
-            <div key={idx} className="flex gap-2 mb-2">
-               <span className="bg-gray-100 p-2 rounded-lg text-[10px] font-black w-8 text-center">{idx+1}</span>
-               <input className="flex-1 p-2 bg-gray-50 border rounded-xl text-xs outline-none focus:border-[#800020]" value={url} 
-                onChange={e => {
-                  const newC = [...config.carousel_urls]; newC[idx] = e.target.value; 
-                  setConfig({...config, carousel_urls: newC});
-                }} placeholder="Lien image ImgBB / Supabase" 
-              />
-            </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Infos Livraison</label>
-            <textarea className="w-full p-4 bg-gray-50 border rounded-2xl text-xs h-32 outline-none focus:border-[#800020]" value={config.texte_livraison} 
-              onChange={e => setConfig({...config, texte_livraison: e.target.value})} />
-          </div>
-          <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Conditions de vente</label>
-            <textarea className="w-full p-4 bg-gray-50 border rounded-2xl text-xs h-32 outline-none focus:border-[#800020]" value={config.texte_conditions} 
-              onChange={e => setConfig({...config, texte_conditions: e.target.value})} />
-          </div>
-        </div>
-        <button onClick={save} className="w-full bg-[#800020] text-white p-5 rounded-2xl font-black uppercase shadow-xl hover:bg-black transition">
-          Mettre à jour le site Hakimi Plus
-        </button>
-      </div>
-    </div>
   );
 };
