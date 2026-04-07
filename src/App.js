@@ -839,6 +839,9 @@ const LoginScreen = ({ onLogin }) => {
 // ==========================================
 // COMPOSANT : GESTION DES COMMANDES WEB (ERP)
 // ==========================================
+// ==========================================
+// COMPOSANT : GESTION DES COMMANDES WEB (ERP)
+// ==========================================
 const ModuleCommandesWeb = () => {
   const [commandes, setCommandes] = React.useState([]);
   
@@ -848,18 +851,18 @@ const ModuleCommandesWeb = () => {
   };
   React.useEffect(() => { load(); }, []);
 
-  // --- ACTION 1 : VALIDER (Déduit le stock + crée facture) ---
+  // --- ACTION 1 : VALIDER (Déduit le stock + crée facture + ✨ CRÉE LE CLIENT) ---
   const validerCommandeWeb = async (cmd) => {
     if (!window.confirm("Confirmer la commande ? Le stock sera déduit et une facture générée.")) return;
     
     const articles = cmd.articles_json.articles;
     
-    // Déduction du stock physique
+    // 1. Déduction du stock physique
     for (let art of articles) {
       await supabase.rpc('decrement_stock_by_name', { p_nom: art.nom, amount: Number(art.qte) });
     }
 
-    // Création de la facture dans l'historique de l'ERP
+    // 2. Création de la facture dans l'historique de l'ERP
     await supabase.from('historique_ventes').insert([{
       numero_facture: `WEB-${cmd.id.toString().slice(0,5)}`,
       type_vente: 'SITE_WEB',
@@ -870,10 +873,28 @@ const ModuleCommandesWeb = () => {
       methode_paiement: 'LIVRAISON'
     }]);
 
-    // Mise à jour du statut
+    // ✨ NOUVEAU : 3. Vérification et Création automatique du Client
+    // On vérifie s'il existe déjà un client avec ce numéro WhatsApp
+    const { data: existingClient } = await supabase
+      .from('clients')
+      .select('id')
+      .eq('contact_whatsapp', cmd.client_whatsapp)
+      .maybeSingle();
+
+    if (!existingClient) {
+      // S'il n'existe pas, on l'ajoute automatiquement au répertoire !
+      await supabase.from('clients').insert([{
+        nom: cmd.client_nom,
+        telephone: cmd.client_whatsapp, // On le met aussi dans téléphone classique
+        contact_whatsapp: cmd.client_whatsapp,
+        adresse: `${cmd.quartier} - ${cmd.adresse_detail}`
+      }]);
+    }
+
+    // 4. Mise à jour du statut de la commande
     await supabase.from('commandes_web').update({ statut: 'Validée' }).eq('id', cmd.id);
     
-    alert("✅ Commande validée et stock mis à jour !");
+    alert("✅ Commande validée, stock mis à jour, et client enregistré !");
     load();
   };
 
@@ -966,6 +987,7 @@ const ModuleCommandesWeb = () => {
             </div>
           </div>
         ))}
+        {commandes.length === 0 && <p className="text-center text-gray-400 italic py-10">Aucune commande web pour le moment.</p>}
       </div>
     </div>
   );
