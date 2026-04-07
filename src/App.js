@@ -179,6 +179,8 @@ export default function App() {
               <div className="mt-4 pt-4 border-t border-white/10 flex flex-col gap-1">
                 <p className="text-[10px] font-black text-red-400 uppercase tracking-widest px-4 mb-1">Direction</p>
                 <NavBtn active={view==='dashboard'} onClick={()=>changeView('dashboard')}>📊 Tableau de Bord</NavBtn>
+              <NavBtn active={view==='commandes_web'} onClick={()=>changeView('commandes_web')}>🌐 Commandes Site Web</NavBtn>
+<NavBtn active={view==='gestion_site'} onClick={()=>changeView('gestion_site')}>🎨 Configuration Site</NavBtn>
                 <NavBtn active={view==='admin_stock'} onClick={()=>changeView('admin_stock')}>📦 Stock & Réappro</NavBtn>
                 <NavBtn active={view==='depenses'} onClick={()=>changeView('depenses')}>💸 Dépenses</NavBtn>
                 <NavBtn active={view==='clients'} onClick={()=>changeView('clients')}>👥 Base Clients</NavBtn>
@@ -207,6 +209,8 @@ export default function App() {
       )}
 
       <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto relative">
+        {view==='commandes_web' && <ModuleCommandesWeb />}
+{view==='gestion_site' && <ModuleGestionSite />}
         {(view==='caisse' || view==='facture_a4' || view==='admin_credit' || view==='devis') && <ModuleVente mode={view} params={parametres} categoriesDb={categoriesDb} />}
         {view==='admin_stock' && <AdminStock categoriesDb={categoriesDb} refreshCategories={loadCategories} />}
         {view==='admin_fournisseurs' && <AdminFournisseurs />}
@@ -738,5 +742,95 @@ const LoginScreen = ({ onLogin }) => {
   const handle = async (e) => { e.preventDefault(); const { data } = await supabase.from('utilisateurs').select('*').eq('identifiant', creds.id).eq('mot_de_passe', creds.mdp).single(); if (data) onLogin(data); else alert("Identifiants incorrects."); };
   return (
     <div className="min-h-screen bg-[#800020] flex items-center justify-center p-4"><form onSubmit={handle} className="bg-white p-12 rounded-[2rem] shadow-2xl w-full max-w-md border-b-8 border-red-600"><div className="flex justify-center mb-6"><img src={LOGO_URL} alt="Logo" className="h-16" onerror="this.style.display='none'" /></div><input type="text" placeholder="Utilisateur" className="w-full p-4 mb-4 bg-gray-50 border rounded-xl outline-none" onChange={e=>setCreds({...creds, id: e.target.value})} /><input type="password" placeholder="Mot de passe" className="w-full p-4 mb-6 bg-gray-50 border rounded-xl outline-none" onChange={e=>setCreds({...creds, mdp: e.target.value})} /><button className="w-full bg-[#800020] text-white p-4 rounded-xl font-black uppercase shadow-lg">Connexion</button></form></div>
+  );
+};
+const ModuleCommandesWeb = () => {
+  const [commandes, setCommandes] = React.useState([]);
+  const load = async () => {
+    const { data } = await supabase.from('commandes_web').select('*').order('created_at', { ascending: false });
+    setCommandes(data || []);
+  };
+  React.useEffect(() => { load(); }, []);
+
+  const validerCommandeWeb = async (cmd) => {
+    if (!window.confirm("Valider cette commande et déduire le stock ?")) return;
+    const articles = cmd.articles_json.articles;
+    for (let art of articles) {
+      await supabase.rpc('decrement_stock_by_name', { p_nom: art.nom, amount: Number(art.qte) });
+    }
+    await supabase.from('historique_ventes').insert([{
+      numero_facture: `WEB-${cmd.id}`,
+      type_vente: 'SITE_WEB',
+      client_nom: cmd.client_nom,
+      articles_liste: articles.map(a => `${a.qte}x ${a.nom}`).join(', '),
+      montant_total: cmd.montant_total,
+      details_json: cmd.articles_json,
+      methode_paiement: 'LIVRAISON'
+    }]);
+    await supabase.from('commandes_web').update({ statut: 'Validée' }).eq('id', cmd.id);
+    alert("✅ Commande validée ! Stock mis à jour.");
+    load();
+  };
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-4">
+      <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Commandes Site Web</h2>
+      <div className="grid gap-3">
+        {commandes.map(cmd => (
+          <div key={cmd.id} className={`bg-white p-5 rounded-2xl shadow-sm border-l-8 ${cmd.statut === 'Validée' ? 'border-green-500 opacity-60' : 'border-blue-500'}`}>
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <p className="font-black text-gray-800 uppercase text-sm">{cmd.client_nom} <span className="text-blue-600 ml-2">📞 {cmd.client_whatsapp}</span></p>
+                <p className="text-[10px] font-bold text-gray-400">{cmd.quartier} | {new Date(cmd.created_at).toLocaleString()}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                   {cmd.articles_json.articles.map((a, i) => <span key={i} className="text-[10px] font-bold bg-gray-100 p-1 px-2 rounded border"> {a.qte}x {a.nom} </span>)}
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-xl font-black text-[#800020]">{Number(cmd.montant_total).toLocaleString()} Ar</p>
+                {cmd.statut === 'En attente' ? (
+                  <button onClick={() => validerCommandeWeb(cmd)} className="mt-2 bg-[#800020] text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase shadow-md">Valider & Déduire</button>
+                ) : ( <span className="mt-2 text-green-600 font-black text-[10px] uppercase block">Traité ✅</span> )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const ModuleGestionSite = () => {
+  const [config, setConfig] = React.useState({ carrousel: ["", "", ""], texte_livraison: "", texte_conditions: "" });
+  const load = async () => {
+    const { data } = await supabase.from('site_config').select('*').eq('id', 1).single();
+    if (data) setConfig(data);
+  };
+  React.useEffect(() => { load(); }, []);
+
+  const save = async () => {
+    await supabase.from('site_config').update(config).eq('id', 1);
+    alert("Site Hakimi Plus mis à jour !");
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Gestion du Site</h2>
+      <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100 space-y-6">
+        <div>
+          <label className="text-[10px] font-black text-gray-400 uppercase block mb-2">Images du Carrousel (Liens directes)</label>
+          {config.carrousel.map((url, idx) => (
+            <input key={idx} className="w-full p-2 mb-2 bg-gray-50 border rounded-xl text-xs outline-none" value={url} onChange={e => {
+              const newC = [...config.carrousel]; newC[idx] = e.target.value; setConfig({...config, carrousel: newC});
+            }} placeholder={`Lien image #${idx+1}`} />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <textarea className="p-4 bg-gray-50 border rounded-2xl text-xs h-32 outline-none" value={config.texte_livraison} onChange={e => setConfig({...config, texte_livraison: e.target.value})} placeholder="Infos Livraison" />
+          <textarea className="p-4 bg-gray-50 border rounded-2xl text-xs h-32 outline-none" value={config.texte_conditions} onChange={e => setConfig({...config, texte_conditions: e.target.value})} placeholder="Conditions" />
+        </div>
+        <button onClick={save} className="w-full bg-[#800020] text-white p-5 rounded-2xl font-black uppercase shadow-xl hover:bg-black transition">Mettre à jour le site</button>
+      </div>
+    </div>
   );
 };
