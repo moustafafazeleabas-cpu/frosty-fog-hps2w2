@@ -378,14 +378,40 @@ const AdminDashboard = () => {
   );
 };
 const AdminStock = ({ categoriesDb, refreshCategories }) => { 
-  const [produits, setProduits] = useState([]); const [fours, setFours] = useState([]); const [historique, setHistorique] = useState([]);
-  const [selectedCatFilter, setSelectedCatFilter] = useState(""); const [searchStock, setSearchStock] = useState(""); const [sortConfig, setSortConfig] = useState({ key: 'nom', direction: 'asc' });
-  const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', stock: '', fournisseur: '', categorie: 'Divers', dlc: '', image_file: null }); 
-  const [reapproProd, setReapproProd] = useState(null); const [reapproForm, setReapproForm] = useState({ qte: '', prix_a: '', prix_v: '', marge: '', dlc: '' }); const [showHistoProd, setShowHistoProd] = useState(null); 
-  const [editProd, setEditProd] = useState(null); const [editForm, setEditForm] = useState({ nom: '', prix_v: '', marge: '', pwd: '', image_file: null });
-  const [deleteProd, setDeleteProd] = useState(null); const [deletePwd, setDeletePwd] = useState(""); const [isSubmitting, setIsSubmitting] = useState(false);
+  const [produits, setProduits] = useState([]); 
+  const [fours, setFours] = useState([]); 
+  const [historique, setHistorique] = useState([]);
+  const [categoriesWebDb, setCategoriesWebDb] = useState([]); // ✨ NOUVEAU : État pour les catégories web
 
-  const load = async () => { const p = await supabase.from('produits').select('*').order('nom'); const f = await supabase.from('fournisseurs').select('nom'); const h = await supabase.from('historique_stock').select('*').order('date_ajout', { ascending: false }); setProduits(p.data || []); setFours(f.data || []); setHistorique(h.data || []); };
+  const [selectedCatFilter, setSelectedCatFilter] = useState(""); 
+  const [searchStock, setSearchStock] = useState(""); 
+  const [sortConfig, setSortConfig] = useState({ key: 'nom', direction: 'asc' });
+  
+  // ✨ NOUVEAU : form intègre afficher_web et categorie_web
+  const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', stock: '', fournisseur: '', categorie: 'Divers', dlc: '', image_file: null, afficher_web: false, categorie_web: '' }); 
+  
+  const [reapproProd, setReapproProd] = useState(null); 
+  const [reapproForm, setReapproForm] = useState({ qte: '', prix_a: '', prix_v: '', marge: '', dlc: '' }); 
+  const [showHistoProd, setShowHistoProd] = useState(null); 
+  
+  // ✨ NOUVEAU : editForm intègre afficher_web et categorie_web
+  const [editProd, setEditProd] = useState(null); 
+  const [editForm, setEditForm] = useState({ nom: '', prix_v: '', marge: '', pwd: '', image_file: null, afficher_web: false, categorie_web: '' });
+  const [deleteProd, setDeleteProd] = useState(null); 
+  const [deletePwd, setDeletePwd] = useState(""); 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const load = async () => { 
+    const p = await supabase.from('produits').select('*').order('nom'); 
+    const f = await supabase.from('fournisseurs').select('nom'); 
+    const h = await supabase.from('historique_stock').select('*').order('date_ajout', { ascending: false }); 
+    const cw = await supabase.from('categories_web').select('nom').order('nom'); // ✨ NOUVEAU : Chargement catégories web
+    
+    setProduits(p.data || []); 
+    setFours(f.data || []); 
+    setHistorique(h.data || []); 
+    setCategoriesWebDb(cw.data ? cw.data.map(c => c.nom) : []);
+  };
   useEffect(() => { load(); }, []);
 
   const uploadImage = async (file) => {
@@ -411,12 +437,31 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
       if (imageUrl === 'TOO_BIG') { setIsSubmitting(false); return; }
     }
 
-    await supabase.from('produits').insert([{ nom: form.nom.trim(), prix_achat: safeNum(form.prix_a), prix_vente: safeNum(form.prix_v), marge_pourcent: safeNum(form.marge), stock_actuel: safeNum(form.stock), fournisseur_nom: form.fournisseur, categorie: form.categorie, date_peremption: form.dlc || null, image_url: imageUrl }]); 
+    // ✨ NOUVEAU : On insère afficher_web et categorie_web
+    await supabase.from('produits').insert([{ 
+      nom: form.nom.trim(), prix_achat: safeNum(form.prix_a), prix_vente: safeNum(form.prix_v), 
+      marge_pourcent: safeNum(form.marge), stock_actuel: safeNum(form.stock), 
+      fournisseur_nom: form.fournisseur, categorie: form.categorie, 
+      date_peremption: form.dlc || null, image_url: imageUrl,
+      afficher_web: form.afficher_web, categorie_web: form.categorie_web || null
+    }]); 
+
     await supabase.from('historique_stock').insert([{ produit_nom: form.nom.trim(), quantite: safeNum(form.stock), prix_achat: safeNum(form.prix_a) }]); 
-    setForm({ nom:'', prix_a:'', prix_v:'', marge:'', stock:'', fournisseur:'', categorie: 'Divers', dlc: '', image_file: null }); load(); setIsSubmitting(false); alert("Produit ajouté avec succès !");
+    setForm({ nom:'', prix_a:'', prix_v:'', marge:'', stock:'', fournisseur:'', categorie: 'Divers', dlc: '', image_file: null, afficher_web: false, categorie_web: '' }); 
+    load(); setIsSubmitting(false); alert("Produit ajouté avec succès !");
   };
   
-  const addCategory = async () => { const newCat = prompt("Nouvelle catégorie :"); if(newCat) { await supabase.from('categories').insert([{ nom: newCat }]); await refreshCategories(); setForm({...form, categorie: newCat}); } };
+  const addCategory = async () => { const newCat = prompt("Nouvelle catégorie Magasin :"); if(newCat) { await supabase.from('categories').insert([{ nom: newCat }]); await refreshCategories(); setForm({...form, categorie: newCat}); } };
+  
+  // ✨ NOUVEAU : Fonction pour créer une catégorie Web
+  const addCategoryWeb = async () => { 
+    const newCat = prompt("Nouvelle catégorie WEB (ex: Épicerie, Boissons...) :"); 
+    if(newCat) { 
+      await supabase.from('categories_web').insert([{ nom: newCat }]); 
+      setCategoriesWebDb([...categoriesWebDb, newCat].sort());
+      setForm({...form, categorie_web: newCat}); 
+    } 
+  };
 
   const handleAchat = (val) => { const pa = safeNum(val)||0; const pv = safeNum(form.prix_v)||0; let m = form.marge; if(pa>0 && pv>0) m = (((pv-pa)/pa)*100).toFixed(2); setForm(prev => ({...prev, prix_a: val, marge: m})); };
   const handleVente = (val) => { const pv = safeNum(val)||0; const pa = safeNum(form.prix_a)||0; let m = form.marge; if(pa>0 && pv>0) m = (((pv-pa)/pa)*100).toFixed(2); setForm(prev => ({...prev, prix_v: val, marge: m})); };
@@ -444,7 +489,13 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
     }
 
     const oldName = editProd.nom; const newName = editForm.nom;
-    await supabase.from('produits').update({ nom: newName, prix_vente: safeNum(editForm.prix_v), marge_pourcent: safeNum(editForm.marge), image_url: imageUrl }).eq('id', editProd.id); 
+    
+    // ✨ NOUVEAU : Update inclut afficher_web et categorie_web
+    await supabase.from('produits').update({ 
+        nom: newName, prix_vente: safeNum(editForm.prix_v), marge_pourcent: safeNum(editForm.marge), image_url: imageUrl,
+        afficher_web: editForm.afficher_web, categorie_web: editForm.categorie_web || null
+    }).eq('id', editProd.id); 
+    
     if (oldName !== newName) { await supabase.from('historique_stock').update({ produit_nom: newName }).eq('produit_nom', oldName); }
     setEditProd(null); load(); setIsSubmitting(false); alert("Produit modifié avec succès !"); 
   };
@@ -470,24 +521,42 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
         <h2 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-6">Nouvelle référence</h2>
         <form onSubmit={saveNouveau} className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div><label className="text-[10px] font-bold text-gray-400 uppercase">Article</label><input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.nom} onChange={e=>setForm({...form, nom: e.target.value})} required disabled={isSubmitting}/></div>
-          <div><label className="text-[10px] font-bold text-[#800020] uppercase flex justify-between">Catégorie <button type="button" onClick={addCategory} className="text-[#800020] font-black">+ Nouveau</button></label><select className="w-full p-3 bg-gray-50 border border-[#800020]/30 rounded-xl outline-none font-bold text-[#800020]" value={form.categorie} onChange={e=>setForm({...form, categorie: e.target.value})} disabled={isSubmitting}>{(categoriesDb||[]).map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+          <div><label className="text-[10px] font-bold text-[#800020] uppercase flex justify-between">Cat. Magasin <button type="button" onClick={addCategory} className="text-[#800020] font-black">+ Nv</button></label><select className="w-full p-3 bg-gray-50 border border-[#800020]/30 rounded-xl outline-none font-bold text-[#800020]" value={form.categorie} onChange={e=>setForm({...form, categorie: e.target.value})} disabled={isSubmitting}>{(categoriesDb||[]).map(c => <option key={c} value={c}>{c}</option>)}</select></div>
           <div><label className="text-[10px] font-bold text-gray-400 uppercase">Coût Achat</label><input type="number" className="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none" value={form.prix_a} onChange={e=>handleAchat(e.target.value)} required disabled={isSubmitting}/></div>
           <div><label className="text-[10px] font-bold text-[#800020] uppercase">Marge (%)</label><input type="number" step="0.01" className="w-full p-3 bg-[#800020]/10 border border-[#800020]/30 rounded-xl font-black text-[#800020] outline-none" value={form.marge} onChange={e=>handleMarge(e.target.value)} disabled={isSubmitting}/></div>
           <div><label className="text-[10px] font-bold text-red-600 uppercase">Prix Vente</label><input type="number" className="w-full p-3 bg-red-50 border border-red-200 rounded-xl font-black text-red-600 outline-none" value={form.prix_v} onChange={e=>handleVente(e.target.value)} required disabled={isSubmitting}/></div>
           <div><label className="text-[10px] font-bold text-gray-400 uppercase">Stock Initial</label><input type="number" className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.stock} onChange={e=>setForm({...form, stock: e.target.value})} required disabled={isSubmitting}/></div>
-          <div><label className="text-[10px] font-bold text-gray-400 uppercase">Date Péremption (Optionnel)</label><input type="date" className="w-full p-3 bg-gray-50 border rounded-xl outline-none text-xs" value={form.dlc} onChange={e=>setForm({...form, dlc: e.target.value})} disabled={isSubmitting}/></div>
+          <div><label className="text-[10px] font-bold text-gray-400 uppercase">Date Péremption (Opt.)</label><input type="date" className="w-full p-3 bg-gray-50 border rounded-xl outline-none text-xs" value={form.dlc} onChange={e=>setForm({...form, dlc: e.target.value})} disabled={isSubmitting}/></div>
           <div><label className="text-[10px] font-bold text-gray-400 uppercase">Fournisseur</label><select className="w-full p-3 bg-gray-50 border rounded-xl outline-none text-sm" value={form.fournisseur} onChange={e=>setForm({...form, fournisseur: e.target.value})} required disabled={isSubmitting}><option value="">Sélectionner</option>{fours.map(f=><option key={f.nom} value={f.nom}>{f.nom}</option>)}</select></div>
+          
+          {/* ✨ NOUVEAU : Options Web pour l'ajout */}
+          <div className="md:col-span-2 bg-blue-50 border border-blue-100 p-3 rounded-xl flex items-center justify-between">
+              <label className="text-xs font-black text-blue-900 flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" className="w-5 h-5 accent-blue-600" checked={form.afficher_web} onChange={e => setForm({...form, afficher_web: e.target.checked})} disabled={isSubmitting} />
+                  🌐 Afficher ce produit sur le Site Web
+              </label>
+              {form.afficher_web && (
+                  <div className="flex flex-col flex-1 ml-4 border-l border-blue-200 pl-4">
+                      <label className="text-[9px] font-bold text-blue-700 uppercase flex justify-between">Catégorie Web <button type="button" onClick={addCategoryWeb} className="text-blue-700 font-black">+ Nv</button></label>
+                      <select className="w-full p-2 bg-white border border-blue-200 rounded-lg outline-none text-xs font-bold text-blue-900" value={form.categorie_web} onChange={e=>setForm({...form, categorie_web: e.target.value})} disabled={isSubmitting}>
+                          <option value="">-- Sans Catégorie --</option>
+                          {categoriesWebDb.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                  </div>
+              )}
+          </div>
+
           <div className="md:col-span-2">
-            <label className="text-[10px] font-bold text-gray-400 uppercase">Photo (Max 200Ko) - Optionnel</label>
+            <label className="text-[10px] font-bold text-gray-400 uppercase">Photo (Max 200Ko) - Optionnel mais conseillé pour le web</label>
             <input type="file" accept="image/*" className="w-full p-2 bg-gray-50 border rounded-xl text-xs" onChange={e=>setForm({...form, image_file: e.target.files[0]})} disabled={isSubmitting}/>
           </div>
-          <button className="w-full bg-[#800020] text-white p-3 rounded-xl font-black uppercase shadow-md md:col-span-2 mt-4" disabled={isSubmitting}>{isSubmitting ? 'Ajout...' : 'Ajouter au Stock'}</button>
+          <button className="w-full bg-[#800020] text-white p-3 rounded-xl font-black uppercase shadow-md md:col-span-4 mt-2" disabled={isSubmitting}>{isSubmitting ? 'Ajout...' : 'Ajouter au Stock'}</button>
         </form>
       </div>
 
       <div className="bg-white rounded-3xl shadow-sm overflow-hidden border border-gray-200">
         <div className="p-4 border-b bg-gray-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-3"><h3 className="font-black text-[#800020] uppercase">Inventaire Global</h3><div className="flex w-full md:w-auto gap-2"><input type="text" placeholder="🔍 Rechercher un produit..." className="p-2 border rounded-lg text-xs outline-none flex-1 md:w-48" value={searchStock} onChange={e=>setSearchStock(e.target.value)} /><select className="p-2 border rounded-lg text-xs font-bold outline-none" value={selectedCatFilter} onChange={e=>setSelectedCatFilter(e.target.value)}><option value="">Toutes Catégories</option>{(categoriesDb||[]).map(c => <option key={c} value={c}>{c}</option>)}</select></div></div>
-        <div className="overflow-x-auto"><table className="w-full text-left text-sm min-w-[900px]"><thead className="bg-gray-100 text-gray-600 font-bold uppercase text-[10px]"><tr><th className="p-4 cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('nom')}>Article {getSortIcon('nom')}</th><th className="p-4 cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('prix_achat')}>Achat {getSortIcon('prix_achat')}</th><th className="p-4 cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('prix_vente')}>Vente {getSortIcon('prix_vente')}</th><th className="p-4 text-center cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('stock_actuel')}>Stock {getSortIcon('stock_actuel')}</th><th className="p-4 text-center cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('date_peremption')}>Péremption {getSortIcon('date_peremption')}</th><th className="p-4 text-center">Actions</th></tr></thead><tbody className="divide-y divide-gray-100">{produitsAffiches.map(p => (<tr key={p.id} className="hover:bg-gray-50 transition"><td className="p-4 flex items-center gap-3">{p.image_url ? <img src={p.image_url} alt="img" className="w-8 h-8 object-cover rounded shadow-sm border border-gray-200" onError={(e)=>e.target.outerHTML="<div class='w-8 h-8 bg-red-100 flex items-center justify-center rounded text-[8px]'>Err</div>"} /> : <div className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center text-[8px] text-gray-400">Pas d'img</div>}<div><p className="font-bold uppercase text-gray-800">{p.nom}</p><p className="text-[9px] text-gray-400 uppercase font-bold">{p.categorie || 'DIVERS'}</p></div></td><td className="p-4 text-gray-500">{formatAr(p.prix_achat)}</td><td className="p-4 font-black text-red-600">{formatAr(p.prix_vente)}</td><td className="p-4 text-center"><span className={`px-2 py-1 rounded font-black text-[10px] text-white ${safeNum(p.stock_actuel)<=5?'bg-red-600 animate-pulse':'bg-green-600'}`}>{p.stock_actuel}</span></td><td className="p-4 text-center text-xs font-bold">{p.date_peremption ? (<span className={`${isDlcProche(p.date_peremption) ? 'text-red-600 bg-red-50 px-2 py-1 rounded' : 'text-gray-500'}`}>{formatDate(p.date_peremption)}</span>) : '-'}</td><td className="p-4 text-center flex justify-center gap-1"><button onClick={() => { setEditProd(p); setEditForm({ nom: p.nom, prix_v: p.prix_vente, marge: p.marge_pourcent, pwd: '', image_file: null }); }} className="bg-blue-600 text-white px-2 py-1 rounded shadow text-[9px] font-bold uppercase">✏️ Modifier</button><button onClick={() => { setReapproProd(p); setReapproForm({ qte: '', prix_a: p.prix_achat, prix_v: p.prix_vente, marge: p.marge_pourcent, dlc: p.date_peremption || '' }); }} className="bg-[#800020] text-white px-2 py-1 rounded shadow text-[9px] font-bold uppercase">Réappro</button><button onClick={() => setShowHistoProd(p)} className="bg-gray-200 px-2 py-1 rounded shadow text-[9px] font-bold uppercase">Histo</button><button onClick={() => setDeleteProd(p)} className="bg-red-600 text-white px-2 py-1 rounded shadow text-[9px] font-bold uppercase">🗑️ Suppr</button></td></tr>))}{produitsAffiches.length === 0 && (<tr><td colSpan="6" className="text-center p-8 text-gray-400 italic">Aucun produit trouvé.</td></tr>)}</tbody></table></div>
+        <div className="overflow-x-auto"><table className="w-full text-left text-sm min-w-[900px]"><thead className="bg-gray-100 text-gray-600 font-bold uppercase text-[10px]"><tr><th className="p-4 cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('nom')}>Article {getSortIcon('nom')}</th><th className="p-4 cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('prix_achat')}>Achat {getSortIcon('prix_achat')}</th><th className="p-4 cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('prix_vente')}>Vente {getSortIcon('prix_vente')}</th><th className="p-4 text-center cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('stock_actuel')}>Stock {getSortIcon('stock_actuel')}</th><th className="p-4 text-center cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('date_peremption')}>Péremption {getSortIcon('date_peremption')}</th><th className="p-4 text-center">Actions</th></tr></thead><tbody className="divide-y divide-gray-100">{produitsAffiches.map(p => (<tr key={p.id} className="hover:bg-gray-50 transition"><td className="p-4 flex items-center gap-3">{p.image_url ? <img src={p.image_url} alt="img" className="w-8 h-8 object-cover rounded shadow-sm border border-gray-200" onError={(e)=>e.target.outerHTML="<div class='w-8 h-8 bg-red-100 flex items-center justify-center rounded text-[8px]'>Err</div>"} /> : <div className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center text-[8px] text-gray-400">Pas d'img</div>}<div><p className="font-bold uppercase text-gray-800 flex items-center gap-1">{p.nom} {p.afficher_web && <span title={`Sur le site dans: ${p.categorie_web || 'Non classé'}`} className="text-[10px] cursor-help">🌐</span>}</p><p className="text-[9px] text-gray-400 uppercase font-bold">{p.categorie || 'DIVERS'}</p></div></td><td className="p-4 text-gray-500">{formatAr(p.prix_achat)}</td><td className="p-4 font-black text-red-600">{formatAr(p.prix_vente)}</td><td className="p-4 text-center"><span className={`px-2 py-1 rounded font-black text-[10px] text-white ${safeNum(p.stock_actuel)<=5?'bg-red-600 animate-pulse':'bg-green-600'}`}>{p.stock_actuel}</span></td><td className="p-4 text-center text-xs font-bold">{p.date_peremption ? (<span className={`${isDlcProche(p.date_peremption) ? 'text-red-600 bg-red-50 px-2 py-1 rounded' : 'text-gray-500'}`}>{formatDate(p.date_peremption)}</span>) : '-'}</td><td className="p-4 text-center flex justify-center gap-1"><button onClick={() => { setEditProd(p); setEditForm({ nom: p.nom, prix_v: p.prix_vente, marge: p.marge_pourcent, pwd: '', image_file: null, afficher_web: p.afficher_web || false, categorie_web: p.categorie_web || '' }); }} className="bg-blue-600 text-white px-2 py-1 rounded shadow text-[9px] font-bold uppercase">✏️ Modif</button><button onClick={() => { setReapproProd(p); setReapproForm({ qte: '', prix_a: p.prix_achat, prix_v: p.prix_vente, marge: p.marge_pourcent, dlc: p.date_peremption || '' }); }} className="bg-[#800020] text-white px-2 py-1 rounded shadow text-[9px] font-bold uppercase">Réappro</button><button onClick={() => setShowHistoProd(p)} className="bg-gray-200 px-2 py-1 rounded shadow text-[9px] font-bold uppercase">Histo</button><button onClick={() => setDeleteProd(p)} className="bg-red-600 text-white px-2 py-1 rounded shadow text-[9px] font-bold uppercase">🗑️</button></td></tr>))}{produitsAffiches.length === 0 && (<tr><td colSpan="6" className="text-center p-8 text-gray-400 italic">Aucun produit trouvé.</td></tr>)}</tbody></table></div>
       </div>
 
       {editProd && (
@@ -497,6 +566,24 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
             <form onSubmit={saveEdit} className="space-y-3">
               <div><label className="text-[10px] font-bold text-gray-400 uppercase">Nom du Produit</label><input className="w-full p-3 border rounded-xl font-bold outline-none" value={editForm.nom} onChange={e=>setEditForm({...editForm, nom: e.target.value})} required disabled={isSubmitting}/></div>
               <div className="flex gap-2"><div className="flex-1"><label className="text-[10px] font-bold text-red-600 uppercase">Prix Vente</label><input type="number" className="w-full p-3 border rounded-xl text-red-600 font-bold outline-none" value={editForm.prix_v} onChange={e=>handleEditVente(e.target.value)} required disabled={isSubmitting}/></div><div className="flex-1"><label className="text-[10px] font-bold text-[#800020] uppercase">Marge (%)</label><input type="number" step="0.01" className="w-full p-3 border rounded-xl text-[#800020] font-bold outline-none" value={editForm.marge} onChange={e=>handleEditMarge(e.target.value)} disabled={isSubmitting}/></div></div>
+              
+              {/* ✨ NOUVEAU : Options Web dans le Modal de modification */}
+              <div className="bg-blue-50 border border-blue-100 p-3 rounded-xl">
+                  <label className="text-xs font-black text-blue-900 flex items-center gap-2 cursor-pointer mb-2">
+                      <input type="checkbox" className="w-4 h-4 accent-blue-600" checked={editForm.afficher_web} onChange={e => setEditForm({...editForm, afficher_web: e.target.checked})} disabled={isSubmitting} />
+                      🌐 Visible sur le Site Web
+                  </label>
+                  {editForm.afficher_web && (
+                      <div>
+                          <label className="text-[9px] font-bold text-blue-700 uppercase">Catégorie Web</label>
+                          <select className="w-full p-2 bg-white border border-blue-200 rounded-lg outline-none text-xs font-bold text-blue-900" value={editForm.categorie_web} onChange={e=>setEditForm({...editForm, categorie_web: e.target.value})} disabled={isSubmitting}>
+                              <option value="">-- Sans Catégorie --</option>
+                              {categoriesWebDb.map(c => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                      </div>
+                  )}
+              </div>
+
               <div>
                  <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Remplacer l'image (Max 200Ko)</label>
                  {editProd.image_url && <img src={editProd.image_url} alt="actuelle" className="h-10 mb-2 rounded object-cover" />}
@@ -509,6 +596,7 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
         </div>
       )}
 
+      {/* Le reste de tes modales (reappro, histo, suppression) reste identique */}
       {reapproProd && (<div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50"><div className="bg-white p-6 rounded-3xl w-full max-w-md"><h2 className="text-lg font-black uppercase text-[#800020] mb-4">Réappro : {reapproProd.nom}</h2><form onSubmit={saveReappro} className="space-y-3"><input type="number" placeholder="Qté" className="w-full p-3 border rounded-xl" value={reapproForm.qte} onChange={e=>setReapproForm({...reapproForm, qte: e.target.value})} required /><input type="number" placeholder="Nouv. Prix Achat" className="w-full p-3 border rounded-xl" value={reapproForm.prix_a} onChange={e=>handleRAchat(e.target.value)} required /><div className="flex gap-2"><input type="number" className="w-full p-3 border rounded-xl text-red-600 font-bold" value={reapproForm.prix_v} onChange={e=>handleRVente(e.target.value)} required /><input type="number" className="w-full p-3 border rounded-xl text-[#800020] font-bold" value={reapproForm.marge} onChange={e=>handleRMarge(e.target.value)} /></div><div><label className="text-[10px] font-bold text-gray-400 uppercase">Nouvelle Date Péremption (Optionnel)</label><input type="date" className="w-full p-3 border rounded-xl" value={reapproForm.dlc} onChange={e=>setReapproForm({...reapproForm, dlc: e.target.value})} /></div><div className="flex gap-2 pt-2"><button type="button" onClick={()=>setReapproProd(null)} className="p-3 bg-gray-100 rounded-xl flex-1">Annuler</button><button type="submit" className="p-3 bg-[#800020] text-white rounded-xl font-bold flex-1">Valider</button></div></form></div></div>)}
       {showHistoProd && (<div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50"><div className="bg-white p-6 rounded-3xl w-full max-w-md shadow-2xl"><div className="flex justify-between items-center mb-4 border-b pb-2"><h2 className="text-lg font-black uppercase text-[#800020]">Historique d'Achat</h2><button onClick={() => setShowHistoProd(null)} className="text-gray-400 font-black text-xl">×</button></div><p className="text-gray-800 font-black mb-4 text-sm">{showHistoProd.nom}</p><div className="space-y-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">{historique.filter(h => h.produit_nom === showHistoProd.nom).map(h => (<div key={h.id} className="bg-gray-50 p-3 rounded-xl border border-gray-200 flex justify-between items-center"><div><p className="font-bold text-gray-800 text-xs">+{h.quantite} pièces</p><p className="text-[10px] text-gray-500 uppercase">{formatDate(h.date_ajout)}</p></div><p className="font-black text-red-600 text-sm">{formatAr(h.prix_achat)} Ar</p></div>))}{historique.filter(h => h.produit_nom === showHistoProd.nom).length === 0 && <p className="text-center text-gray-400 italic text-xs">Aucun historique</p>}</div></div></div>)}
       {deleteProd && (<div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[90]"><div className="bg-white p-6 rounded-3xl w-full max-w-sm shadow-2xl border-t-8 border-red-600 text-center"><div className="text-4xl mb-4">⚠️</div><h3 className="font-black text-red-600 text-lg uppercase mb-2">Supprimer ce produit ?</h3><p className="text-xs text-gray-500 mb-6">Action définitive. <strong>{deleteProd.nom}</strong> disparaîtra du stock.</p><form onSubmit={executerSuppressionProd} className="space-y-4"><div><label className="text-[10px] font-bold text-gray-400 uppercase block text-left mb-1">Code Superadmin requis</label><input type="password" placeholder="Mot de passe direction" className="w-full p-3 bg-gray-50 border rounded-xl outline-none text-center font-bold" value={deletePwd} onChange={e=>setDeletePwd(e.target.value)} required /></div><div className="flex gap-2"><button type="button" onClick={() => {setDeleteProd(null); setDeletePwd("");}} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 p-3 rounded-xl font-bold text-xs transition">Annuler</button><button type="submit" className="flex-1 bg-red-600 hover:bg-red-700 text-white p-3 rounded-xl font-black uppercase text-xs shadow-md transition">Supprimer</button></div></form></div></div>)}
