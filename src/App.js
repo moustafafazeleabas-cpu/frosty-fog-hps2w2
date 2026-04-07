@@ -747,27 +747,22 @@ const LoginScreen = ({ onLogin }) => {
 // ==========================================
 // COMPOSANT 1 : GESTION DES COMMANDES WEB (CORRIGÉ SUPABASE)
 // ==========================================
+// ==========================================
 const ModuleCommandesWeb = () => {
   const [commandes, setCommandes] = React.useState([]);
   
   const load = async () => {
-    // On utilise date_commande car c'est le nom dans ton tableau Supabase
     const { data } = await supabase.from('commandes_web').select('*').order('date_commande', { ascending: false });
     setCommandes(data || []);
   };
   React.useEffect(() => { load(); }, []);
 
   const validerCommandeWeb = async (cmd) => {
-    if (!window.confirm("Valider cette commande ? Le stock physique sera déduit et une facture sera créée.")) return;
-    
+    if (!window.confirm("Valider cette commande ? Le stock physique sera déduit.")) return;
     const articles = cmd.articles_json.articles;
-    
-    // 1. Déduction du stock
     for (let art of articles) {
       await supabase.rpc('decrement_stock_by_name', { p_nom: art.nom, amount: Number(art.qte) });
     }
-
-    // 2. Création automatique de la facture dans l'historique
     await supabase.from('historique_ventes').insert([{
       numero_facture: `WEB-${cmd.id.toString().slice(0,5)}`,
       type_vente: 'SITE_WEB',
@@ -777,11 +772,24 @@ const ModuleCommandesWeb = () => {
       details_json: cmd.articles_json,
       methode_paiement: 'LIVRAISON'
     }]);
-
-    // 3. Mise à jour du statut sur la commande web
     await supabase.from('commandes_web').update({ statut: 'Validée' }).eq('id', cmd.id);
+    alert("✅ Commande validée !");
+    load();
+  };
+
+  const annulerCommandeWeb = async (cmd) => {
+    if (!window.confirm("Annuler définitivement cette commande ?")) return;
     
-    alert("✅ Succès ! Stock mis à jour et facture enregistrée dans l'historique.");
+    // On met à jour le statut en "Annulée"
+    await supabase.from('commandes_web').update({ statut: 'Annulée' }).eq('id', cmd.id);
+    
+    // On prépare le lien WhatsApp
+    const numeroNet = String(cmd.client_whatsapp).replace(/[^0-9]/g, '');
+    const message = encodeURIComponent(`Bonjour ${cmd.client_nom}, c'est Hakimi Plus. Votre commande sur notre site a été annulée car `);
+    
+    // On ouvre WhatsApp
+    window.open(`https://wa.me/${numeroNet}?text=${message}`, '_blank');
+    
     load();
   };
 
@@ -789,35 +797,54 @@ const ModuleCommandesWeb = () => {
     <div className="max-w-5xl mx-auto space-y-4">
       <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Commandes du Site</h2>
       <div className="grid gap-3">
-        {commandes.map(cmd => (
-          <div key={cmd.id} className={`bg-white p-5 rounded-2xl shadow-sm border-l-8 ${cmd.statut === 'Validée' ? 'border-green-500 opacity-60' : 'border-blue-500'}`}>
-            <div className="flex justify-between items-start">
-              <div className="flex-1">
-                <p className="font-black text-gray-800 uppercase text-sm">{cmd.client_nom} <span className="text-blue-600 ml-2">📞 {cmd.client_whatsapp}</span></p>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{cmd.quartier} | {new Date(cmd.date_commande).toLocaleString()}</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                   {cmd.articles_json?.articles?.map((a, i) => (
-                     <span key={i} className="text-[10px] font-bold bg-gray-100 p-1 px-2 rounded border border-gray-200"> {a.qte}x {a.nom} </span>
-                   ))}
+        {commandes.map(cmd => {
+          const numeroNet = String(cmd.client_whatsapp).replace(/[^0-9]/g, '');
+          return (
+            <div key={cmd.id} className={`bg-white p-5 rounded-2xl shadow-sm border-l-8 ${
+              cmd.statut === 'Validée' ? 'border-green-500 opacity-60' : 
+              cmd.statut === 'Annulée' ? 'border-gray-400 opacity-50' : 'border-blue-500'
+            }`}>
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="font-black text-gray-800 uppercase text-sm">{cmd.client_nom}</p>
+                    {/* Lien WhatsApp cliquable sur le numéro */}
+                    <a href={`https://wa.me/${numeroNet}`} target="_blank" rel="noreferrer" className="bg-green-100 text-green-700 px-2 py-0.5 rounded-lg font-black text-[10px] hover:bg-green-200 transition">
+                      🟢 WHATSAPP: {cmd.client_whatsapp}
+                    </a>
+                  </div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase">{cmd.quartier} | {new Date(cmd.date_commande).toLocaleString()}</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {cmd.articles_json?.articles?.map((a, i) => (
+                      <span key={i} className="text-[10px] font-bold bg-gray-100 p-1 px-2 rounded border border-gray-200"> {a.qte}x {a.nom} </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-xl font-black text-[#800020]">{Number(cmd.montant_total).toLocaleString()} Ar</p>
+                  
+                  {cmd.statut === 'En attente' && (
+                    <div className="flex gap-2 mt-2">
+                      <button onClick={() => annulerCommandeWeb(cmd)} className="bg-gray-200 text-gray-700 px-3 py-2 rounded-xl font-black text-[9px] uppercase hover:bg-red-100 hover:text-red-600 transition">
+                        ❌ Annuler
+                      </button>
+                      <button onClick={() => validerCommandeWeb(cmd)} className="bg-[#800020] text-white px-3 py-2 rounded-xl font-black text-[9px] uppercase shadow-md hover:bg-black transition">
+                        ✅ Valider
+                      </button>
+                    </div>
+                  )}
+                  
+                  {cmd.statut === 'Validée' && <span className="mt-2 text-green-600 font-black text-[10px] uppercase block">Facturé ✅</span>}
+                  {cmd.statut === 'Annulée' && <span className="mt-2 text-red-600 font-black text-[10px] uppercase block">Annulée ❌</span>}
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-xl font-black text-[#800020]">{Number(cmd.montant_total).toLocaleString()} Ar</p>
-                {cmd.statut !== 'Validée' ? (
-                  <button onClick={() => validerCommandeWeb(cmd)} className="mt-2 bg-[#800020] text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase shadow-md hover:bg-black transition">✅ Valider & Facturer</button>
-                ) : (
-                  <span className="mt-2 bg-green-100 text-green-700 px-3 py-1 rounded-full font-black text-[10px] uppercase inline-block">Facturé ✅</span>
-                )}
-              </div>
             </div>
-          </div>
-        ))}
-        {commandes.length === 0 && <p className="text-center py-10 text-gray-400 italic">Aucune commande sur le site pour le moment.</p>}
+          );
+        })}
       </div>
     </div>
   );
 };
-
 // ==========================================
 // COMPOSANT 2 : CONFIGURATION DU SITE (CORRIGÉ SUPABASE)
 // ==========================================
