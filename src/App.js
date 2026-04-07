@@ -377,18 +377,25 @@ const AdminDashboard = () => {
     </div>
   );
 };
+
 const AdminStock = ({ categoriesDb, refreshCategories }) => { 
   const [produits, setProduits] = useState([]); const [fours, setFours] = useState([]); const [historique, setHistorique] = useState([]);
+  const [categoriesWebDb, setCategoriesWebDb] = useState([]);
   const [selectedCatFilter, setSelectedCatFilter] = useState(""); const [searchStock, setSearchStock] = useState(""); const [sortConfig, setSortConfig] = useState({ key: 'nom', direction: 'asc' });
-  // NOUVEAU : On ajoute afficher_web et categorie_web dans le formulaire
   const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', stock: '', fournisseur: '', categorie: 'Divers', dlc: '', image_file: null, afficher_web: true, categorie_web: '' }); 
   const [reapproProd, setReapproProd] = useState(null); const [reapproForm, setReapproForm] = useState({ qte: '', prix_a: '', prix_v: '', marge: '', dlc: '' }); const [showHistoProd, setShowHistoProd] = useState(null); 
   const [editProd, setEditProd] = useState(null); 
-  // NOUVEAU : On ajoute afficher_web et categorie_web dans le formulaire d'édition
   const [editForm, setEditForm] = useState({ nom: '', prix_v: '', marge: '', pwd: '', image_file: null, afficher_web: true, categorie_web: '' });
   const [deleteProd, setDeleteProd] = useState(null); const [deletePwd, setDeletePwd] = useState(""); const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const load = async () => { const p = await supabase.from('produits').select('*').order('nom'); const f = await supabase.from('fournisseurs').select('nom'); const h = await supabase.from('historique_stock').select('*').order('date_ajout', { ascending: false }); setProduits(p.data || []); setFours(f.data || []); setHistorique(h.data || []); };
+  const load = async () => { 
+    const p = await supabase.from('produits').select('*').order('nom'); 
+    const f = await supabase.from('fournisseurs').select('nom'); 
+    const h = await supabase.from('historique_stock').select('*').order('date_ajout', { ascending: false }); 
+    const cw = await supabase.from('categories_web').select('nom').order('nom');
+    setProduits(p.data || []); setFours(f.data || []); setHistorique(h.data || []); 
+    setCategoriesWebDb(cw.data ? cw.data.map(c => c.nom) : []);
+  };
   useEffect(() => { load(); }, []);
 
   const uploadImage = async (file) => {
@@ -414,13 +421,32 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
       if (imageUrl === 'TOO_BIG') { setIsSubmitting(false); return; }
     }
 
-    // NOUVEAU : On inclut afficher_web et categorie_web
     await supabase.from('produits').insert([{ nom: form.nom.trim(), prix_achat: safeNum(form.prix_a), prix_vente: safeNum(form.prix_v), marge_pourcent: safeNum(form.marge), stock_actuel: safeNum(form.stock), fournisseur_nom: form.fournisseur, categorie: form.categorie, date_peremption: form.dlc || null, image_url: imageUrl, afficher_web: form.afficher_web, categorie_web: form.categorie_web }]); 
     await supabase.from('historique_stock').insert([{ produit_nom: form.nom.trim(), quantite: safeNum(form.stock), prix_achat: safeNum(form.prix_a) }]); 
     setForm({ nom:'', prix_a:'', prix_v:'', marge:'', stock:'', fournisseur:'', categorie: 'Divers', dlc: '', image_file: null, afficher_web: true, categorie_web: '' }); load(); setIsSubmitting(false); alert("Produit ajouté avec succès !");
   };
   
   const addCategory = async () => { const newCat = prompt("Nouvelle catégorie :"); if(newCat) { await supabase.from('categories').insert([{ nom: newCat }]); await refreshCategories(); setForm({...form, categorie: newCat}); } };
+  
+  const addCategoryWeb = async () => { 
+    const newCat = prompt("Nouvelle catégorie Web :"); 
+    if(newCat) { 
+      await supabase.from('categories_web').insert([{ nom: newCat }]); 
+      const cw = await supabase.from('categories_web').select('nom').order('nom');
+      setCategoriesWebDb(cw.data ? cw.data.map(c => c.nom) : []);
+      setForm({...form, categorie_web: newCat}); 
+    } 
+  };
+
+  const addEditCategoryWeb = async () => { 
+    const newCat = prompt("Nouvelle catégorie Web :"); 
+    if(newCat) { 
+      await supabase.from('categories_web').insert([{ nom: newCat }]); 
+      const cw = await supabase.from('categories_web').select('nom').order('nom');
+      setCategoriesWebDb(cw.data ? cw.data.map(c => c.nom) : []);
+      setEditForm({...editForm, categorie_web: newCat}); 
+    } 
+  };
 
   const handleAchat = (val) => { const pa = safeNum(val)||0; const pv = safeNum(form.prix_v)||0; let m = form.marge; if(pa>0 && pv>0) m = (((pv-pa)/pa)*100).toFixed(2); setForm(prev => ({...prev, prix_a: val, marge: m})); };
   const handleVente = (val) => { const pv = safeNum(val)||0; const pa = safeNum(form.prix_a)||0; let m = form.marge; if(pa>0 && pv>0) m = (((pv-pa)/pa)*100).toFixed(2); setForm(prev => ({...prev, prix_v: val, marge: m})); };
@@ -448,7 +474,6 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
     }
 
     const oldName = editProd.nom; const newName = editForm.nom;
-    // NOUVEAU : On met à jour afficher_web et categorie_web
     await supabase.from('produits').update({ nom: newName, prix_vente: safeNum(editForm.prix_v), marge_pourcent: safeNum(editForm.marge), image_url: imageUrl, afficher_web: editForm.afficher_web, categorie_web: editForm.categorie_web }).eq('id', editProd.id); 
     if (oldName !== newName) { await supabase.from('historique_stock').update({ produit_nom: newName }).eq('produit_nom', oldName); }
     setEditProd(null); load(); setIsSubmitting(false); alert("Produit modifié avec succès !"); 
@@ -482,21 +507,25 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
           <div><label className="text-[10px] font-bold text-gray-400 uppercase">Stock Initial</label><input type="number" className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.stock} onChange={e=>setForm({...form, stock: e.target.value})} required disabled={isSubmitting}/></div>
           <div><label className="text-[10px] font-bold text-gray-400 uppercase">Date Péremption (Optionnel)</label><input type="date" className="w-full p-3 bg-gray-50 border rounded-xl outline-none text-xs" value={form.dlc} onChange={e=>setForm({...form, dlc: e.target.value})} disabled={isSubmitting}/></div>
           <div><label className="text-[10px] font-bold text-gray-400 uppercase">Fournisseur</label><select className="w-full p-3 bg-gray-50 border rounded-xl outline-none text-sm" value={form.fournisseur} onChange={e=>setForm({...form, fournisseur: e.target.value})} required disabled={isSubmitting}><option value="">Sélectionner</option>{fours.map(f=><option key={f.nom} value={f.nom}>{f.nom}</option>)}</select></div>
-          <div className="md:col-span-2">
+          <div className="md:col-span-4">
             <label className="text-[10px] font-bold text-gray-400 uppercase">Photo (Max 200Ko) - Optionnel</label>
             <input type="file" accept="image/*" className="w-full p-2 bg-gray-50 border rounded-xl text-xs" onChange={e=>setForm({...form, image_file: e.target.files[0]})} disabled={isSubmitting}/>
           </div>
           
-          {/* NOUVEAU : Options Web */}
+          {/* OPTIONS WEB AVEC LISTE DÉROULANTE */}
           <div className="md:col-span-4 bg-blue-50 p-4 rounded-xl border border-blue-100 flex flex-col md:flex-row gap-4 items-center">
             <div className="flex items-center gap-2 w-full md:w-auto">
               <input type="checkbox" id="afficherWeb" className="w-5 h-5 accent-blue-600" checked={form.afficher_web} onChange={(e) => setForm({ ...form, afficher_web: e.target.checked })} disabled={isSubmitting} />
-              <label htmlFor="afficherWeb" className="text-xs font-black uppercase text-blue-800 cursor-pointer">Afficher sur le site Web Hakimi Plus</label>
+              <label htmlFor="afficherWeb" className="text-xs font-black uppercase text-blue-800 cursor-pointer">Afficher sur le site Web</label>
             </div>
             {form.afficher_web && (
               <div className="flex-1 w-full flex items-center gap-2">
-                <label className="text-[10px] font-bold text-blue-800 uppercase whitespace-nowrap">Catégorie Web (Opt.) :</label>
-                <input type="text" className="flex-1 p-2 bg-white border rounded-xl text-xs outline-none" placeholder="Ex: Promos (Laissez vide pour utiliser la catégorie normale)" value={form.categorie_web} onChange={(e) => setForm({ ...form, categorie_web: e.target.value })} disabled={isSubmitting}/>
+                <label className="text-[10px] font-bold text-blue-800 uppercase whitespace-nowrap">Catégorie Web :</label>
+                <select className="flex-1 p-2 bg-white border border-blue-200 rounded-xl text-xs outline-none font-bold text-blue-900" value={form.categorie_web} onChange={(e) => setForm({ ...form, categorie_web: e.target.value })} disabled={isSubmitting}>
+                  <option value="">-- Même que Magasin --</option>
+                  {categoriesWebDb.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <button type="button" onClick={addCategoryWeb} className="bg-blue-200 text-blue-800 hover:bg-blue-300 px-3 py-2 rounded-xl text-xs font-black transition">+ Créer</button>
               </div>
             )}
           </div>
@@ -523,16 +552,19 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
                  <input type="file" accept="image/*" className="w-full p-2 border rounded-xl text-xs" onChange={e=>setEditForm({...editForm, image_file: e.target.files[0]})} disabled={isSubmitting}/>
               </div>
 
-              {/* NOUVEAU : Options Web (Édition) */}
+              {/* OPTIONS WEB (ÉDITION) */}
               <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 space-y-2">
                 <div className="flex items-center gap-2">
                   <input type="checkbox" id="editAfficherWeb" className="w-4 h-4 accent-blue-600" checked={editForm.afficher_web} onChange={(e) => setEditForm({ ...editForm, afficher_web: e.target.checked })} disabled={isSubmitting} />
                   <label htmlFor="editAfficherWeb" className="text-[10px] font-black uppercase text-blue-800 cursor-pointer">Visible sur le site Web</label>
                 </div>
                 {editForm.afficher_web && (
-                  <div>
-                    <label className="text-[9px] font-bold text-blue-800 uppercase block mb-1">Catégorie Web (Optionnelle) :</label>
-                    <input type="text" className="w-full p-2 bg-white border rounded-lg text-xs outline-none" placeholder="Ex: Promos" value={editForm.categorie_web} onChange={(e) => setEditForm({ ...editForm, categorie_web: e.target.value })} disabled={isSubmitting}/>
+                  <div className="flex items-center gap-2 mt-2">
+                    <select className="flex-1 p-2 bg-white border border-blue-200 rounded-lg text-xs outline-none font-bold text-blue-900" value={editForm.categorie_web} onChange={(e) => setEditForm({ ...editForm, categorie_web: e.target.value })} disabled={isSubmitting}>
+                      <option value="">-- Même que Magasin --</option>
+                      {categoriesWebDb.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                    <button type="button" onClick={addEditCategoryWeb} className="bg-blue-200 text-blue-800 hover:bg-blue-300 px-2 py-2 rounded-lg text-xs font-black transition">+</button>
                   </div>
                 )}
               </div>
@@ -776,6 +808,6 @@ const LoginScreen = ({ onLogin }) => {
   const [creds, setCreds] = useState({ id: '', mdp: '' });
   const handle = async (e) => { e.preventDefault(); const { data } = await supabase.from('utilisateurs').select('*').eq('identifiant', creds.id).eq('mot_de_passe', creds.mdp).single(); if (data) onLogin(data); else alert("Identifiants incorrects."); };
   return (
-    <div className="min-h-screen bg-[#800020] flex items-center justify-center p-4"><form onSubmit={handle} className="bg-white p-12 rounded-[2rem] shadow-2xl w-full max-w-md border-b-8 border-red-600"><div className="flex justify-center mb-6"><img src={LOGO_URL} alt="Logo" className="h-16" onerror="this.style.display='none'" /></div><input type="text" placeholder="Utilisateur" className="w-full p-4 mb-4 bg-gray-50 border rounded-xl outline-none" onChange={e=>setCreds({...creds, id: e.target.value})} /><input type="password" placeholder="Mot de passe" className="w-full p-4 mb-6 bg-gray-50 border rounded-xl outline-none" onChange={e=>setCreds({...creds, mdp: e.target.value})} /><button className="w-full bg-[#800020] text-white p-4 rounded-xl font-black uppercase shadow-lg">Connexion</button></form></div>
+    <div className="min-h-screen bg-[#800020] flex items-center justify-center p-4"><form onSubmit={handle} className="bg-white p-12 rounded-[2rem] shadow-2xl w-full max-w-md border-b-8 border-red-600"><div className="flex justify-center mb-6"><img src={LOGO_URL} alt="Logo" className="h-16" onError={(e) => e.target.style.display='none'} /></div><input type="text" placeholder="Utilisateur" className="w-full p-4 mb-4 bg-gray-50 border rounded-xl outline-none" onChange={e=>setCreds({...creds, id: e.target.value})} /><input type="password" placeholder="Mot de passe" className="w-full p-4 mb-6 bg-gray-50 border rounded-xl outline-none" onChange={e=>setCreds({...creds, mdp: e.target.value})} /><button className="w-full bg-[#800020] text-white p-4 rounded-xl font-black uppercase shadow-lg">Connexion</button></form></div>
   );
 };
