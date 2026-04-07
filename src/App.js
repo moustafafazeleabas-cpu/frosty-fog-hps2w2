@@ -745,200 +745,216 @@ const LoginScreen = ({ onLogin }) => {
   );
 };
 // ==========================================
-// COMPOSANT 1 : GESTION DES COMMANDES WEB (CORRIGÉ SUPABASE)
-// ==========================================
-// ==========================================
-// ==========================================
+
+ // ==========================================
 // COMPOSANT : GESTION DES COMMANDES WEB (ERP)
 // ==========================================
 const ModuleCommandesWeb = () => {
-  const [commandes, setCommandes] = React.useState([]);
-  
-  const load = async () => {
-    const { data } = await supabase.from('commandes_web').select('*').order('date_commande', { ascending: false });
-    setCommandes(data || []);
-  };
-  React.useEffect(() => { load(); }, []);
+  const [commandes, setCommandes] = useState([]);
+  
+  const load = async () => {
+    const { data } = await supabase.from('commandes_web').select('*').order('date_commande', { ascending: false });
+    setCommandes(data || []);
+  };
+  useEffect(() => { load(); }, []);
 
-  // --- ACTION 1 : VALIDER (Déduit le stock + crée facture) ---
-  const validerCommandeWeb = async (cmd) => {
-    if (!window.confirm("Confirmer la commande ? Le stock sera déduit et une facture générée.")) return;
-    
-    const articles = cmd.articles_json.articles;
-    
-    // Déduction du stock physique
-    for (let art of articles) {
-      await supabase.rpc('decrement_stock_by_name', { p_nom: art.nom, amount: Number(art.qte) });
-    }
+  // --- ACTION 1 : VALIDER (Déduit le stock + crée facture) ---
+  const validerCommandeWeb = async (cmd) => {
+    if (!window.confirm("Confirmer la commande ? Le stock sera déduit et une facture générée.")) return;
+    
+    const articles = cmd.articles_json.articles;
+    
+    // Déduction du stock physique
+    for (let art of articles) {
+      await supabase.rpc('decrement_stock_by_name', { p_nom: art.nom, amount: Number(art.qte) });
+    }
 
-    // Création de la facture dans l'historique de l'ERP
-    await supabase.from('historique_ventes').insert([{
-      numero_facture: `WEB-${cmd.id.toString().slice(0,5)}`,
-      type_vente: 'SITE_WEB',
-      client_nom: cmd.client_nom,
-      articles_liste: articles.map(a => `${a.qte}x ${a.nom}`).join(', '),
-      montant_total: Number(cmd.montant_total),
-      details_json: cmd.articles_json,
-      methode_paiement: 'LIVRAISON'
-    }]);
+    // Création de la facture dans l'historique de l'ERP
+    await supabase.from('historique_ventes').insert([{
+      numero_facture: `WEB-${cmd.id.toString().slice(0,5)}`,
+      type_vente: 'SITE_WEB',
+      client_nom: cmd.client_nom,
+      articles_liste: articles.map(a => `${a.qte}x ${a.nom}`).join(', '),
+      montant_total: Number(cmd.montant_total),
+      details_json: cmd.articles_json,
+      methode_paiement: 'LIVRAISON'
+    }]);
 
-    // Mise à jour du statut
-    await supabase.from('commandes_web').update({ statut: 'Validée' }).eq('id', cmd.id);
-    
-    alert("✅ Commande validée et stock mis à jour !");
-    load();
-  };
+    // Mise à jour du statut
+    await supabase.from('commandes_web').update({ statut: 'Validée' }).eq('id', cmd.id);
+    
+    alert("✅ Commande validée et stock mis à jour !");
+    load();
+  };
 
-  // --- ACTION 2 : ANNULER (Ne touche pas au stock + WhatsApp) ---
-  const annulerCommandeWeb = async (cmd) => {
-    if (!window.confirm("Annuler cette commande ?")) return;
-    
-    await supabase.from('commandes_web').update({ statut: 'Annulée' }).eq('id', cmd.id);
-    
-    // Préparation du message WhatsApp
-    const num = String(cmd.client_whatsapp).replace(/[^0-9]/g, '');
-    const msg = encodeURIComponent(`Bonjour ${cmd.client_nom}, c'est Hakimi Plus. Votre commande sur notre site a été annulée car `);
-    
-    // Ouvre WhatsApp pour prévenir le client
-    window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
-    
-    load();
-  };
+  // --- ACTION 2 : ANNULER (Ne touche pas au stock + WhatsApp) ---
+  const annulerCommandeWeb = async (cmd) => {
+    if (!window.confirm("Annuler cette commande ?")) return;
+    
+    await supabase.from('commandes_web').update({ statut: 'Annulée' }).eq('id', cmd.id);
+    
+    // Préparation du message WhatsApp
+    const num = String(cmd.client_whatsapp).replace(/[^0-9]/g, '');
+    const msg = encodeURIComponent(`Bonjour ${cmd.client_nom}, c'est Hakimi Plus. Votre commande sur notre site a été annulée.`);
+    
+    // Ouvre WhatsApp pour prévenir le client
+    window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
+    
+    load();
+  };
 
-  // --- ACTION 3 : TELECHARGER ADRESSE (.txt) ---
-  const telechargerAdresse = (cmd) => {
-    const contenu = `
-      --- FICHE LIVRAISON HAKIMI PLUS ---
-      CLIENT : ${cmd.client_nom}
-      TEL 1 : ${cmd.client_whatsapp}
-      TEL 2 : ${cmd.client_whatsapp2 || 'N/A'}
-      QUARTIER : ${cmd.quartier}
-      ADRESSE : ${cmd.adresse_detail}
-      TOTAL : ${Number(cmd.montant_total).toLocaleString()} Ar
-      -----------------------------------
-    `;
-    const element = document.createElement("a");
-    const file = new Blob([contenu], {type: 'text/plain'});
-    element.href = URL.createObjectURL(file);
-    element.download = `LIVRAISON_${cmd.client_nom.replace(/\s+/g, '_')}.txt`;
-    document.body.appendChild(element);
-    element.click();
-  };
+  // --- ACTION 3 : TELECHARGER ADRESSE (.txt) ---
+  const telechargerAdresse = (cmd) => {
+    const contenu = `
+      --- FICHE LIVRAISON HAKIMI PLUS ---
+      CLIENT : ${cmd.client_nom}
+      TEL 1 : ${cmd.client_whatsapp}
+      TEL 2 : ${cmd.client_whatsapp2 || 'N/A'}
+      QUARTIER : ${cmd.quartier}
+      ADRESSE : ${cmd.adresse_detail}
+      TOTAL : ${Number(cmd.montant_total).toLocaleString('fr-FR')} Ar
+      -----------------------------------
+    `;
+    const element = document.createElement("a");
+    const file = new Blob([contenu], {type: 'text/plain'});
+    element.href = URL.createObjectURL(file);
+    element.download = `LIVRAISON_${cmd.client_nom.replace(/\s+/g, '_')}.txt`;
+    document.body.appendChild(element);
+    element.click();
+  };
 
-  return (
-    <div className="max-w-5xl mx-auto space-y-4">
-      <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Commandes Site Web</h2>
-      <div className="grid gap-4">
-        {commandes.map(cmd => (
-          <div key={cmd.id} className={`bg-white p-6 rounded-3xl shadow-sm border-l-8 ${
-            cmd.statut === 'Validée' ? 'border-green-500 opacity-60' : 
-            cmd.statut === 'Annulée' ? 'border-gray-400 opacity-50' : 'border-blue-600'
-          }`}>
-            <div className="flex flex-col md:flex-row justify-between gap-4">
-              <div className="flex-1 space-y-2">
-                <div className="flex items-center gap-3">
-                  <p className="font-black text-gray-800 uppercase">{cmd.client_nom}</p>
-                  <span className="bg-red-50 text-[#800020] px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter">📍 {cmd.quartier}</span>
-                </div>
-                
-                <div className="flex gap-2">
-                  <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">📞 {cmd.client_whatsapp}</span>
-                  {cmd.client_whatsapp2 && <span className="text-[10px] font-bold text-gray-500 bg-gray-50 px-2 py-1 rounded">📞 {cmd.client_whatsapp2}</span>}
-                </div>
+  return (
+    <div className="max-w-5xl mx-auto space-y-6">
+      <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Commandes Site Web</h2>
+      <div className="grid gap-5">
+        {commandes.map(cmd => (
+          <div key={cmd.id} className={`bg-white p-6 rounded-3xl shadow-sm border-l-8 flex flex-col md:flex-row justify-between gap-6 transition ${
+            cmd.statut === 'Validée' ? 'border-green-500 opacity-70' : 
+            cmd.statut === 'Annulée' ? 'border-gray-400 opacity-60' : 'border-blue-600'
+          }`}>
+            
+            {/* === COLONNE GAUCHE (FORCÉE À GAUCHE) === */}
+            <div className="flex-1 flex flex-col items-start text-left space-y-3 w-full">
+              
+              <div className="flex flex-wrap items-center justify-start gap-3 w-full">
+                <p className="font-black text-gray-800 text-lg uppercase">{cmd.client_nom}</p>
+                <span className="bg-red-50 text-[#800020] px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tighter">📍 {cmd.quartier}</span>
+              </div>
+              
+              <div className="flex flex-wrap justify-start gap-2 w-full">
+                <span className="text-[11px] font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-md">📞 {cmd.client_whatsapp}</span>
+                {cmd.client_whatsapp2 && <span className="text-[11px] font-bold text-gray-500 bg-gray-50 px-3 py-1.5 rounded-md">📞 {cmd.client_whatsapp2}</span>}
+              </div>
 
-                <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
-                  <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Précisions Adresse :</p>
-                  <p className="text-xs font-bold text-gray-600 italic">{cmd.adresse_detail}</p>
-                  <button onClick={() => telechargerAdresse(cmd)} className="mt-2 text-[9px] font-black bg-gray-800 text-white px-2 py-1 rounded uppercase hover:bg-black">💾 Télécharger .txt</button>
-                </div>
+              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200 w-full max-w-md flex flex-col items-start">
+                <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Précisions Adresse :</p>
+                <p className="text-sm font-bold text-gray-700 italic mb-3 text-left w-full">{cmd.adresse_detail}</p>
+                <button onClick={() => telechargerAdresse(cmd)} className="text-[10px] font-black bg-gray-800 text-white px-4 py-2 rounded-lg uppercase hover:bg-black transition">
+                  💾 Télécharger .txt
+                </button>
+              </div>
 
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {cmd.articles_json?.articles?.map((a, i) => (
-                    <span key={i} className="text-[10px] font-bold bg-white border px-2 py-1 rounded-lg"> {a.qte}x {a.nom} </span>
-                  ))}
-                </div>
-              </div>
+              <div className="flex flex-wrap justify-start gap-2 w-full pt-2">
+                {cmd.articles_json?.articles?.map((a, i) => (
+                  <span key={i} className="text-xs font-bold text-gray-800 bg-white border border-gray-200 px-3 py-1.5 rounded-lg shadow-sm"> 
+                    {a.qte}x {a.nom} 
+                  </span>
+                ))}
+              </div>
+            </div>
 
-              <div className="text-right flex flex-col justify-between items-end">
-                <p className="text-2xl font-black text-[#800020]">{Number(cmd.montant_total).toLocaleString()} Ar</p>
-                
-                <div className="flex gap-2 mt-4">
-                  {cmd.statut === 'En attente' ? (
-                    <>
-                      <button onClick={() => annulerCommandeWeb(cmd)} className="bg-gray-100 text-gray-500 px-4 py-2 rounded-xl font-black text-[10px] uppercase hover:bg-red-50 hover:text-red-600">❌ Annuler</button>
-                      <button onClick={() => validerCommandeWeb(cmd)} className="bg-[#800020] text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase shadow-lg">✅ Valider & Facturer</button>
-                    </>
-                  ) : (
-                    <span className={`font-black text-[10px] uppercase px-3 py-1 rounded-full ${cmd.statut === 'Validée' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                      {cmd.statut === 'Validée' ? 'Traitée ✅' : 'Annulée ❌'}
-                    </span>
-                 )}
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+            {/* === COLONNE DROITE (FORCÉE À DROITE) === */}
+            <div className="flex flex-col justify-between items-end text-right min-w-[220px] border-t md:border-t-0 md:border-l border-gray-100 pt-5 md:pt-0 md:pl-6">
+              <div className="w-full flex flex-col items-end">
+                <p className="text-[10px] uppercase font-bold text-gray-400 mb-1">Total à payer</p>
+                <p className="text-3xl font-black text-[#800020] whitespace-nowrap">{Number(cmd.montant_total).toLocaleString('fr-FR')} Ar</p>
+              </div>
+              
+              <div className="flex flex-col gap-2 mt-6 w-full items-end justify-end">
+                {cmd.statut === 'En attente' ? (
+                  <div className="flex gap-2 w-full justify-end">
+                    <button onClick={() => annulerCommandeWeb(cmd)} className="bg-gray-100 text-gray-500 px-4 py-3 rounded-xl font-black text-[10px] uppercase hover:bg-red-50 hover:text-red-600 transition flex-1 md:flex-none text-center">
+                      ❌ Annuler
+                    </button>
+                    <button onClick={() => validerCommandeWeb(cmd)} className="bg-[#800020] text-white px-4 py-3 rounded-xl font-black text-[10px] uppercase shadow-lg hover:bg-red-900 transition flex-1 md:flex-none text-center">
+                      ✅ Valider
+                    </button>
+                  </div>
+                ) : (
+                  <span className={`inline-block font-black text-[11px] uppercase px-5 py-2.5 rounded-xl ${cmd.statut === 'Validée' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-500 border border-gray-200'}`}>
+                    {cmd.statut === 'Validée' ? 'Traitée ✅' : 'Annulée ❌'}
+                  </span>
+                )}
+              </div>
+            </div>
+
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 };
+
 // ==========================================
-// COMPOSANT 2 : CONFIGURATION DU SITE (CORRIGÉ SUPABASE)
+// COMPOSANT : CONFIGURATION DU SITE
 // ==========================================
 const ModuleGestionSite = () => {
-  // On utilise les noms exacts de ta table parametres_web
-  const [config, setConfig] = React.useState({ carousel_urls: ["", "", ""], texte_livraison: "", texte_conditions: "" });
-  
-  const load = async () => {
-    const { data } = await supabase.from('parametres_web').select('*').eq('id', 1).single();
-    if (data) setConfig(data);
-  };
-  React.useEffect(() => { load(); }, []);
+  const [config, setConfig] = useState({ carousel_urls: ["", "", ""], texte_livraison: "", texte_conditions: "" });
+  
+  const load = async () => {
+    const { data } = await supabase.from('parametres_web').select('*').eq('id', 1).single();
+    if (data) setConfig(data);
+  };
+  useEffect(() => { load(); }, []);
 
-  const save = async () => {
-    // Mise à jour vers la table parametres_web
-    await supabase.from('parametres_web').update({
-        carousel_urls: config.carousel_urls,
-        texte_livraison: config.texte_livraison,
-        texte_conditions: config.texte_conditions
-    }).eq('id', 1);
-    alert("🚀 Site Hakimi Plus mis à jour avec succès !");
-  };
+  const save = async () => {
+    await supabase.from('parametres_web').update({
+        carousel_urls: config.carousel_urls,
+        texte_livraison: config.texte_livraison,
+        texte_conditions: config.texte_conditions
+    }).eq('id', 1);
+    alert("🚀 Site Hakimi Plus mis à jour avec succès !");
+  };
 
-  return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Gestion Hakimi Plus (Configuration)</h2>
-      <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100 space-y-6">
-        <div>
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Photos du Carrousel (Liens directes)</label>
-          {config.carousel_urls?.map((url, idx) => (
-            <div key={idx} className="flex gap-2 mb-2">
-               <span className="bg-gray-100 p-2 rounded-lg text-[10px] font-black w-8 text-center">{idx+1}</span>
-               <input className="flex-1 p-2 bg-gray-50 border rounded-xl text-xs outline-none focus:border-[#800020]" value={url} 
-                onChange={e => {
-                  const newC = [...config.carousel_urls]; newC[idx] = e.target.value; 
-                  setConfig({...config, carousel_urls: newC});
-                }} placeholder="Lien image ImgBB / Supabase" 
-              />
-            </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Infos Livraison</label>
-            <textarea className="w-full p-4 bg-gray-50 border rounded-2xl text-xs h-32 outline-none focus:border-[#800020]" value={config.texte_livraison} 
-              onChange={e => setConfig({...config, texte_livraison: e.target.value})} />
-          </div>
-          <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Conditions de vente</label>
-            <textarea className="w-full p-4 bg-gray-50 border rounded-2xl text-xs h-32 outline-none focus:border-[#800020]" value={config.texte_conditions} 
-              onChange={e => setConfig({...config, texte_conditions: e.target.value})} />
-          </div>
-        </div>
-        <button onClick={save} className="w-full bg-[#800020] text-white p-5 rounded-2xl font-black uppercase shadow-xl hover:bg-black transition">
-          Mettre à jour le site Hakimi Plus
-        </button>
-      </div>
-    </div>
-  );
+  return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Gestion Hakimi Plus (Configuration)</h2>
+      <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100 space-y-6">
+        <div>
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-3">Photos du Carrousel (Liens directs)</label>
+          {config.carousel_urls?.map((url, idx) => (
+            <div key={idx} className="flex gap-3 mb-3 items-center">
+               <span className="bg-gray-100 p-3 rounded-xl text-xs font-black w-10 text-center text-gray-500">{idx+1}</span>
+               <input className="flex-1 p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#800020] transition" 
+                value={url} 
+                onChange={e => {
+                  const newC = [...config.carousel_urls]; 
+                  newC[idx] = e.target.value; 
+                  setConfig({...config, carousel_urls: newC});
+                }} 
+                placeholder="Lien image ImgBB / Supabase" 
+              />
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Infos Livraison</label>
+            <textarea className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm h-32 outline-none focus:border-[#800020] transition" 
+              value={config.texte_livraison} 
+              onChange={e => setConfig({...config, texte_livraison: e.target.value})} />
+          </div>
+          <div>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Conditions de vente</label>
+            <textarea className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm h-32 outline-none focus:border-[#800020] transition" 
+              value={config.texte_conditions} 
+              onChange={e => setConfig({...config, texte_conditions: e.target.value})} />
+          </div>
+        </div>
+        <button onClick={save} className="w-full bg-[#800020] text-white p-5 rounded-2xl font-black uppercase shadow-xl hover:bg-black transition mt-4">
+          Mettre à jour le site Hakimi Plus
+        </button>
+      </div>
+    </div>
+  );
 };
