@@ -386,14 +386,14 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
   const [searchStock, setSearchStock] = useState(""); 
   const [sortConfig, setSortConfig] = useState({ key: 'nom', direction: 'asc' });
   
-  const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', stock: '', fournisseur: '', categorie: 'Divers', dlc: '', image_file: null, afficher_web: false, categorie_web: '' }); 
+const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', stock: '', fournisseur: '', categorie: 'Divers', dlc: '', image_file: null, afficher_web: false, categorie_web: '', texte_rupture: '' });
   
   const [reapproProd, setReapproProd] = useState(null); 
   const [reapproForm, setReapproForm] = useState({ qte: '', prix_a: '', prix_v: '', marge: '', dlc: '' }); 
   const [showHistoProd, setShowHistoProd] = useState(null); 
   
   const [editProd, setEditProd] = useState(null); 
-  const [editForm, setEditForm] = useState({ nom: '', prix_v: '', marge: '', pwd: '', image_file: null, afficher_web: false, categorie_web: '' });
+  const [editForm, setEditForm] = useState({ nom: '', prix_v: '', marge: '', pwd: '', image_file: null, afficher_web: false, categorie_web: '', texte_rupture: '' });
   const [deleteProd, setDeleteProd] = useState(null); 
   const [deletePwd, setDeletePwd] = useState(""); 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -434,13 +434,14 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
       if (imageUrl === 'TOO_BIG') { setIsSubmitting(false); return; }
     }
 
-    await supabase.from('produits').insert([{ 
+   await supabase.from('produits').insert([{ 
       nom: form.nom.trim(), prix_achat: safeNum(form.prix_a), prix_vente: safeNum(form.prix_v), 
       marge_pourcent: safeNum(form.marge), stock_actuel: safeNum(form.stock), 
       fournisseur_nom: form.fournisseur, categorie: form.categorie, 
       date_peremption: form.dlc || null, image_url: imageUrl,
-      afficher_web: form.afficher_web, categorie_web: form.categorie_web || null
-    }]); 
+      afficher_web: form.afficher_web, categorie_web: form.categorie_web || null,
+      texte_rupture: form.texte_rupture // <-- LIGNE AJOUTÉE
+    }]);
 
     await supabase.from('historique_stock').insert([{ produit_nom: form.nom.trim(), quantite: safeNum(form.stock), prix_achat: safeNum(form.prix_a) }]); 
     setForm({ nom:'', prix_a:'', prix_v:'', marge:'', stock:'', fournisseur:'', categorie: 'Divers', dlc: '', image_file: null, afficher_web: false, categorie_web: '' }); 
@@ -485,10 +486,11 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
 
     const oldName = editProd.nom; const newName = editForm.nom;
     
-    await supabase.from('produits').update({ 
+   await supabase.from('produits').update({ 
         nom: newName, prix_vente: safeNum(editForm.prix_v), marge_pourcent: safeNum(editForm.marge), image_url: imageUrl,
-        afficher_web: editForm.afficher_web, categorie_web: editForm.categorie_web || null
-    }).eq('id', editProd.id); 
+        afficher_web: editForm.afficher_web, categorie_web: editForm.categorie_web || null,
+        texte_rupture: editForm.texte_rupture // <-- LIGNE AJOUTÉE
+    }).eq('id', editProd.id);
     
     if (oldName !== newName) { await supabase.from('historique_stock').update({ produit_nom: newName }).eq('produit_nom', oldName); }
     setEditProd(null); load(); setIsSubmitting(false); alert("Produit modifié avec succès !"); 
@@ -538,7 +540,10 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
                   </div>
               )}
           </div>
-
+<div className="md:col-span-2">
+            <label className="text-[10px] font-bold text-orange-500 uppercase">Texte si rupture (ex: Dispo dans 24h)</label>
+            <input type="text" className="w-full p-3 bg-orange-50 border border-orange-100 rounded-xl outline-none text-xs" value={form.texte_rupture} onChange={e=>setForm({...form, texte_rupture: e.target.value})} disabled={isSubmitting} placeholder="Laissez vide pour afficher 'Rupture de stock' par défaut"/>
+          </div>
           <div className="md:col-span-2">
             <label className="text-[10px] font-bold text-gray-400 uppercase">Photo (Max 200Ko) - Optionnel mais conseillé pour le web</label>
             <input type="file" accept="image/*" className="w-full p-2 bg-gray-50 border rounded-xl text-xs" onChange={e=>setForm({...form, image_file: e.target.files[0]})} disabled={isSubmitting}/>
@@ -549,7 +554,7 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
 
       <div className="bg-white rounded-3xl shadow-sm overflow-hidden border border-gray-200">
         <div className="p-4 border-b bg-gray-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-3"><h3 className="font-black text-[#800020] uppercase">Inventaire Global</h3><div className="flex w-full md:w-auto gap-2"><input type="text" placeholder="🔍 Rechercher un produit..." className="p-2 border rounded-lg text-xs outline-none flex-1 md:w-48" value={searchStock} onChange={e=>setSearchStock(e.target.value)} /><select className="p-2 border rounded-lg text-xs font-bold outline-none" value={selectedCatFilter} onChange={e=>setSelectedCatFilter(e.target.value)}><option value="">Toutes Catégories</option>{(categoriesDb||[]).map(c => <option key={c} value={c}>{c}</option>)}</select></div></div>
-        <div className="overflow-x-auto"><table className="w-full text-left text-sm min-w-[900px]"><thead className="bg-gray-100 text-gray-600 font-bold uppercase text-[10px]"><tr><th className="p-4 cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('nom')}>Article {getSortIcon('nom')}</th><th className="p-4 cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('prix_achat')}>Achat {getSortIcon('prix_achat')}</th><th className="p-4 cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('prix_vente')}>Vente {getSortIcon('prix_vente')}</th><th className="p-4 text-center cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('stock_actuel')}>Stock {getSortIcon('stock_actuel')}</th><th className="p-4 text-center cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('date_peremption')}>Péremption {getSortIcon('date_peremption')}</th><th className="p-4 text-center">Actions</th></tr></thead><tbody className="divide-y divide-gray-100">{produitsAffiches.map(p => (<tr key={p.id} className="hover:bg-gray-50 transition"><td className="p-4 flex items-center gap-3">{p.image_url ? <img src={p.image_url} alt="img" className="w-8 h-8 object-cover rounded shadow-sm border border-gray-200" onError={(e)=>e.target.outerHTML="<div class='w-8 h-8 bg-red-100 flex items-center justify-center rounded text-[8px]'>Err</div>"} /> : <div className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center text-[8px] text-gray-400">Pas d'img</div>}<div><p className="font-bold uppercase text-gray-800 flex items-center gap-1">{p.nom} {p.afficher_web && <span title={`Sur le site dans: ${p.categorie_web || 'Non classé'}`} className="text-[10px] cursor-help">🌐</span>}</p><p className="text-[9px] text-gray-400 uppercase font-bold">{p.categorie || 'DIVERS'}</p></div></td><td className="p-4 text-gray-500">{formatAr(p.prix_achat)}</td><td className="p-4 font-black text-red-600">{formatAr(p.prix_vente)}</td><td className="p-4 text-center"><span className={`px-2 py-1 rounded font-black text-[10px] text-white ${safeNum(p.stock_actuel)<=5?'bg-red-600 animate-pulse':'bg-green-600'}`}>{p.stock_actuel}</span></td><td className="p-4 text-center text-xs font-bold">{p.date_peremption ? (<span className={`${isDlcProche(p.date_peremption) ? 'text-red-600 bg-red-50 px-2 py-1 rounded' : 'text-gray-500'}`}>{formatDate(p.date_peremption)}</span>) : '-'}</td><td className="p-4 text-center flex justify-center gap-1"><button onClick={() => { setEditProd(p); setEditForm({ nom: p.nom, prix_v: p.prix_vente, marge: p.marge_pourcent, pwd: '', image_file: null, afficher_web: p.afficher_web || false, categorie_web: p.categorie_web || '' }); }} className="bg-blue-600 text-white px-2 py-1 rounded shadow text-[9px] font-bold uppercase">✏️ Modif</button><button onClick={() => { setReapproProd(p); setReapproForm({ qte: '', prix_a: p.prix_achat, prix_v: p.prix_vente, marge: p.marge_pourcent, dlc: p.date_peremption || '' }); }} className="bg-[#800020] text-white px-2 py-1 rounded shadow text-[9px] font-bold uppercase">Réappro</button><button onClick={() => setShowHistoProd(p)} className="bg-gray-200 px-2 py-1 rounded shadow text-[9px] font-bold uppercase">Histo</button><button onClick={() => setDeleteProd(p)} className="bg-red-600 text-white px-2 py-1 rounded shadow text-[9px] font-bold uppercase">🗑️</button></td></tr>))}{produitsAffiches.length === 0 && (<tr><td colSpan="6" className="text-center p-8 text-gray-400 italic">Aucun produit trouvé.</td></tr>)}</tbody></table></div>
+        <div className="overflow-x-auto"><table className="w-full text-left text-sm min-w-[900px]"><thead className="bg-gray-100 text-gray-600 font-bold uppercase text-[10px]"><tr><th className="p-4 cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('nom')}>Article {getSortIcon('nom')}</th><th className="p-4 cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('prix_achat')}>Achat {getSortIcon('prix_achat')}</th><th className="p-4 cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('prix_vente')}>Vente {getSortIcon('prix_vente')}</th><th className="p-4 text-center cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('stock_actuel')}>Stock {getSortIcon('stock_actuel')}</th><th className="p-4 text-center cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('date_peremption')}>Péremption {getSortIcon('date_peremption')}</th><th className="p-4 text-center">Actions</th></tr></thead><tbody className="divide-y divide-gray-100">{produitsAffiches.map(p => (<tr key={p.id} className="hover:bg-gray-50 transition"><td className="p-4 flex items-center gap-3">{p.image_url ? <img src={p.image_url} alt="img" className="w-8 h-8 object-cover rounded shadow-sm border border-gray-200" onError={(e)=>e.target.outerHTML="<div class='w-8 h-8 bg-red-100 flex items-center justify-center rounded text-[8px]'>Err</div>"} /> : <div className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center text-[8px] text-gray-400">Pas d'img</div>}<div><p className="font-bold uppercase text-gray-800 flex items-center gap-1">{p.nom} {p.afficher_web && <span title={`Sur le site dans: ${p.categorie_web || 'Non classé'}`} className="text-[10px] cursor-help">🌐</span>}</p><p className="text-[9px] text-gray-400 uppercase font-bold">{p.categorie || 'DIVERS'}</p></div></td><td className="p-4 text-gray-500">{formatAr(p.prix_achat)}</td><td className="p-4 font-black text-red-600">{formatAr(p.prix_vente)}</td><td className="p-4 text-center"><span className={`px-2 py-1 rounded font-black text-[10px] text-white ${safeNum(p.stock_actuel)<=5?'bg-red-600 animate-pulse':'bg-green-600'}`}>{p.stock_actuel}</span></td><td className="p-4 text-center text-xs font-bold">{p.date_peremption ? (<span className={`${isDlcProche(p.date_peremption) ? 'text-red-600 bg-red-50 px-2 py-1 rounded' : 'text-gray-500'}`}>{formatDate(p.date_peremption)}</span>) : '-'}</td><td className="p-4 text-center flex justify-center gap-1"><button onClick={() => { setEditProd(p); setEditForm({ nom: p.nom, prix_v: p.prix_vente, marge: p.marge_pourcent, pwd: '', image_file: null, afficher_web: p.afficher_web || false, categorie_web: p.categorie_web || '', texte_rupture: p.texte_rupture || '' }); }} className="bg-blue-600 text-white px-2 py-1 rounded shadow text-[9px] font-bold uppercase">✏️ Modif</button><button onClick={() => { setReapproProd(p); setReapproForm({ qte: '', prix_a: p.prix_achat, prix_v: p.prix_vente, marge: p.marge_pourcent, dlc: p.date_peremption || '' }); }} className="bg-[#800020] text-white px-2 py-1 rounded shadow text-[9px] font-bold uppercase">Réappro</button><button onClick={() => setShowHistoProd(p)} className="bg-gray-200 px-2 py-1 rounded shadow text-[9px] font-bold uppercase">Histo</button><button onClick={() => setDeleteProd(p)} className="bg-red-600 text-white px-2 py-1 rounded shadow text-[9px] font-bold uppercase">🗑️</button></td></tr>))}{produitsAffiches.length === 0 && (<tr><td colSpan="6" className="text-center p-8 text-gray-400 italic">Aucun produit trouvé.</td></tr>)}</tbody></table></div>
       </div>
 
       {editProd && (
@@ -575,7 +580,10 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
                       </div>
                   )}
               </div>
-
+<div>
+                 <label className="text-[10px] font-bold text-orange-500 uppercase block mb-1">Texte si rupture (Site Web)</label>
+                 <input type="text" className="w-full p-3 bg-orange-50 border border-orange-100 rounded-xl outline-none font-bold text-xs" value={editForm.texte_rupture} onChange={e=>setEditForm({...editForm, texte_rupture: e.target.value})} disabled={isSubmitting} placeholder="Ex: De retour jeudi..."/>
+              </div>
               <div>
                  <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Remplacer l'image (Max 200Ko)</label>
                  {editProd.image_url && <img src={editProd.image_url} alt="actuelle" className="h-10 mb-2 rounded object-cover" />}
