@@ -6,7 +6,7 @@ const supabaseUrl = 'https://wblginsktosypbmhmgbr.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndibGdpbnNrdG9zeXBibWhtZ2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjU3NTYsImV4cCI6MjA4OTk0MTc1Nn0.pmysPmutGjW2Tw7jFvrBE_0ue2pZmS32Pjncu1Rmr8w';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const LOGO_URL = "https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg"; // <-- N'oublie pas ton lien ImgBB ici
+const LOGO_URL = "https://wblginsktosypbmhmgbr.supabase.co/storage/v1/object/public/Hakimi%20logo/hakimi.jpg";
 
 const CATEGORIES_PRODUITS = ["Huile", "Épicerie Indienne", "Produits surgelés", "Boissons & Eaux", "Papeterie", "Produits ménagers", "Informatique", "Épicerie pratique", "Cosmétique", "Quincaillerie", "Divers"];
 
@@ -604,450 +604,97 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
   );
 };
 
-const ModuleHistorique = ({ params }) => {
-  const [ventes, setVentes] = useState([]); 
-  const [dateFiltre, setDateFiltre] = useState("");
-  const [searchHisto, setSearchHisto] = useState("");
-  const [detailModal, setDetailModal] = useState(null);
-  
-  const [cancelModal, setCancelModal] = useState(null);
-  const [cancelPwd, setCancelPwd] = useState("");
-  const [isCancelling, setIsCancelling] = useState(false);
-  
-  const load = async () => { let q = supabase.from('historique_ventes').select('*').order('date_vente', { ascending: false }); if (dateFiltre) q = q.gte('date_vente', `${dateFiltre}T00:00:00`).lte('date_vente', `${dateFiltre}T23:59:59`); const { data } = await q; setVentes(data || []); }; 
-  useEffect(() => { load(); }, [dateFiltre]);
-
-  const reImprimer = (v) => { const type = v.type_vente === 'CAISSE' ? 'caisse' : (v.type_vente === 'FACTURE' ? 'facture_a4' : 'admin_credit'); const dataPrint = { numero: v.numero_facture, methode: v.methode_paiement, banque: v.details_json?.paiement_infos?.banque, client_nom: v.client_nom, date: v.date_vente, totalNet: v.montant_total, totalRemisesEnAr: v.total_remise_ar, panier: v.details_json?.articles || [], fraisLivraison: safeNum(v.details_json?.frais_livraison), printSize: '58mm' }; lancerImpression(type, dataPrint, params); };
-  const imprimerPDF = (v) => { const dataPrint = { numero: v.numero_facture, methode: v.methode_paiement, banque: v.details_json?.paiement_infos?.banque, client_nom: v.client_nom, date: v.date_vente, totalNet: v.montant_total, totalRemisesEnAr: v.total_remise_ar, panier: v.details_json?.articles || [], fraisLivraison: safeNum(v.details_json?.frais_livraison), printSize: 'A4' }; lancerImpression('facture_a4', dataPrint, params); };
-
-  const executerAnnulation = async (e) => { e.preventDefault(); if(isCancelling) return; setIsCancelling(true); const { data: admins } = await supabase.from('utilisateurs').select('*').eq('role', 'superadmin').eq('mot_de_passe', cancelPwd); if (!admins || admins.length === 0) { alert("⚠️ Code Superadmin incorrect !"); setIsCancelling(false); return; } if (cancelModal.details_json && cancelModal.details_json.articles) { for (let art of cancelModal.details_json.articles) { const { data: pData } = await supabase.from('produits').select('stock_actuel').eq('nom', art.nom).single(); if (pData) { await supabase.from('produits').update({ stock_actuel: safeNum(pData.stock_actuel) + safeNum(art.qte) }).eq('nom', art.nom); } } } await supabase.from('historique_ventes').delete().eq('id', cancelModal.id); alert("✅ Vente annulée avec succès. Le stock a été restauré."); setCancelModal(null); setCancelPwd(""); setIsCancelling(false); load(); };
-
-  const BadgePaiement = ({ methode }) => { if(methode === 'MVOLA') return <span className="bg-green-100 text-green-700 text-[9px] font-black px-2 py-0.5 rounded">🟢 MVOLA</span>; if(methode === 'ORANGE MONEY') return <span className="bg-orange-100 text-orange-700 text-[9px] font-black px-2 py-0.5 rounded">🟠 ORANGE M.</span>; if(methode === 'CHEQUE') return <span className="bg-pink-100 text-pink-700 text-[9px] font-black px-2 py-0.5 rounded">✍️ CHÈQUE</span>; return <span className="bg-blue-100 text-blue-700 text-[9px] font-black px-2 py-0.5 rounded">💵 CASH</span>; };
-
-  const ventesAffiches = ventes.filter(v => {
-    if(!searchHisto) return true;
-    const term = searchHisto.toLowerCase();
-    return (v.client_nom||'').toLowerCase().includes(term) || (v.numero_facture||'').toLowerCase().includes(term) || (v.articles_liste||'').toLowerCase().includes(term);
-  });
-
-  return (
-    <div className="max-w-6xl mx-auto space-y-6 relative">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b-2 border-[#800020] pb-2 gap-2">
-        <h2 className="text-2xl font-black uppercase text-[#800020]">Historique Global</h2>
-        <div className="flex gap-2 w-full md:w-auto">
-          <input type="text" placeholder="🔍 Client, Produit, N°..." className="p-2 bg-white border rounded-xl font-bold text-xs flex-1 md:w-48 outline-none" value={searchHisto} onChange={e => setSearchHisto(e.target.value)} />
-          <input type="date" className="p-2 bg-white border rounded-xl font-bold text-xs" onChange={e => setDateFiltre(e.target.value)} />
-        </div>
-      </div>
-      <div className="grid gap-3">{ventesAffiches.map(v => (<div key={v.id} className="bg-white p-4 rounded-xl shadow-sm border flex flex-col md:flex-row justify-between items-center gap-3"><div className="flex-1 w-full cursor-pointer" onClick={() => setDetailModal(v)}><div className="flex items-center gap-2 mb-1">{v.numero_facture && <span className="font-black text-gray-800 text-[10px]">{v.numero_facture}</span>}<span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${v.type_vente === 'CRÉDIT' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>{v.type_vente}</span>{v.type_vente !== 'CRÉDIT' && <BadgePaiement methode={v.methode_paiement} />}<span className="text-[10px] text-gray-400 font-bold">{formatDateTime(v.date_vente)}</span></div><p className="font-black uppercase text-sm">{v.client_nom}</p><p className="text-[10px] text-gray-500 mt-1 line-clamp-1">🛒 {v.articles_liste}</p></div><p className="text-lg font-black text-[#800020] shrink-0">{formatAr(v.montant_total)} Ar</p><div className="flex gap-2 w-full md:w-auto shrink-0"><button onClick={(e)=>{e.stopPropagation(); imprimerPDF(v);}} className="flex-1 bg-blue-100 hover:bg-blue-200 text-blue-800 px-3 py-2 rounded-lg font-bold text-xs shadow-sm transition">📄 PDF (A4)</button><button onClick={(e)=>{e.stopPropagation(); reImprimer(v);}} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg font-bold text-xs shadow-sm transition">🖨️ Re-imprimer</button><button onClick={(e)=>{e.stopPropagation(); setCancelModal(v);}} className="flex-1 bg-red-50 hover:bg-red-600 hover:text-white text-red-600 px-3 py-2 rounded-lg font-bold text-xs shadow-sm transition">🗑️ Annuler</button></div></div>))}{ventesAffiches.length === 0 && <p className="text-center text-gray-400 italic">Aucune vente trouvée.</p>}</div>
-      {detailModal && (<div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50"><div className="bg-white p-6 rounded-3xl w-full max-w-lg shadow-2xl"><div className="flex justify-between items-center border-b pb-3 mb-4"><div><h3 className="font-black text-[#800020] text-lg uppercase">Détails de Vente</h3><p className="text-xs text-gray-500 font-bold">{formatDateTime(detailModal.date_vente)}</p></div><button onClick={() => setDetailModal(null)} className="text-2xl font-black text-gray-400">×</button></div><p className="text-sm font-bold uppercase mb-4 text-gray-800">👤 {detailModal.client_nom} {detailModal.methode_paiement && `- Payé par ${detailModal.methode_paiement}`}</p><div className="space-y-2 mb-6 bg-gray-50 p-3 rounded-xl max-h-48 overflow-y-auto custom-scrollbar">{detailModal.details_json?.articles?.map((art, idx) => { const pu = safeNum(art.prix_unitaire !== undefined ? art.prix_unitaire : art.prix_vente) - safeNum(art.remise_unitaire_ar !== undefined ? art.remise_unitaire_ar : art.remise_montant); const tl = safeNum(art.total_ligne !== undefined ? art.total_ligne : pu * safeNum(art.qte)); return (<div key={idx} className="flex justify-between text-xs border-b border-gray-200 pb-2 last:border-0"><div><span className="font-bold">{art.qte}x {art.nom}</span>{(art.remise_unitaire_ar > 0 || art.remise_montant > 0) && <p className="text-[9px] text-green-600 font-bold">Remise unitaire appliquée</p>}</div><span className="font-black">{formatAr(tl)} Ar</span></div>) })}</div><div className="bg-red-50 p-4 rounded-xl border border-red-100 flex flex-col gap-2"><div className="flex justify-between items-center"><p className="text-[10px] font-bold text-red-600 uppercase">Total Articles (Magasin)</p><p className="text-lg font-black text-[#800020]">{formatAr(detailModal.montant_total)} Ar</p></div>{safeNum(detailModal.details_json?.frais_livraison) > 0 && (<div className="flex justify-between items-center"><p className="text-[10px] font-bold text-orange-600 uppercase">Frais Livraison (Livreur)</p><p className="text-sm font-black text-orange-600">+{formatAr(detailModal.details_json.frais_livraison)} Ar</p></div>)}{safeNum(detailModal.details_json?.frais_livraison) > 0 && (<div className="flex justify-between items-center border-t border-red-200 pt-2 mt-1"><p className="text-xs font-black text-[#800020] uppercase">Total payé par client</p><p className="text-xl font-black text-[#800020]">{formatAr(safeNum(detailModal.montant_total) + safeNum(detailModal.details_json.frais_livraison))} Ar</p></div>)}</div></div></div>)}
-      {cancelModal && (<div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[90]"><div className="bg-white p-6 rounded-3xl w-full max-w-sm shadow-2xl border-t-8 border-red-600 text-center"><div className="text-4xl mb-4">⚠️</div><h3 className="font-black text-red-600 text-lg uppercase mb-2">Annuler la vente ?</h3><p className="text-xs text-gray-500 mb-6">Action définitive. Stock restauré et vente supprimée.</p><form onSubmit={executerAnnulation} className="space-y-4"><div><label className="text-[10px] font-bold text-gray-400 uppercase block text-left mb-1">Code Superadmin requis</label><input type="password" placeholder="Mot de passe direction" className="w-full p-3 bg-gray-50 border rounded-xl outline-none text-center font-bold" value={cancelPwd} onChange={e=>setCancelPwd(e.target.value)} required disabled={isCancelling} /></div><div className="flex gap-2"><button type="button" onClick={() => {setCancelModal(null); setCancelPwd("");}} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 p-3 rounded-xl font-bold text-xs transition" disabled={isCancelling}>Retour</button><button type="submit" className="flex-1 bg-red-600 hover:bg-red-700 text-white p-3 rounded-xl font-black uppercase text-xs shadow-md transition" disabled={isCancelling}>{isCancelling ? 'En cours...' : 'Confirmer'}</button></div></form></div></div>)}
-    </div>
-  );
-};
-
-const ModuleJournalDevis = ({ params }) => {
-  const [devis, setDevis] = useState([]);
-  const load = async () => { const { data } = await supabase.from('devis').select('*').order('date_devis', { ascending: false }); setDevis(data || []); };
-  useEffect(() => { load(); }, []);
-
-  const transformerFacture = async (d) => { if(!window.confirm(`Transformer en Facture ? Le stock sera déduit.`)) return; const today = new Date(); const dd = String(today.getDate()).padStart(2, '0'); const mm = String(today.getMonth() + 1).padStart(2, '0'); const yy = String(today.getFullYear()).slice(2, 4); const numDateStr = `${dd}${mm}${yy}`; const startOfToday = new Date(today); startOfToday.setHours(0, 0, 0, 0); const startIso = startOfToday.toISOString(); const { count } = await supabase.from('historique_ventes').select('*', {count: 'exact', head:true}).gte('date_vente', startIso); const numFacture = `FA${numDateStr}-${String((count || 0) + 1).padStart(3, '0')}`; let beneficeTotal = 0; if (d.details_json && Array.isArray(d.details_json.articles)) { for (let art of d.details_json.articles) { await supabase.rpc('decrement_stock_by_name', { p_nom: art.nom, amount: safeNum(art.qte) }); const { data: pData } = await supabase.from('produits').select('prix_achat').eq('nom', art.nom).single(); const pa = pData ? pData.prix_achat : 0; beneficeTotal += ((safeNum(art.prix_unitaire) - safeNum(art.remise_unitaire_ar) - pa) * safeNum(art.qte)); } } const remiseGl = d.details_json ? safeNum(d.details_json.remise_globale_pourcent) : 0; beneficeTotal -= (beneficeTotal * (remiseGl/100)); await supabase.from('historique_ventes').insert([{ numero_facture: numFacture, type_vente: 'FACTURE', client_nom: d.client_nom, articles_liste: d.articles_liste, montant_total: d.montant_total, benefice_total: beneficeTotal, remise_globale_pourcent: remiseGl, total_remise_ar: d.total_remise_ar, details_json: d.details_json, methode_paiement: 'CASH' }]); await supabase.from('devis').update({ statut: 'Facturé ✅', numero_facture_liee: numFacture }).eq('id', d.id); load(); alert(`Transformé avec succès ! Numéro de facture : ${numFacture}`); };
-  const imprimerPDF = (d) => { const dataPrint = { numero: d.statut === 'Facturé ✅' ? d.numero_facture_liee : d.numero_devis, client_nom: d.client_nom, date: d.date_devis, totalNet: d.montant_total, totalRemisesEnAr: d.total_remise_ar, panier: d.details_json?.articles || [], fraisLivraison: safeNum(d.details_json?.frais_livraison), printSize: 'A4' }; lancerImpression(d.statut === 'Facturé ✅' ? 'facture_a4' : 'devis', dataPrint, params); };
-  const reImprimer = (d) => { const dataPrint = { numero: d.statut === 'Facturé ✅' ? d.numero_facture_liee : d.numero_devis, client_nom: d.client_nom, date: d.date_devis, totalNet: d.montant_total, totalRemisesEnAr: d.total_remise_ar, panier: d.details_json?.articles || [], fraisLivraison: safeNum(d.details_json?.frais_livraison), printSize: '58mm' }; lancerImpression(d.statut === 'Facturé ✅' ? 'facture_a4' : 'devis', dataPrint, params); };
-
-  return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex justify-between items-center border-b-2 border-[#800020] pb-2"><h2 className="text-2xl font-black uppercase text-[#800020]">Journal des Devis</h2></div>
-      <div className="grid gap-3">{devis.map(d => (<div key={d.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4"><div className="flex-1 w-full"><div className="flex items-center gap-3 mb-1"><span className="font-black text-[#800020]">{d.numero_devis || 'Sans N°'}</span><span className={`text-[10px] font-bold px-2 py-0.5 rounded ${d.statut === 'En attente' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>{d.statut || 'En attente'}</span><span className="text-[10px] text-gray-400 font-bold">{formatDate(d.date_devis)}</span></div><p className="font-black text-sm uppercase">{d.client_nom}</p><p className="text-[10px] text-gray-500 mt-1 line-clamp-1">🛒 {d.articles_liste}</p></div><p className="text-xl font-black text-gray-800 shrink-0">{formatAr(d.montant_total)} Ar</p><div className="flex gap-2 w-full md:w-auto shrink-0"><button onClick={()=>imprimerPDF(d)} className="flex-1 bg-blue-100 hover:bg-blue-200 text-blue-800 px-3 py-2 rounded-lg font-bold text-xs shadow-sm transition">📄 PDF (A4)</button><button onClick={()=>reImprimer(d)} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg font-bold text-xs shadow-sm transition">🖨️ Imprimer</button>{d.statut !== 'Facturé ✅' && <button onClick={()=>transformerFacture(d)} className="flex-1 bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg font-black text-xs shadow-sm transition">🔄 Transformer Facture</button>}</div></div>))}{devis.length === 0 && <p className="text-center text-gray-400 italic">Aucun devis enregistré.</p>}</div>
-    </div>
-  );
-};
-
-const ModuleJournalFactures = ({ params }) => {
-  const [factures, setFactures] = useState([]); const [dateFiltre, setDateFiltre] = useState("");
-  useEffect(() => { const load = async () => { let q = supabase.from('historique_ventes').select('*').in('type_vente', ['FACTURE', 'FACTURE_A4']).order('date_vente', { ascending: false }); if (dateFiltre) q = q.gte('date_vente', `${dateFiltre}T00:00:00`).lte('date_vente', `${dateFiltre}T23:59:59`); const { data } = await q; setFactures(data || []); }; load(); }, [dateFiltre]);
-  
-  const imprimerPDF = (v) => { const dataPrint = { numero: v.numero_facture, client_nom: v.client_nom, date: v.date_vente, totalNet: v.montant_total, totalRemisesEnAr: v.total_remise_ar, panier: v.details_json?.articles || [], methode: v.methode_paiement, banque: v.details_json?.paiement_infos?.banque, fraisLivraison: safeNum(v.details_json?.frais_livraison), printSize: 'A4' }; lancerImpression('facture_a4', dataPrint, params); };
-  const reImprimer = (v) => { const dataPrint = { numero: v.numero_facture, client_nom: v.client_nom, date: v.date_vente, totalNet: v.montant_total, totalRemisesEnAr: v.total_remise_ar, panier: v.details_json?.articles || [], methode: v.methode_paiement, banque: v.details_json?.paiement_infos?.banque, fraisLivraison: safeNum(v.details_json?.frais_livraison), printSize: '58mm' }; lancerImpression('facture_a4', dataPrint, params); };
-
-  return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex justify-between items-center border-b-2 border-[#800020] pb-2"><h2 className="text-2xl font-black uppercase text-[#800020]">Journal des Factures</h2><input type="date" className="p-2 bg-white border rounded-xl font-bold text-xs" onChange={e => setDateFiltre(e.target.value)} /></div>
-      <div className="grid gap-3">{factures.map(v => (<div key={v.id} className="bg-white p-5 rounded-2xl shadow-sm border flex flex-col md:flex-row justify-between items-center gap-3"><div className="flex-1 w-full"><div className="flex items-center gap-2 mb-1">{v.numero_facture && <span className="font-black text-[#800020]">{v.numero_facture}</span>}<span className="text-[10px] text-gray-400 font-bold ml-2">{formatDate(v.date_vente)}</span></div><p className="font-black uppercase text-sm">{v.client_nom}</p><p className="text-[10px] text-gray-500 mt-1 line-clamp-1">🛒 {v.articles_liste}</p></div><p className="text-xl font-black text-gray-800 shrink-0">{formatAr(v.montant_total)} Ar</p><div className="flex gap-2 w-full md:w-auto shrink-0"><button onClick={()=>imprimerPDF(v)} className="flex-1 bg-blue-100 hover:bg-blue-200 text-blue-800 px-4 py-3 rounded-lg font-black text-xs shadow-sm transition">📄 PDF (A4)</button><button onClick={()=>reImprimer(v)} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-3 rounded-lg font-black text-xs shadow-sm transition">🖨️ Imprimer</button></div></div>))}{factures.length === 0 && <p className="text-center text-gray-400 italic">Aucune facture.</p>}</div>
-    </div>
-  );
-};
-
-const AdminParametres = ({ params, setParams }) => {
-  const [form, setForm] = useState(params);
-  const save = async (e) => { e.preventDefault(); const { data } = await supabase.from('parametres').update(form).eq('id', 1).select(); if (data) { setParams(data[0]); alert("Mise à jour OK !"); } };
-  return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Paramètres Ticket & ERP</h2>
-      <form onSubmit={save} className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-gray-100 space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="text-xs font-bold text-gray-500 uppercase">Nom de l'entreprise</label><input className="w-full p-3 bg-gray-50 border rounded-xl font-black text-lg outline-none" value={form.nom_entreprise||''} onChange={e=>setForm({...form, nom_entreprise: e.target.value})} required /></div><div><label className="text-xs font-bold text-gray-500 uppercase">Contact (Tél)</label><input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.contact||''} onChange={e=>setForm({...form, contact: e.target.value})} /></div></div>
-        <div><label className="text-xs font-bold text-gray-500 uppercase">Adresse</label><input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.adresse||''} onChange={e=>setForm({...form, adresse: e.target.value})} required /></div>
-        <div><label className="text-xs font-bold text-gray-500 uppercase">NIF / STAT</label><input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.nif_stat||''} onChange={e=>setForm({...form, nif_stat: e.target.value})} /></div>
-        <div className="border-t border-gray-200 pt-4 mt-4"><h3 className="font-black text-[#800020] mb-3 uppercase text-sm">Personnalisation du Ticket 58mm</h3><div className="space-y-4"><div><label className="text-xs font-bold text-gray-500 uppercase">Message d'en-tête</label><textarea className="w-full p-3 bg-gray-50 border rounded-xl outline-none text-sm" rows="2" value={form.message_entete||''} onChange={e=>setForm({...form, message_entete: e.target.value})} /></div><div><label className="text-xs font-bold text-gray-500 uppercase">Message de fin</label><textarea className="w-full p-3 bg-gray-50 border rounded-xl outline-none text-sm italic" rows="3" value={form.message_ticket||''} onChange={e=>setForm({...form, message_ticket: e.target.value})} /></div></div></div>
-        <button type="submit" className="w-full bg-[#800020] text-white p-4 rounded-xl font-black uppercase shadow-md mt-4 hover:bg-[#5a0016] transition">Enregistrer les modifications</button>
-      </form>
-    </div>
-  );
-};
-
-const ModuleClients = () => {
-  const [list, setList] = useState([]); 
-  const [form, setForm] = useState({ nom: '', tel: '', wa: '', adresse: '', nif: '', stat: '' });
-  const [editModal, setEditModal] = useState(null);
-  const [editForm, setEditForm] = useState({ nom: '', tel: '', wa: '', adresse: '', nif: '', stat: '', pwd: '' });
-
-  const load = async () => { const { data } = await supabase.from('clients').select('*').order('nom'); setList(data || []); }; 
-  useEffect(() => { load(); }, []);
-
-  const saveNouveau = async (e) => { 
-    e.preventDefault(); 
-    await supabase.from('clients').insert([{nom: form.nom, telephone: form.tel, contact_whatsapp: form.wa, adresse: form.adresse, nif: form.nif, stat: form.stat}]); 
-    setForm({ nom: '', tel: '', wa: '', adresse: '', nif: '', stat: '' }); 
-    load(); 
-  };
-
-  const saveEdit = async (e) => {
-    e.preventDefault();
-    const { data: admins } = await supabase.from('utilisateurs').select('*').eq('role', 'superadmin').eq('mot_de_passe', editForm.pwd);
-    if (!admins || admins.length === 0) return alert("⚠️ Code Superadmin incorrect !");
-
-    const oldName = editModal.nom;
-    const newName = editForm.nom;
-
-    await supabase.from('clients').update({ nom: newName, telephone: editForm.tel, contact_whatsapp: editForm.wa, adresse: editForm.adresse, nif: editForm.nif, stat: editForm.stat }).eq('id', editModal.id);
-
-    if (oldName !== newName) {
-       await supabase.from('credits').update({ nom_client: newName }).eq('nom_client', oldName);
-       await supabase.from('devis').update({ client_nom: newName }).eq('client_nom', oldName);
-       await supabase.from('historique_ventes').update({ client_nom: newName }).eq('client_nom', oldName);
-    }
-
-    setEditModal(null); load(); alert("Client modifié avec succès !");
-  };
-
-  return (
-    <div className="max-w-5xl mx-auto space-y-6 relative">
-      <form onSubmit={saveNouveau} className="bg-white p-6 rounded-3xl shadow-sm border-t-4 border-[#800020] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"><input placeholder="Nom / Société" className="p-3 bg-gray-50 border rounded-xl outline-none" value={form.nom} onChange={e=>setForm({...form, nom: e.target.value})} required /><input placeholder="Tél Normal" className="p-3 bg-gray-50 border rounded-xl outline-none" value={form.tel} onChange={e=>setForm({...form, tel: e.target.value})} /><input placeholder="N° WhatsApp" className="p-3 bg-green-50 border border-green-100 rounded-xl outline-none" value={form.wa} onChange={e=>setForm({...form, wa: e.target.value})} /><div className="flex gap-2"><input placeholder="NIF" className="flex-1 p-3 bg-gray-50 border rounded-xl outline-none w-full" value={form.nif} onChange={e=>setForm({...form, nif: e.target.value})} /><input placeholder="STAT" className="flex-1 p-3 bg-gray-50 border rounded-xl outline-none w-full" value={form.stat} onChange={e=>setForm({...form, stat: e.target.value})} /></div><input placeholder="Adresse" className="p-3 bg-gray-50 border rounded-xl outline-none md:col-span-2" value={form.adresse} onChange={e=>setForm({...form, adresse: e.target.value})} /><button className="bg-[#800020] text-white p-3 rounded-xl font-black uppercase lg:col-span-3">Ajouter Client</button></form>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{list.map(c => (<div key={c.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-start"><div><p className="font-black uppercase text-sm text-gray-800">{c.nom}</p><p className="text-[10px] text-gray-500 mt-1">📞 {c.telephone || '-'}</p>{c.contact_whatsapp && <a href={`https://wa.me/${String(c.contact_whatsapp).replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer" className="text-[10px] text-green-600 font-bold underline">💬 WhatsApp</a>}</div><div className="flex flex-col gap-1 items-end"><span className="text-[9px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded">NIF: {c.nif || c.raison_fiscale || '-'}</span><span className="text-[9px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded">STAT: {c.stat || '-'}</span><button onClick={() => { setEditModal(c); setEditForm({ nom: c.nom, tel: c.telephone||'', wa: c.contact_whatsapp||'', adresse: c.adresse||'', nif: c.nif||'', stat: c.stat||'', pwd: '' }); }} className="text-[10px] font-bold bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded transition mt-1">✏️ Modifier</button></div></div>))}</div>
-
-      {editModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-white p-6 rounded-3xl w-full max-w-md shadow-2xl">
-            <h2 className="text-lg font-black uppercase text-[#800020] mb-4">Modifier Client</h2>
-            <form onSubmit={saveEdit} className="space-y-3">
-              <div><label className="text-[10px] font-bold text-gray-400 uppercase">Nom / Société</label><input className="w-full p-3 bg-gray-50 border rounded-xl outline-none font-bold" value={editForm.nom} onChange={e=>setEditForm({...editForm, nom: e.target.value})} required /></div>
-              <div className="flex gap-2"><div className="flex-1"><label className="text-[10px] font-bold text-gray-400 uppercase">Tél Normal</label><input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={editForm.tel} onChange={e=>setEditForm({...editForm, tel: e.target.value})} /></div><div className="flex-1"><label className="text-[10px] font-bold text-green-600 uppercase">N° WhatsApp</label><input className="w-full p-3 bg-green-50 border border-green-200 rounded-xl outline-none text-green-700" value={editForm.wa} onChange={e=>setEditForm({...editForm, wa: e.target.value})} /></div></div>
-              <div className="flex gap-2"><div className="flex-1"><label className="text-[10px] font-bold text-gray-400 uppercase">NIF</label><input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={editForm.nif} onChange={e=>setEditForm({...editForm, nif: e.target.value})} /></div><div className="flex-1"><label className="text-[10px] font-bold text-gray-400 uppercase">STAT</label><input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={editForm.stat} onChange={e=>setEditForm({...editForm, stat: e.target.value})} /></div></div>
-              <div><label className="text-[10px] font-bold text-gray-400 uppercase">Adresse</label><input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={editForm.adresse} onChange={e=>setEditForm({...editForm, adresse: e.target.value})} /></div>
-              <div className="pt-2 border-t"><label className="text-[10px] font-bold text-gray-400 uppercase">Code Superadmin</label><input type="password" placeholder="Mot de passe requis" className="w-full p-3 border rounded-xl font-bold outline-none text-center" value={editForm.pwd} onChange={e=>setEditForm({...editForm, pwd: e.target.value})} required /></div>
-              <div className="flex gap-2 pt-2"><button type="button" onClick={()=>setEditModal(null)} className="p-3 bg-gray-100 rounded-xl flex-1 font-bold text-gray-600">Annuler</button><button type="submit" className="p-3 bg-[#800020] text-white rounded-xl font-bold flex-1 shadow-md">Enregistrer</button></div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
-  ); 
-};
-
-const AdminFournisseurs = () => {
-  const [list, setList] = useState([]); const [form, setForm] = useState({ nom: '', tel: '', wa: '' });
-  const [editModal, setEditModal] = useState(null); const [editForm, setEditForm] = useState({ nom: '', tel: '', wa: '', pwd: '' });
-
-  const load = async () => { const { data } = await supabase.from('fournisseurs').select('*').order('nom'); setList(data || []); }; useEffect(() => { load(); }, []);
-
-  const saveNouveau = async (e) => { e.preventDefault(); await supabase.from('fournisseurs').insert([{ nom: form.nom, telephone: form.tel, contact_whatsapp: form.wa }]); setForm({ nom: '', tel: '', wa: '' }); load(); };
-
-  const saveEdit = async (e) => {
-    e.preventDefault();
-    const { data: admins } = await supabase.from('utilisateurs').select('*').eq('role', 'superadmin').eq('mot_de_passe', editForm.pwd);
-    if (!admins || admins.length === 0) return alert("⚠️ Code Superadmin incorrect !");
-
-    const oldName = editModal.nom; const newName = editForm.nom;
-    await supabase.from('fournisseurs').update({ nom: newName, telephone: editForm.tel, contact_whatsapp: editForm.wa }).eq('id', editModal.id);
-
-    if (oldName !== newName) { await supabase.from('produits').update({ fournisseur_nom: newName }).eq('fournisseur_nom', oldName); }
-    setEditModal(null); load(); alert("Fournisseur modifié !");
-  };
-
-  return (
-    <div className="max-w-4xl mx-auto space-y-6 relative">
-      <form onSubmit={saveNouveau} className="bg-white p-6 rounded-3xl shadow-sm grid grid-cols-1 md:grid-cols-3 gap-3 border-t-4 border-[#800020]"><input placeholder="Société" className="p-3 bg-gray-50 border rounded-xl outline-none" value={form.nom} onChange={e=>setForm({...form, nom: e.target.value})} required /><input placeholder="Tél Fixe" className="p-3 bg-gray-50 border rounded-xl outline-none" value={form.tel} onChange={e=>setForm({...form, tel: e.target.value})} required /><input placeholder="WhatsApp" className="p-3 bg-green-50 border border-green-100 rounded-xl outline-none" value={form.wa} onChange={e=>setForm({...form, wa: e.target.value})} /><button className="bg-[#800020] text-white p-3 rounded-xl font-black uppercase md:col-span-3">Ajouter</button></form>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{list.map(f => (<div key={f.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><div className="flex justify-between items-start"><p className="font-black text-sm uppercase text-gray-800 mb-2">{f.nom}</p><button onClick={() => { setEditModal(f); setEditForm({ nom: f.nom, tel: f.telephone||'', wa: f.contact_whatsapp||'', pwd: '' }); }} className="text-[10px] font-bold bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded transition">✏️</button></div><div className="flex gap-2"><span className="flex-1 bg-gray-100 text-gray-600 p-2 rounded text-center text-[10px] font-bold">📞 {f.telephone}</span>{f.contact_whatsapp && <a href={`https://wa.me/${String(f.contact_whatsapp).replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer" className="flex-1 bg-green-500 text-white p-2 rounded text-center text-[10px] font-black hover:bg-green-600">💬 WhatsApp</a>}</div></div>))}</div>
-
-      {editModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-white p-6 rounded-3xl w-full max-w-md shadow-2xl">
-            <h2 className="text-lg font-black uppercase text-[#800020] mb-4">Modifier Fournisseur</h2>
-            <form onSubmit={saveEdit} className="space-y-3">
-              <div><label className="text-[10px] font-bold text-gray-400 uppercase">Nom / Société</label><input className="w-full p-3 bg-gray-50 border rounded-xl outline-none font-bold" value={editForm.nom} onChange={e=>setEditForm({...editForm, nom: e.target.value})} required /></div>
-              <div className="flex gap-2"><div className="flex-1"><label className="text-[10px] font-bold text-gray-400 uppercase">Tél Fixe</label><input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={editForm.tel} onChange={e=>setEditForm({...editForm, tel: e.target.value})} required /></div><div className="flex-1"><label className="text-[10px] font-bold text-green-600 uppercase">N° WhatsApp</label><input className="w-full p-3 bg-green-50 border border-green-200 rounded-xl outline-none text-green-700" value={editForm.wa} onChange={e=>setEditForm({...editForm, wa: e.target.value})} /></div></div>
-              <div className="pt-2 border-t"><label className="text-[10px] font-bold text-gray-400 uppercase">Code Superadmin</label><input type="password" placeholder="Mot de passe requis" className="w-full p-3 border rounded-xl font-bold outline-none text-center" value={editForm.pwd} onChange={e=>setEditForm({...editForm, pwd: e.target.value})} required /></div>
-              <div className="flex gap-2 pt-2"><button type="button" onClick={()=>setEditModal(null)} className="p-3 bg-gray-100 rounded-xl flex-1 font-bold text-gray-600">Annuler</button><button type="submit" className="p-3 bg-[#800020] text-white rounded-xl font-bold flex-1 shadow-md">Enregistrer</button></div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-const SuiviCredits = ({ params }) => {
-  const [credits, setCredits] = useState([]); const [clients, setClients] = useState([]); const [filtre, setFiltre] = useState('non_paye'); const [detailModal, setDetailModal] = useState(null); const [reprintSize, setReprintSize] = useState('A4');
-  const load = async () => { const cr = await supabase.from('credits').select('*').order('date_credit', { ascending: false }); const cl = await supabase.from('clients').select('nom, contact_whatsapp'); setCredits(cr.data || []); setClients(cl.data || []); }; useEffect(() => { load(); }, []);
-  const encaisser = async (id) => { if(window.confirm("Confirmer encaissement ?")) { await supabase.from('credits').update({ statut: 'paye', date_paiement: new Date().toISOString() }).eq('id', id); load(); setDetailModal(null); } };
-  const relancerWA = (credit) => { const client = clients.find(c => c.nom === credit.nom_client); if(!client || !client.contact_whatsapp) return alert("Pas de WhatsApp enregistré."); const num = String(client.contact_whatsapp).replace(/[^0-9]/g, ''); const txt = encodeURIComponent(`Bonjour, c'est Hakimi Plus. Votre facture de ${formatAr(credit.montant_du)} Ar arrive à échéance. Merci.`); window.open(`https://wa.me/${num}?text=${txt}`, '_blank'); };
-  const reImprimer = (c) => { const dataPrint = { numero: c.numero_facture, client_nom: c.nom_client, date: c.date_credit, echeance: c.date_echeance, totalNet: c.montant_du, totalRemisesEnAr: c.details_json?.total_remise_ar || 0, panier: c.details_json?.articles || [], fraisLivraison: safeNum(c.details_json?.frais_livraison), printSize: reprintSize, methode: 'CRÉDIT' }; lancerImpression('admin_credit', dataPrint, params); };
-  const dataAffichee = credits.filter(c => c.statut === filtre); const aujourdHui = new Date();
-
-  return (
-    <div className="max-w-5xl mx-auto space-y-6 relative">
-      <div className="flex gap-2 border-b-2 border-gray-100 pb-4 overflow-x-auto"><button onClick={() => setFiltre('non_paye')} className={`px-4 py-2 rounded-xl font-black uppercase text-xs whitespace-nowrap ${filtre === 'non_paye' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-500'}`}>🔴 Dettes en cours</button><button onClick={() => setFiltre('paye')} className={`px-4 py-2 rounded-xl font-black uppercase text-xs whitespace-nowrap ${filtre === 'paye' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-500'}`}>✅ Payés</button></div>
-      <div className="grid gap-3">{dataAffichee.map(c => { const echeanceDate = new Date(c.date_echeance); const enRetard = filtre === 'non_paye' && c.date_echeance && echeanceDate <= aujourdHui; return (<div key={c.id} className={`bg-white p-4 md:p-6 rounded-2xl shadow-sm border-l-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 cursor-pointer hover:shadow-md transition ${filtre === 'non_paye' ? (enRetard ? 'border-red-600 bg-red-50' : 'border-[#800020]') : 'border-green-500'}`} onClick={() => setDetailModal(c)}><div className="flex-1"><p className="font-black text-lg uppercase text-gray-800">{c.nom_client}</p><div className="flex flex-wrap gap-2 mt-1"><p className="text-[10px] text-gray-500 font-bold bg-white px-2 py-1 rounded border">Créé: {formatDate(c.date_credit)}</p>{filtre === 'non_paye' && c.date_echeance && (<p className={`text-[10px] font-bold px-2 py-1 rounded border ${enRetard ? 'bg-red-100 text-red-700 animate-pulse' : 'bg-orange-50 text-orange-700'}`}>Échéance: {formatDate(c.date_echeance)}</p>)}</div><p className="text-xs italic text-gray-500 mt-2 line-clamp-1">🛒 {c.details_articles}</p></div><div className="text-left md:text-right w-full md:w-auto flex flex-col items-end"><p className={`text-2xl font-black ${filtre === 'non_paye' ? 'text-red-600' : 'text-green-600'}`}>{formatAr(c.montant_du)} Ar</p>{filtre === 'non_paye' && (<div className="flex gap-2 mt-2 w-full md:w-auto">{enRetard && <button onClick={(e) => { e.stopPropagation(); relancerWA(c); }} className="flex-1 bg-green-500 text-white px-3 py-2 rounded-lg font-black uppercase text-[9px] shadow-md hover:bg-green-600">💬 Relancer</button>}<button onClick={(e) => { e.stopPropagation(); encaisser(c.id); }} className="flex-1 bg-[#800020] text-white px-3 py-2 rounded-lg font-black uppercase text-[9px] shadow-md hover:bg-red-900">Encaisser</button></div>)}</div></div>)})}</div>
-      {detailModal && (<div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50"><div className="bg-white p-6 rounded-3xl w-full max-w-lg shadow-2xl"><div className="flex justify-between items-center border-b pb-3 mb-4"><div><h3 className="font-black text-[#800020] text-lg uppercase">Détails Crédit</h3><p className="text-xs text-gray-500 font-bold">{formatDateTime(detailModal.date_credit)}</p></div><button onClick={() => setDetailModal(null)} className="text-2xl font-black text-gray-400">×</button></div><p className="text-sm font-bold uppercase mb-4 text-gray-800">👤 {detailModal.nom_client}</p><div className="space-y-2 mb-6 bg-gray-50 p-3 rounded-xl max-h-48 overflow-y-auto custom-scrollbar">{detailModal.details_json?.articles ? detailModal.details_json.articles.map((art, idx) => { const pu = safeNum(art.prix_unitaire !== undefined ? art.prix_unitaire : art.prix_vente) - safeNum(art.remise_unitaire_ar !== undefined ? art.remise_unitaire_ar : art.remise_montant); const tl = safeNum(art.total_ligne !== undefined ? art.total_ligne : pu * safeNum(art.qte)); return (<div key={idx} className="flex justify-between text-xs border-b border-gray-200 pb-2 last:border-0"><div><span className="font-bold">{art.qte}x {art.nom}</span><p className="text-[9px] text-gray-500">[{art.categorie || 'Divers'}]</p></div><div className="text-right"><span className="text-[10px] text-gray-500 block">{formatAr(pu)} Ar/u</span><span className="font-black">{formatAr(tl)} Ar</span></div></div>) }) : <p className="text-xs italic text-gray-500">{detailModal.details_articles}</p>}</div><div className="bg-red-50 p-4 rounded-xl border border-red-100 flex flex-col gap-2 mb-4"><div className="flex justify-between items-center"><p className="text-[10px] font-bold text-red-600 uppercase">Montant Dû</p><p className="text-2xl font-black text-[#800020]">{formatAr(detailModal.montant_du)} Ar</p></div></div><div className="flex gap-2 items-center border-t pt-4"><select className="p-3 bg-gray-50 border rounded-xl outline-none text-xs font-bold" value={reprintSize} onChange={e=>setReprintSize(e.target.value)}><option value="A4">Format A4</option><option value="58mm">Ticket 58mm</option><option value="80mm">Ticket 80mm</option></select><button onClick={() => reImprimer(detailModal)} className="flex-1 bg-gray-800 hover:bg-black text-white p-3 rounded-xl font-black uppercase text-xs transition">🖨️ Réimprimer</button></div></div></div>)}
-    </div>
-  );
-};
-
-const ModuleDepenses = () => {
-  const [depenses, setDepenses] = useState([]); const [form, setForm] = useState({ desc: '', montant: '', date: new Date().toISOString().split('T')[0] });
-  const load = async () => { const { data } = await supabase.from('depenses').select('*').order('date_depense', { ascending: false }); setDepenses(data || []); }; useEffect(() => { load(); }, []);
-  const save = async (e) => { e.preventDefault(); await supabase.from('depenses').insert([{ description: form.desc, montant: safeNum(form.montant), date_depense: form.date }]); setForm({ ...form, desc: '', montant: '' }); load(); };
-  return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <form onSubmit={save} className="bg-white p-6 rounded-3xl shadow-sm grid grid-cols-1 md:grid-cols-4 gap-3 border-t-4 border-[#800020]"><input placeholder="Dépense" className="p-3 bg-gray-50 border rounded-xl md:col-span-2" value={form.desc} onChange={e=>setForm({...form, desc: e.target.value})} required /><input type="number" placeholder="Montant" className="p-3 bg-red-50 text-red-600 font-bold border rounded-xl" value={form.montant} onChange={e=>setForm({...form, montant: e.target.value})} required /><button className="bg-[#800020] text-white p-3 rounded-xl font-black">Ajouter</button></form>
-      <div className="space-y-2">{depenses.map(d => (<div key={d.id} className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-red-600 flex justify-between"><p className="font-bold text-sm uppercase">{d.description}</p><p className="font-black text-red-600">-{formatAr(d.montant)}</p></div>))}</div>
-    </div>
-  );
-};
-
-const LoginScreen = ({ onLogin }) => {
-  const [creds, setCreds] = useState({ id: '', mdp: '' });
-  const handle = async (e) => { e.preventDefault(); const { data } = await supabase.from('utilisateurs').select('*').eq('identifiant', creds.id).eq('mot_de_passe', creds.mdp).single(); if (data) onLogin(data); else alert("Identifiants incorrects."); };
-  return (
-    <div className="min-h-screen bg-[#800020] flex items-center justify-center p-4"><form onSubmit={handle} className="bg-white p-12 rounded-[2rem] shadow-2xl w-full max-w-md border-b-8 border-red-600"><div className="flex justify-center mb-6"><img src={LOGO_URL} alt="Logo" className="h-16" onerror="this.style.display='none'" /></div><input type="text" placeholder="Utilisateur" className="w-full p-4 mb-4 bg-gray-50 border rounded-xl outline-none" onChange={e=>setCreds({...creds, id: e.target.value})} /><input type="password" placeholder="Mot de passe" className="w-full p-4 mb-6 bg-gray-50 border rounded-xl outline-none" onChange={e=>setCreds({...creds, mdp: e.target.value})} /><button className="w-full bg-[#800020] text-white p-4 rounded-xl font-black uppercase shadow-lg">Connexion</button></form></div>
-  );
-};
-// ==========================================
-// COMPOSANT 1 : GESTION DES COMMANDES WEB (CORRIGÉ SUPABASE)
-// ==========================================
-// ==========================================
-// ==========================================
-// COMPOSANT : GESTION DES COMMANDES WEB (ERP)
-// ==========================================
-// ==========================================
-// COMPOSANT : GESTION DES COMMANDES WEB (ERP)
-// ==========================================
 const ModuleCommandesWeb = () => {
-  const [commandes, setCommandes] = React.useState([]);
-  
-  const load = async () => {
-    const { data } = await supabase.from('commandes_web').select('*').order('date_commande', { ascending: false });
-    setCommandes(data || []);
-  };
-  React.useEffect(() => { load(); }, []);
+  const [cmds, setCmds] = useState([]);
+  const load = async () => { const { data } = await supabase.from('commandes_web').select('*').order('date_commande', { ascending: false }); setCmds(data || []); };
+  useEffect(() => { load(); }, []);
 
-  // --- ACTION 1 : VALIDER (Déduit le stock + crée facture + ✨ CRÉE LE CLIENT) ---
-  const validerCommandeWeb = async (cmd) => {
-    if (!window.confirm("Confirmer la commande ? Le stock sera déduit et une facture générée.")) return;
+  const valider = async (c) => {
+    if (!window.confirm("Valider & Déduire le stock ?")) return;
+    for (let a of c.articles_json.articles) { await supabase.rpc('decrement_stock_by_name', { p_nom: a.nom, amount: safeNum(a.qte) }); }
     
-    const articles = cmd.articles_json.articles;
-    
-    // 1. Déduction du stock physique
-    for (let art of articles) {
-      await supabase.rpc('decrement_stock_by_name', { p_nom: art.nom, amount: Number(art.qte) });
-    }
+    // Création Auto Client
+    const { data: ex } = await supabase.from('clients').select('id').eq('contact_whatsapp', c.client_whatsapp).maybeSingle();
+    if (!ex) { await supabase.from('clients').insert([{ nom: c.client_nom, contact_whatsapp: c.client_whatsapp, telephone: c.client_whatsapp, adresse: `${c.quartier} - ${c.adresse_detail}` }]); }
 
-    // 2. Création de la facture dans l'historique de l'ERP
     await supabase.from('historique_ventes').insert([{
-      numero_facture: `WEB-${cmd.id.toString().slice(0,5)}`,
-      type_vente: 'SITE_WEB',
-      client_nom: cmd.client_nom,
-      articles_liste: articles.map(a => `${a.qte}x ${a.nom}`).join(', '),
-      montant_total: Number(cmd.montant_total),
-      details_json: cmd.articles_json,
-      methode_paiement: 'LIVRAISON'
+      numero_facture: `WEB-${c.id.toString().slice(0,4)}`, type_vente: 'SITE_WEB', client_nom: c.client_nom,
+      articles_liste: c.articles_json.articles.map(a=>`${a.qte}x ${a.nom}`).join(', '), montant_total: c.montant_total,
+      methode_paiement: c.articles_json.methode_paiement || 'LIVRAISON', details_json: c.articles_json
     }]);
 
-    // ✨ NOUVEAU : 3. Vérification et Création automatique du Client
-    // On vérifie s'il existe déjà un client avec ce numéro WhatsApp
-    const { data: existingClient } = await supabase
-      .from('clients')
-      .select('id')
-      .eq('contact_whatsapp', cmd.client_whatsapp)
-      .maybeSingle();
-
-    if (!existingClient) {
-      // S'il n'existe pas, on l'ajoute automatiquement au répertoire !
-      await supabase.from('clients').insert([{
-        nom: cmd.client_nom,
-        telephone: cmd.client_whatsapp, // On le met aussi dans téléphone classique
-        contact_whatsapp: cmd.client_whatsapp,
-        adresse: `${cmd.quartier} - ${cmd.adresse_detail}`
-      }]);
-    }
-
-    // 4. Mise à jour du statut de la commande
-    await supabase.from('commandes_web').update({ statut: 'Validée' }).eq('id', cmd.id);
-    
-    alert("✅ Commande validée, stock mis à jour, et client enregistré !");
-    load();
-  };
-
-  // --- ACTION 2 : ANNULER (Ne touche pas au stock + WhatsApp) ---
-  const annulerCommandeWeb = async (cmd) => {
-    if (!window.confirm("Annuler cette commande ?")) return;
-    
-    await supabase.from('commandes_web').update({ statut: 'Annulée' }).eq('id', cmd.id);
-    
-    // Préparation du message WhatsApp
-    const num = String(cmd.client_whatsapp).replace(/[^0-9]/g, '');
-    const msg = encodeURIComponent(`Bonjour ${cmd.client_nom}, c'est Hakimi Plus. Votre commande sur notre site a été annulée car `);
-    
-    // Ouvre WhatsApp pour prévenir le client
-    window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
-    
-    load();
-  };
-
-  // --- ACTION 3 : TELECHARGER ADRESSE (.txt) ---
-  const telechargerAdresse = (cmd) => {
-    const contenu = `
-      --- FICHE LIVRAISON HAKIMI PLUS ---
-      CLIENT : ${cmd.client_nom}
-      TEL 1 : ${cmd.client_whatsapp}
-      TEL 2 : ${cmd.client_whatsapp2 || 'N/A'}
-      QUARTIER : ${cmd.quartier}
-      ADRESSE : ${cmd.adresse_detail}
-      TOTAL : ${Number(cmd.montant_total).toLocaleString()} Ar
-      -----------------------------------
-    `;
-    const element = document.createElement("a");
-    const file = new Blob([contenu], {type: 'text/plain'});
-    element.href = URL.createObjectURL(file);
-    element.download = `LIVRAISON_${cmd.client_nom.replace(/\s+/g, '_')}.txt`;
-    document.body.appendChild(element);
-    element.click();
+    await supabase.from('commandes_web').update({ statut: 'Validée' }).eq('id', c.id);
+    load(); alert("Commande passée en Historique !");
   };
 
   return (
     <div className="max-w-5xl mx-auto space-y-4">
-      <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Commandes Site Web</h2>
-      <div className="grid gap-4">
-        {commandes.map(cmd => (
-          <div key={cmd.id} className={`bg-white p-6 rounded-3xl shadow-sm border-l-8 ${
-            cmd.statut === 'Validée' ? 'border-green-500 opacity-60' : 
-            cmd.statut === 'Annulée' ? 'border-gray-400 opacity-50' : 'border-blue-600'
-          }`}>
-            <div className="flex flex-col md:flex-row justify-between gap-4">
-              <div className="flex-1 space-y-2">
-                <div className="flex items-center gap-3">
-                  <p className="font-black text-gray-800 uppercase">{cmd.client_nom}</p>
-                  <span className="bg-red-50 text-[#800020] px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter">📍 {cmd.quartier}</span>
-                </div>
-                
+      <h2 className="text-2xl font-black text-[#800020] uppercase border-b-2 border-[#800020] pb-2">Commandes Boutique en Ligne</h2>
+      {cmds.map(c => (
+        <div key={c.id} className={`bg-white p-6 rounded-[2rem] shadow-sm border-l-8 ${c.statut==='Validée'?'border-green-500 opacity-60':'border-blue-600'}`}>
+          <div className="flex flex-col md:flex-row justify-between gap-6">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <p className="font-black text-lg uppercase">{c.client_nom}</p>
+                <span className="text-[10px] font-black bg-red-50 text-red-700 px-3 py-1 rounded-full uppercase">📍 {c.quartier}</span>
+              </div>
+              <p className="text-sm font-bold text-blue-600 mb-2">📞 {c.client_whatsapp} | 💳 {c.articles_json?.methode_paiement || 'Paiement Livraison'}</p>
+              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 italic text-xs text-gray-500 mb-4">{c.adresse_detail}</div>
+              <div className="flex flex-wrap gap-2">{c.articles_json?.articles.map((a,i)=><span key={i} className="text-[10px] font-bold bg-white border border-gray-200 px-3 py-1.5 rounded-xl shadow-sm">{a.qte}x {a.nom}</span>)}</div>
+            </div>
+            <div className="text-right flex flex-col justify-between items-end">
+              <div>
+                <p className="text-[10px] font-bold uppercase opacity-40">Total Commande</p>
+                <p className="text-3xl font-black text-[#800020] tracking-tighter">{formatAr(Number(c.montant_total) + Number(c.frais_livraison))} Ar</p>
+              </div>
+              {c.statut === 'En attente' ? (
                 <div className="flex gap-2">
-                  <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">📞 {cmd.client_whatsapp}</span>
-                  {cmd.client_whatsapp2 && <span className="text-[10px] font-bold text-gray-500 bg-gray-50 px-2 py-1 rounded">📞 {cmd.client_whatsapp2}</span>}
+                    <button onClick={()=>valider(c)} className="bg-[#800020] text-white px-6 py-3 rounded-2xl font-black uppercase text-xs shadow-xl">Valider & Facturer</button>
                 </div>
-
-                <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
-                  <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Précisions Adresse :</p>
-                  <p className="text-xs font-bold text-gray-600 italic">{cmd.adresse_detail}</p>
-                  <button onClick={() => telechargerAdresse(cmd)} className="mt-2 text-[9px] font-black bg-gray-800 text-white px-2 py-1 rounded uppercase hover:bg-black">💾 Télécharger .txt</button>
-                </div>
-
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {cmd.articles_json?.articles?.map((a, i) => (
-                    <span key={i} className="text-[10px] font-bold bg-white border px-2 py-1 rounded-lg"> {a.qte}x {a.nom} </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="text-right flex flex-col justify-between items-end">
-                <p className="text-2xl font-black text-[#800020]">{Number(cmd.montant_total).toLocaleString()} Ar</p>
-                
-                <div className="flex gap-2 mt-4">
-                  {cmd.statut === 'En attente' ? (
-                    <>
-                      <button onClick={() => annulerCommandeWeb(cmd)} className="bg-gray-100 text-gray-500 px-4 py-2 rounded-xl font-black text-[10px] uppercase hover:bg-red-50 hover:text-red-600">❌ Annuler</button>
-                      <button onClick={() => validerCommandeWeb(cmd)} className="bg-[#800020] text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase shadow-lg">✅ Valider & Facturer</button>
-                    </>
-                  ) : (
-                    <span className={`font-black text-[10px] uppercase px-3 py-1 rounded-full ${cmd.statut === 'Validée' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                      {cmd.statut === 'Validée' ? 'Traitée ✅' : 'Annulée ❌'}
-                    </span>
-                  )}
-                </div>
-              </div>
+              ) : <span className="font-black text-green-600 bg-green-50 px-4 py-2 rounded-xl text-xs uppercase">Traitée ✅</span>}
             </div>
           </div>
-        ))}
-        {commandes.length === 0 && <p className="text-center text-gray-400 italic py-10">Aucune commande web pour le moment.</p>}
-      </div>
+        </div>
+      ))}
+      {cmds.length === 0 && <p className="text-center py-20 italic opacity-30">Aucune commande pour le moment.</p>}
     </div>
   );
 };
-// ==========================================
-// COMPOSANT 2 : CONFIGURATION DU SITE (CORRIGÉ SUPABASE)
-// ==========================================
-const ModuleGestionSite = () => {
-  // On utilise les noms exacts de ta table parametres_web
-  const [config, setConfig] = React.useState({ carousel_urls: ["", "", ""], texte_livraison: "", texte_conditions: "" });
-  
-  const load = async () => {
-    const { data } = await supabase.from('parametres_web').select('*').eq('id', 1).single();
-    if (data) setConfig(data);
-  };
-  React.useEffect(() => { load(); }, []);
 
-  const save = async () => {
-    // Mise à jour vers la table parametres_web
-    await supabase.from('parametres_web').update({
-        carousel_urls: config.carousel_urls,
-        texte_livraison: config.texte_livraison,
-        texte_conditions: config.texte_conditions
-    }).eq('id', 1);
-    alert("🚀 Site Hakimi Plus mis à jour avec succès !");
-  };
+const ModuleGestionSite = () => {
+  const [config, setConfig] = useState({ carousel_urls: ["", "", ""], texte_livraison: "", texte_conditions: "", quartiers_json: [] });
+  const load = async () => { const { data } = await supabase.from('parametres_web').select('*').eq('id', 1).single(); if (data) setConfig({...data, quartiers_json: data.quartiers_json || []}); };
+  useEffect(() => { load(); }, []);
+
+  const save = async () => { await supabase.from('parametres_web').update(config).eq('id', 1); alert("Site Mis à jour !"); };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Gestion Hakimi Plus (Configuration)</h2>
-      <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100 space-y-6">
+      <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Configuration Boutique</h2>
+      <div className="bg-white p-8 rounded-[3rem] shadow-sm border space-y-6">
+        <div className="bg-red-50 p-6 rounded-[2rem] border border-red-100">
+           <div className="flex justify-between items-center mb-4"><h3 className="font-black text-xs uppercase text-[#800020]">📍 Zones & Frais de Livraison</h3><button onClick={()=>setConfig({...config, quartiers_json: [...config.quartiers_json, {nom: '', frais: 0}]})} className="bg-[#800020] text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase shadow-md">+ Ajouter</button></div>
+           <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+             {config.quartiers_json.map((q, i) => (
+               <div key={i} className="flex gap-2 bg-white p-2 rounded-xl border border-red-100 shadow-sm">
+                 <input className="flex-1 p-2 bg-gray-50 border-none rounded-lg text-xs font-bold" value={q.nom} onChange={e=>{const n=[...config.quartiers_json]; n[i].nom=e.target.value; setConfig({...config, quartiers_json: n})}} placeholder="Ex: Ivandry..."/>
+                 <input className="w-28 p-2 bg-gray-50 border-none rounded-lg text-xs font-black text-red-600" type="number" value={q.frais} onChange={e=>{const n=[...config.quartiers_json]; n[i].frais=Number(e.target.value); setConfig({...config, quartiers_json: n})}} placeholder="Frais (Ar)"/>
+                 <button onClick={()=>{const n=[...config.quartiers_json]; n.splice(i,1); setConfig({...config, quartiers_json: n})}} className="text-red-500 px-2 font-black">✕</button>
+               </div>
+             ))}
+           </div>
+        </div>
+        
         <div>
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Photos du Carrousel (Liens directes)</label>
-          {config.carousel_urls?.map((url, idx) => (
-            <div key={idx} className="flex gap-2 mb-2">
-               <span className="bg-gray-100 p-2 rounded-lg text-[10px] font-black w-8 text-center">{idx+1}</span>
-               <input className="flex-1 p-2 bg-gray-50 border rounded-xl text-xs outline-none focus:border-[#800020]" value={url} 
-                onChange={e => {
-                  const newC = [...config.carousel_urls]; newC[idx] = e.target.value; 
-                  setConfig({...config, carousel_urls: newC});
-                }} placeholder="Lien image ImgBB / Supabase" 
-              />
-            </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Infos Livraison</label>
-            <textarea className="w-full p-4 bg-gray-50 border rounded-2xl text-xs h-32 outline-none focus:border-[#800020]" value={config.texte_livraison} 
-              onChange={e => setConfig({...config, texte_livraison: e.target.value})} />
-          </div>
-          <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Conditions de vente</label>
-            <textarea className="w-full p-4 bg-gray-50 border rounded-2xl text-xs h-32 outline-none focus:border-[#800020]" value={config.texte_conditions} 
-              onChange={e => setConfig({...config, texte_conditions: e.target.value})} />
+          <label className="text-[10px] font-black uppercase text-gray-400 px-4 mb-2 block tracking-widest">Images Carrousel (Liens direct)</label>
+          <div className="space-y-2">
+            {config.carousel_urls.map((url, i) => (
+              <input key={i} className="w-full p-3 bg-gray-50 border rounded-xl text-xs" value={url} onChange={e=>{const n=[...config.carousel_urls]; n[i]=e.target.value; setConfig({...config, carousel_urls: n})}} placeholder={`Lien image ${i+1}`} />
+            ))}
           </div>
         </div>
-        <button onClick={save} className="w-full bg-[#800020] text-white p-5 rounded-2xl font-black uppercase shadow-xl hover:bg-black transition">
-          Mettre à jour le site Hakimi Plus
-        </button>
+
+        <button onClick={save} className="w-full p-5 bg-[#800020] text-white rounded-[2rem] font-black uppercase shadow-2xl hover:bg-black transition scale-100 active:scale-95">Mettre à jour le site web</button>
       </div>
     </div>
   );
