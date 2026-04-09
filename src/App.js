@@ -90,7 +90,7 @@ const lancerImpression = (type, data, params) => {
       </body></html>
     `);
   }
-  win.document.close(); setTimeout(() => { win.print(); }, 800
+  win.document.close(); setTimeout(() => { win.print(); }, 800);
 };
 
 export default function App() {
@@ -1098,7 +1098,3 @@ const ModuleGestionSite = () => {
     </div>
   );
 };
-
-
-
-
