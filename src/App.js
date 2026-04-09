@@ -573,7 +573,7 @@ const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', s
 
       {editProd && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-white p-6 rounded-3xl w-full max-w-md">
+         <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md relative max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-black uppercase text-[#800020] mb-4">Modifier : {editProd.nom}</h2>
             <form onSubmit={saveEdit} className="space-y-3">
               <div><label className="text-[10px] font-bold text-gray-400 uppercase">Nom du Produit</label><input className="w-full p-3 border rounded-xl font-bold outline-none" value={editForm.nom} onChange={e=>setEditForm({...editForm, nom: e.target.value})} required disabled={isSubmitting}/></div>
