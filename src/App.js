@@ -946,7 +946,10 @@ const changerStatut = async (id, nouveauStatut) => {
               <div className="flex flex-col md:flex-row justify-between gap-4">
                 <div className="flex-1 space-y-2">
                   <div className="flex items-center gap-3">
-                    <p className="font-black text-gray-800 uppercase">{cmd.client_nom}</p>
+                    <div className="flex flex-col">
+                      <p className="font-black text-gray-800 uppercase leading-tight">{cmd.client_nom}</p>
+                      <p className="text-[10px] font-black text-[#800020] bg-red-50 w-fit px-2 py-0.5 rounded border border-red-100 mt-1">N° SUIVI : {cmd.numero_commande || 'N/A'}</p>
+                    </div>
                     <span className="bg-red-50 text-[#800020] px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter">📍 {cmd.quartier}</span>
                     <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase ${badgeColor}`}>💳 {pMeth || 'À DÉFINIR'}</span>
                   </div>
