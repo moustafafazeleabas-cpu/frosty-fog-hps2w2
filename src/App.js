@@ -1098,7 +1098,3 @@ const ModuleGestionSite = () => {
     </div>
   );
 };
-
-
-
-
