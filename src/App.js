@@ -863,6 +863,7 @@ const ModuleDepenses = () => {
 };
 
 const ModuleCommandesWeb = () => {
+  const [datesLivraison, setDatesLivraison] = useState({});
   const [commandes, setCommandes] = useState([]);
   
   const load = async () => {
@@ -897,7 +898,7 @@ const ModuleCommandesWeb = () => {
       await supabase.from('clients').insert([{ nom: cmd.client_nom, telephone: cmd.client_whatsapp, contact_whatsapp: cmd.client_whatsapp, adresse: `${cmd.quartier} - ${cmd.adresse_detail}` }]);
     }
 
-    await supabase.from('commandes_web').update({ statut: 'Validée' }).eq('id', cmd.id);
+    await supabase.from('commandes_web').update({ statut: 'Livrée' }).eq('id', cmd.id);
     alert("✅ Commande traitée avec succès !"); load();
   };
 
@@ -919,7 +920,16 @@ const ModuleCommandesWeb = () => {
     document.body.appendChild(element);
     element.click();
   };
-
+const changerStatut = async (id, nouveauStatut) => {
+    let updateData = { statut: nouveauStatut };
+    if (nouveauStatut === "En cours de livraison") {
+      const dateSaisie = datesLivraison[id];
+      if (!dateSaisie) return alert("⚠️ Veuillez saisir une date et heure de livraison !");
+      updateData.date_livraison_prevue = dateSaisie;
+    }
+    await supabase.from('commandes_web').update(updateData).eq('id', id);
+    load();
+  };
   return (
     <div className="max-w-5xl mx-auto space-y-4">
       <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Commandes Site Web</h2>
@@ -961,16 +971,38 @@ const ModuleCommandesWeb = () => {
                     <p className="text-[10px] text-orange-500 font-bold mb-1">+ Liv. : {formatAr(cmd.frais_livraison)} Ar</p>
                     <p className="text-2xl font-black text-[#800020]">Total : {formatAr(Number(cmd.montant_total) + Number(cmd.frais_livraison))} Ar</p>
                   </div>
-                  <div className="flex gap-2 mt-4">
-                    {cmd.statut === 'En attente' ? (
-                      <>
-                        <button onClick={() => annulerCommandeWeb(cmd)} className="bg-gray-100 text-gray-500 px-4 py-2 rounded-xl font-black text-[10px] uppercase hover:bg-red-50 hover:text-red-600">❌ Annuler</button>
-                        <button onClick={() => validerCommandeWeb(cmd)} className="bg-[#800020] text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase shadow-lg">✅ Valider</button>
-                      </>
-                    ) : (
-                      <span className={`font-black text-[10px] uppercase px-3 py-1 rounded-full ${cmd.statut === 'Validée' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{cmd.statut === 'Validée' ? 'Traitée ✅' : 'Annulée ❌'}</span>
-                    )}
+                  {/* --- PANNEAU DE CONTRÔLE DES STATUTS --- */}
+                  <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-200 w-full">
+                    <p className="text-[10px] font-black uppercase text-gray-500 mb-3">Statut actuel : <span className="text-[#800020]">{cmd.statut}</span></p>
+                    
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button onClick={() => annulerCommandeWeb(cmd)} disabled={cmd.statut === 'Annulée' || cmd.statut === 'Livrée'} className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded-lg text-[10px] font-black uppercase transition shadow-sm disabled:opacity-50">
+                        ❌ Annuler
+                      </button>
+                      
+                      <button onClick={() => changerStatut(cmd.id, "En cours de préparation")} disabled={cmd.statut === 'Annulée' || cmd.statut === 'Livrée'} className="bg-yellow-100 hover:bg-yellow-200 text-yellow-700 px-3 py-2 rounded-lg text-[10px] font-black uppercase transition shadow-sm disabled:opacity-50">
+                        📦 Préparation
+                      </button>
+                      
+                      <div className="flex items-center gap-2 bg-blue-100 p-1.5 rounded-lg border border-blue-200 shadow-sm">
+                        <input 
+                          type="datetime-local" 
+                          className="text-[10px] font-bold p-1 rounded outline-none text-blue-900 bg-white disabled:opacity-50"
+                          value={datesLivraison[cmd.id] || ""}
+                          onChange={(e) => setDatesLivraison({...datesLivraison, [cmd.id]: e.target.value})}
+                          disabled={cmd.statut === 'Annulée' || cmd.statut === 'Livrée'}
+                        />
+                        <button onClick={() => changerStatut(cmd.id, "En cours de livraison")} disabled={cmd.statut === 'Annulée' || cmd.statut === 'Livrée'} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-[10px] font-black uppercase transition disabled:opacity-50">
+                          🛵 Livraison
+                        </button>
+                      </div>
+
+                      <button onClick={() => validerCommandeWeb(cmd)} disabled={cmd.statut === 'Annulée' || cmd.statut === 'Livrée'} className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-[10px] font-black uppercase transition shadow-sm disabled:opacity-50">
+                        ✅ Livrée
+                      </button>
+                    </div>
                   </div>
+                  {/* --------------------------------------- */}
                 </div>
               </div>
             </div>
