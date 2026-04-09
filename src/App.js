@@ -386,7 +386,7 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
   const [searchStock, setSearchStock] = useState(""); 
   const [sortConfig, setSortConfig] = useState({ key: 'nom', direction: 'asc' });
   
-const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', stock: '', fournisseur: '', categorie: 'Divers', dlc: '', image_file: null, afficher_web: false, categorie_web: '', texte_rupture: '', description: '' });
+const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', stock: '', fournisseur: '', categorie: 'Divers', dlc: '', image_file: null, afficher_web: false, categorie_web: '', texte_rupture: '', description: '', en_valeur: false, prix_promo: '', promo_debut: '', promo_fin: '' });
   
   const [reapproProd, setReapproProd] = useState(null); 
   const [reapproForm, setReapproForm] = useState({ qte: '', prix_a: '', prix_v: '', marge: '', dlc: '' }); 
@@ -441,7 +441,11 @@ const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', s
       date_peremption: form.dlc || null, image_url: imageUrl,
       afficher_web: form.afficher_web, categorie_web: form.categorie_web || null,
       texte_rupture: form.texte_rupture,
-      description: form.description
+      description: form.description,
+      en_valeur: form.en_valeur,
+      prix_promo: safeNum(form.prix_promo),
+      promo_debut: form.promo_debut || null,
+      promo_fin: form.promo_fin || null
     }]);
 
     await supabase.from('historique_stock').insert([{ produit_nom: form.nom.trim(), quantite: safeNum(form.stock), prix_achat: safeNum(form.prix_a) }]); 
@@ -487,11 +491,15 @@ const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', s
 
     const oldName = editProd.nom; const newName = editForm.nom;
     
-   await supabase.from('produits').update({ 
+  await supabase.from('produits').update({ 
         nom: newName, prix_vente: safeNum(editForm.prix_v), marge_pourcent: safeNum(editForm.marge), image_url: imageUrl,
         afficher_web: editForm.afficher_web, categorie_web: editForm.categorie_web || null,
         texte_rupture: editForm.texte_rupture,
-        description: editForm.description
+        description: editForm.description,
+        en_valeur: editForm.en_valeur,
+        prix_promo: safeNum(editForm.prix_promo),
+        promo_debut: editForm.promo_debut || null,
+        promo_fin: editForm.promo_fin || null
     }).eq('id', editProd.id);
     
     if (oldName !== newName) { await supabase.from('historique_stock').update({ produit_nom: newName }).eq('produit_nom', oldName); }
@@ -560,7 +568,7 @@ const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', s
 
       <div className="bg-white rounded-3xl shadow-sm overflow-hidden border border-gray-200">
         <div className="p-4 border-b bg-gray-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-3"><h3 className="font-black text-[#800020] uppercase">Inventaire Global</h3><div className="flex w-full md:w-auto gap-2"><input type="text" placeholder="🔍 Rechercher un produit..." className="p-2 border rounded-lg text-xs outline-none flex-1 md:w-48" value={searchStock} onChange={e=>setSearchStock(e.target.value)} /><select className="p-2 border rounded-lg text-xs font-bold outline-none" value={selectedCatFilter} onChange={e=>setSelectedCatFilter(e.target.value)}><option value="">Toutes Catégories</option>{(categoriesDb||[]).map(c => <option key={c} value={c}>{c}</option>)}</select></div></div>
-        <div className="overflow-x-auto"><table className="w-full text-left text-sm min-w-[900px]"><thead className="bg-gray-100 text-gray-600 font-bold uppercase text-[10px]"><tr><th className="p-4 cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('nom')}>Article {getSortIcon('nom')}</th><th className="p-4 cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('prix_achat')}>Achat {getSortIcon('prix_achat')}</th><th className="p-4 cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('prix_vente')}>Vente {getSortIcon('prix_vente')}</th><th className="p-4 text-center cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('stock_actuel')}>Stock {getSortIcon('stock_actuel')}</th><th className="p-4 text-center cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('date_peremption')}>Péremption {getSortIcon('date_peremption')}</th><th className="p-4 text-center">Actions</th></tr></thead><tbody className="divide-y divide-gray-100">{produitsAffiches.map(p => (<tr key={p.id} className="hover:bg-gray-50 transition"><td className="p-4 flex items-center gap-3">{p.image_url ? <img src={p.image_url} alt="img" className="w-8 h-8 object-cover rounded shadow-sm border border-gray-200" onError={(e)=>e.target.outerHTML="<div class='w-8 h-8 bg-red-100 flex items-center justify-center rounded text-[8px]'>Err</div>"} /> : <div className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center text-[8px] text-gray-400">Pas d'img</div>}<div><p className="font-bold uppercase text-gray-800 flex items-center gap-1">{p.nom} {p.afficher_web && <span title={`Sur le site dans: ${p.categorie_web || 'Non classé'}`} className="text-[10px] cursor-help">🌐</span>}</p><p className="text-[9px] text-gray-400 uppercase font-bold">{p.categorie || 'DIVERS'}</p></div></td><td className="p-4 text-gray-500">{formatAr(p.prix_achat)}</td><td className="p-4 font-black text-red-600">{formatAr(p.prix_vente)}</td><td className="p-4 text-center"><span className={`px-2 py-1 rounded font-black text-[10px] text-white ${safeNum(p.stock_actuel)<=5?'bg-red-600 animate-pulse':'bg-green-600'}`}>{p.stock_actuel}</span></td><td className="p-4 text-center text-xs font-bold">{p.date_peremption ? (<span className={`${isDlcProche(p.date_peremption) ? 'text-red-600 bg-red-50 px-2 py-1 rounded' : 'text-gray-500'}`}>{formatDate(p.date_peremption)}</span>) : '-'}</td><td className="p-4 text-center flex justify-center gap-1"><button onClick={() => { setEditProd(p); setEditForm({ nom: p.nom, prix_v: p.prix_vente, marge: p.marge_pourcent, pwd: '', image_file: null, afficher_web: p.afficher_web || false, categorie_web: p.categorie_web || '', texte_rupture: p.texte_rupture || '', description: p.description || '' }); }} className="bg-blue-600 text-white px-2 py-1 rounded shadow text-[9px] font-bold uppercase">✏️ Modif</button><button onClick={() => { setReapproProd(p); setReapproForm({ qte: '', prix_a: p.prix_achat, prix_v: p.prix_vente, marge: p.marge_pourcent, dlc: p.date_peremption || '' }); }} className="bg-[#800020] text-white px-2 py-1 rounded shadow text-[9px] font-bold uppercase">Réappro</button><button onClick={() => setShowHistoProd(p)} className="bg-gray-200 px-2 py-1 rounded shadow text-[9px] font-bold uppercase">Histo</button><button onClick={() => setDeleteProd(p)} className="bg-red-600 text-white px-2 py-1 rounded shadow text-[9px] font-bold uppercase">🗑️</button></td></tr>))}{produitsAffiches.length === 0 && (<tr><td colSpan="6" className="text-center p-8 text-gray-400 italic">Aucun produit trouvé.</td></tr>)}</tbody></table></div>
+        <div className="overflow-x-auto"><table className="w-full text-left text-sm min-w-[900px]"><thead className="bg-gray-100 text-gray-600 font-bold uppercase text-[10px]"><tr><th className="p-4 cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('nom')}>Article {getSortIcon('nom')}</th><th className="p-4 cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('prix_achat')}>Achat {getSortIcon('prix_achat')}</th><th className="p-4 cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('prix_vente')}>Vente {getSortIcon('prix_vente')}</th><th className="p-4 text-center cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('stock_actuel')}>Stock {getSortIcon('stock_actuel')}</th><th className="p-4 text-center cursor-pointer hover:bg-gray-200 transition" onClick={() => requestSort('date_peremption')}>Péremption {getSortIcon('date_peremption')}</th><th className="p-4 text-center">Actions</th></tr></thead><tbody className="divide-y divide-gray-100">{produitsAffiches.map(p => (<tr key={p.id} className="hover:bg-gray-50 transition"><td className="p-4 flex items-center gap-3">{p.image_url ? <img src={p.image_url} alt="img" className="w-8 h-8 object-cover rounded shadow-sm border border-gray-200" onError={(e)=>e.target.outerHTML="<div class='w-8 h-8 bg-red-100 flex items-center justify-center rounded text-[8px]'>Err</div>"} /> : <div className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center text-[8px] text-gray-400">Pas d'img</div>}<div><p className="font-bold uppercase text-gray-800 flex items-center gap-1">{p.nom} {p.afficher_web && <span title={`Sur le site dans: ${p.categorie_web || 'Non classé'}`} className="text-[10px] cursor-help">🌐</span>}</p><p className="text-[9px] text-gray-400 uppercase font-bold">{p.categorie || 'DIVERS'}</p></div></td><td className="p-4 text-gray-500">{formatAr(p.prix_achat)}</td><td className="p-4 font-black text-red-600">{formatAr(p.prix_vente)}</td><td className="p-4 text-center"><span className={`px-2 py-1 rounded font-black text-[10px] text-white ${safeNum(p.stock_actuel)<=5?'bg-red-600 animate-pulse':'bg-green-600'}`}>{p.stock_actuel}</span></td><td className="p-4 text-center text-xs font-bold">{p.date_peremption ? (<span className={`${isDlcProche(p.date_peremption) ? 'text-red-600 bg-red-50 px-2 py-1 rounded' : 'text-gray-500'}`}>{formatDate(p.date_peremption)}</span>) : '-'}</td><td className="p-4 text-center flex justify-center gap-1"><button onClick={() => { setEditProd(p); setEditForm({ nom: p.nom, prix_v: p.prix_vente, marge: p.marge_pourcent, pwd: '', image_file: null, afficher_web: p.afficher_web || false, categorie_web: p.categorie_web || '', texte_rupture: p.texte_rupture || '', description: p.description || '', en_valeur: p.en_valeur || false, prix_promo: p.prix_promo || '', promo_debut: p.promo_debut ? p.promo_debut.slice(0,16) : '', promo_fin: p.promo_fin ? p.promo_fin.slice(0,16) : '' }); }} className="bg-blue-600 text-white px-2 py-1 rounded shadow text-[9px] font-bold uppercase">✏️ Modif</button><button onClick={() => { setReapproProd(p); setReapproForm({ qte: '', prix_a: p.prix_achat, prix_v: p.prix_vente, marge: p.marge_pourcent, dlc: p.date_peremption || '' }); }} className="bg-[#800020] text-white px-2 py-1 rounded shadow text-[9px] font-bold uppercase">Réappro</button><button onClick={() => setShowHistoProd(p)} className="bg-gray-200 px-2 py-1 rounded shadow text-[9px] font-bold uppercase">Histo</button><button onClick={() => setDeleteProd(p)} className="bg-red-600 text-white px-2 py-1 rounded shadow text-[9px] font-bold uppercase">🗑️</button></td></tr>))}{produitsAffiches.length === 0 && (<tr><td colSpan="6" className="text-center p-8 text-gray-400 italic">Aucun produit trouvé.</td></tr>)}</tbody></table></div>
       </div>
 
       {editProd && (
@@ -585,6 +593,27 @@ const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', s
                           </select>
                       </div>
                   )}
+              </div>
+              <div className="bg-purple-50 border border-purple-100 p-3 rounded-xl space-y-3">
+                  <label className="text-xs font-black text-purple-900 flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" className="w-4 h-4 accent-purple-600" checked={editForm.en_valeur} onChange={e => setEditForm({...editForm, en_valeur: e.target.checked})} disabled={isSubmitting} />
+                      ⭐ Mettre en valeur (Accueil)
+                  </label>
+                  
+                  <div className="flex flex-col md:flex-row gap-2 pt-2 border-t border-purple-200">
+                      <div className="flex-1">
+                          <label className="text-[10px] font-bold text-purple-700 uppercase">Prix Promo</label>
+                          <input type="number" className="w-full p-2 bg-white border rounded-lg outline-none text-xs font-bold text-purple-900" value={editForm.prix_promo} onChange={e=>setEditForm({...editForm, prix_promo: e.target.value})} disabled={isSubmitting} />
+                      </div>
+                      <div className="flex-1">
+                          <label className="text-[10px] font-bold text-purple-700 uppercase">Début Promo</label>
+                          <input type="datetime-local" className="w-full p-2 bg-white border rounded-lg outline-none text-[10px] font-bold text-purple-900" value={editForm.promo_debut} onChange={e=>setEditForm({...editForm, promo_debut: e.target.value})} disabled={isSubmitting} />
+                      </div>
+                      <div className="flex-1">
+                          <label className="text-[10px] font-bold text-purple-700 uppercase">Fin Promo</label>
+                          <input type="datetime-local" className="w-full p-2 bg-white border rounded-lg outline-none text-[10px] font-bold text-purple-900" value={editForm.promo_fin} onChange={e=>setEditForm({...editForm, promo_fin: e.target.value})} disabled={isSubmitting} />
+                      </div>
+                  </div>
               </div>
               <div>
                  <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Description du produit</label>
@@ -953,19 +982,20 @@ const ModuleCommandesWeb = () => {
 };
 
 const ModuleGestionSite = () => {
-  const [config, setConfig] = useState({ carousel_urls: ["", "", ""], texte_livraison: "", texte_conditions: "", quartiers_json: [] });
+  const [config, setConfig] = useState({ carousel_urls: ["", "", ""], texte_livraison: "", texte_conditions: "", quartiers_json: [], rubriques_json: [] });
   const load = async () => {
     const { data } = await supabase.from('parametres_web').select('*').eq('id', 1).single();
     if (data) setConfig({ ...data, quartiers_json: data.quartiers_json || [] });
   };
   useEffect(() => { load(); }, []);
 
-  const save = async () => {
+ const save = async () => {
     await supabase.from('parametres_web').update({
         carousel_urls: config.carousel_urls,
         texte_livraison: config.texte_livraison,
         texte_conditions: config.texte_conditions,
-        quartiers_json: config.quartiers_json
+        quartiers_json: config.quartiers_json,
+        rubriques_json: config.rubriques_json // <-- LA LIGNE AJOUTÉE EST ICI
     }).eq('id', 1);
     alert("🚀 Site Hakimi Plus mis à jour avec succès !");
   };
@@ -1010,7 +1040,27 @@ const ModuleGestionSite = () => {
             </div>
           ))}
         </div>
-        
+        <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-black text-orange-800 uppercase text-sm">📰 Rubriques (Recettes & Saviez-vous)</h3>
+            <button onClick={() => setConfig({...config, rubriques_json: [...(config.rubriques_json||[]), { type: "Recette", titre: "", description: "", contenu: "", image_url: "" }]})} className="bg-orange-600 text-white px-3 py-1 rounded-lg text-xs font-black">+ Ajouter</button>
+          </div>
+          <div className="space-y-4">
+            {(config.rubriques_json||[]).map((r, idx) => (
+              <div key={idx} className="bg-white p-4 rounded-lg border flex flex-col gap-2 relative">
+                <button onClick={() => { const newR = [...config.rubriques_json]; newR.splice(idx, 1); setConfig({...config, rubriques_json: newR}); }} className="absolute top-2 right-2 text-red-500 font-black">X</button>
+                <select className="p-2 border rounded font-bold text-xs w-1/3" value={r.type} onChange={e => { const newR = [...config.rubriques_json]; newR[idx].type = e.target.value; setConfig({...config, rubriques_json: newR}); }}>
+                    <option value="Recette">Recette</option>
+                    <option value="Saviez-vous">Saviez-vous ?</option>
+                </select>
+                <input placeholder="Titre de la rubrique" className="p-2 border rounded text-xs font-bold" value={r.titre} onChange={e => { const newR = [...config.rubriques_json]; newR[idx].titre = e.target.value; setConfig({...config, rubriques_json: newR}); }} />
+                <input placeholder="Lien de l'image (URL)" className="p-2 border rounded text-xs" value={r.image_url} onChange={e => { const newR = [...config.rubriques_json]; newR[idx].image_url = e.target.value; setConfig({...config, rubriques_json: newR}); }} />
+                <input placeholder="Petite description (Visible sur l'accueil)" className="p-2 border rounded text-xs" value={r.description} onChange={e => { const newR = [...config.rubriques_json]; newR[idx].description = e.target.value; setConfig({...config, rubriques_json: newR}); }} />
+                <textarea placeholder="Le contenu complet (Suite)..." className="p-2 border rounded text-xs min-h-[60px]" value={r.contenu} onChange={e => { const newR = [...config.rubriques_json]; newR[idx].contenu = e.target.value; setConfig({...config, rubriques_json: newR}); }} />
+              </div>
+            ))}
+          </div>
+        </div>
         <button onClick={save} className="w-full bg-[#800020] text-white p-4 rounded-2xl font-black uppercase shadow-xl hover:bg-black transition">💾 Sauvegarder la configuration</button>
       </div>
     </div>
