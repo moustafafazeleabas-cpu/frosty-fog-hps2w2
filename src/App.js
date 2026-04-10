@@ -391,13 +391,13 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
   const [produits, setProduits] = useState([]); 
   const [fours, setFours] = useState([]); 
   const [historique, setHistorique] = useState([]);
-  const [categoriesWebDb, setCategoriesWebDb] = useState([]); 
+ const [categoriesWebHierarchie, setCategoriesWebHierarchie] = useState([]);
 
   const [selectedCatFilter, setSelectedCatFilter] = useState(""); 
   const [searchStock, setSearchStock] = useState(""); 
   const [sortConfig, setSortConfig] = useState({ key: 'nom', direction: 'asc' });
   
-const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', stock: '', fournisseur: '', categorie: 'Divers', dlc: '', image_file: null, afficher_web: false, categorie_web: '', texte_rupture: '', description: '', en_valeur: false, prix_promo: '', promo_debut: '', promo_fin: '', est_pack: false, pack_produit_nom: '', pack_qte: '' });
+const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', stock: '', fournisseur: '', categorie: 'Divers', dlc: '', image_file: null, afficher_web: false, categorie_web: '', sous_categorie_web: '', texte_rupture: '', description: '', en_valeur: false, prix_promo: '', promo_debut: '', promo_fin: '', est_pack: false, pack_produit_nom: '', pack_qte: '' });
   
   const [reapproProd, setReapproProd] = useState(null); 
   const [reapproForm, setReapproForm] = useState({ qte: '', prix_a: '', prix_v: '', marge: '', dlc: '' }); 
@@ -413,12 +413,12 @@ const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', s
     const p = await supabase.from('produits').select('*').order('nom'); 
     const f = await supabase.from('fournisseurs').select('nom'); 
     const h = await supabase.from('historique_stock').select('*').order('date_ajout', { ascending: false }); 
-    const cw = await supabase.from('categories_web').select('nom').order('nom'); 
+    const pWeb = await supabase.from('parametres_web').select('categories_hierarchie_json').eq('id', 1).single();
     
     setProduits(p.data || []); 
     setFours(f.data || []); 
     setHistorique(h.data || []); 
-    setCategoriesWebDb(cw.data ? cw.data.map(c => c.nom) : []);
+    setCategoriesWebHierarchie(pWeb.data?.categories_hierarchie_json || []);
   };
   useEffect(() => { load(); }, []);
 
@@ -450,7 +450,9 @@ const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', s
       marge_pourcent: safeNum(form.marge), stock_actuel: safeNum(form.stock), 
       fournisseur_nom: form.fournisseur, categorie: form.categorie, 
       date_peremption: form.dlc || null, image_url: imageUrl,
-      afficher_web: form.afficher_web, categorie_web: form.categorie_web || null,
+      afficher_web: form.afficher_web, 
+      categorie_web: form.categorie_web || null,
+      sous_categorie_web: form.sous_categorie_web || null,
       texte_rupture: form.texte_rupture,
       description: form.description,
       en_valeur: form.en_valeur,
@@ -513,8 +515,10 @@ const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', s
     
   await supabase.from('produits').update({ 
         nom: newName, prix_vente: safeNum(editForm.prix_v), marge_pourcent: safeNum(editForm.marge), image_url: imageUrl,
-        afficher_web: editForm.afficher_web, categorie_web: editForm.categorie_web || null,
-        texte_rupture: editForm.texte_rupture,
+        afficher_web: editForm.afficher_web, 
+      categorie_web: editForm.categorie_web || null,
+      sous_categorie_web: editForm.sous_categorie_web || null,
+      texte_rupture: editForm.texte_rupture,
         description: editForm.description,
         en_valeur: editForm.en_valeur,
         prix_promo: safeNum(editForm.prix_promo),
@@ -581,12 +585,23 @@ const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', s
                   🌐 Afficher ce produit sur le Site Web
               </label>
               {form.afficher_web && (
-                  <div className="flex flex-col flex-1 ml-4 border-l border-blue-200 pl-4">
-                      <label className="text-[9px] font-bold text-blue-700 uppercase flex justify-between">Catégorie Web <button type="button" onClick={addCategoryWeb} className="text-blue-700 font-black">+ Nv</button></label>
-                      <select className="w-full p-2 bg-white border border-blue-200 rounded-lg outline-none text-xs font-bold text-blue-900" value={form.categorie_web} onChange={e=>setForm({...form, categorie_web: e.target.value})} disabled={isSubmitting}>
-                          <option value="">-- Sans Catégorie --</option>
-                          {categoriesWebDb.map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
+                  <div className="flex flex-col md:flex-row gap-2 mt-3 pt-3 border-t border-blue-200 w-full">
+                      <div className="flex-1">
+                          <label className="text-[9px] font-black text-blue-700 uppercase tracking-widest mb-1 block">Menu Principal</label>
+                          <select className="w-full p-3 bg-white border border-blue-200 rounded-xl outline-none text-xs font-bold text-blue-900" value={form.categorie_web} onChange={e=>setForm({...form, categorie_web: e.target.value, sous_categorie_web: ''})} disabled={isSubmitting}>
+                              <option value="">-- Choisir le Menu --</option>
+                              {categoriesWebHierarchie.map(c => <option key={c.parent} value={c.parent}>{c.parent}</option>)}
+                          </select>
+                      </div>
+                      {form.categorie_web && (
+                          <div className="flex-1">
+                              <label className="text-[9px] font-black text-blue-700 uppercase tracking-widest mb-1 block">Sous-Catégorie</label>
+                              <select className="w-full p-3 bg-white border border-blue-200 rounded-xl outline-none text-xs font-bold text-blue-900" value={form.sous_categorie_web} onChange={e=>setForm({...form, sous_categorie_web: e.target.value})} disabled={isSubmitting}>
+                                  <option value="">-- Choisir --</option>
+                                  {(categoriesWebHierarchie.find(c => c.parent === form.categorie_web)?.sous_categories || []).map(sub => <option key={sub} value={sub}>{sub}</option>)}
+                              </select>
+                          </div>
+                      )}
                   </div>
               )}
           </div>
@@ -624,16 +639,29 @@ const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', s
                       <input type="checkbox" className="w-4 h-4 accent-blue-600" checked={editForm.afficher_web} onChange={e => setEditForm({...editForm, afficher_web: e.target.checked})} disabled={isSubmitting} />
                       🌐 Visible sur le Site Web
                   </label>
+                  
                   {editForm.afficher_web && (
-                      <div>
-                          <label className="text-[9px] font-bold text-blue-700 uppercase">Catégorie Web</label>
-                          <select className="w-full p-2 bg-white border border-blue-200 rounded-lg outline-none text-xs font-bold text-blue-900" value={editForm.categorie_web} onChange={e=>setEditForm({...editForm, categorie_web: e.target.value})} disabled={isSubmitting}>
-                              <option value="">-- Sans Catégorie --</option>
-                              {categoriesWebDb.map(c => <option key={c} value={c}>{c}</option>)}
-                          </select>
+                      <div className="flex flex-col md:flex-row gap-2 mt-3 pt-3 border-t border-blue-200 w-full">
+                          <div className="flex-1">
+                              <label className="text-[9px] font-black text-blue-700 uppercase tracking-widest mb-1 block">Menu Principal</label>
+                              <select className="w-full p-3 bg-white border border-blue-200 rounded-xl outline-none text-xs font-bold text-blue-900" value={editForm.categorie_web} onChange={e=>setEditForm({...editForm, categorie_web: e.target.value, sous_categorie_web: ''})} disabled={isSubmitting}>
+                                  <option value="">-- Choisir le Menu --</option>
+                                  {categoriesWebHierarchie.map(c => <option key={c.parent} value={c.parent}>{c.parent}</option>)}
+                              </select>
+                          </div>
+                          {editForm.categorie_web && (
+                              <div className="flex-1">
+                                  <label className="text-[9px] font-black text-blue-700 uppercase tracking-widest mb-1 block">Sous-Catégorie</label>
+                                  <select className="w-full p-3 bg-white border border-blue-200 rounded-xl outline-none text-xs font-bold text-blue-900" value={editForm.sous_categorie_web} onChange={e=>setEditForm({...editForm, sous_categorie_web: e.target.value})} disabled={isSubmitting}>
+                                      <option value="">-- Choisir --</option>
+                                      {(categoriesWebHierarchie.find(c => c.parent === editForm.categorie_web)?.sous_categories || []).map(sub => <option key={sub} value={sub}>{sub}</option>)}
+                                  </select>
+                              </div>
+                          )}
                       </div>
                   )}
               </div>
+              
               <div className="bg-purple-50 border border-purple-100 p-3 rounded-xl space-y-3">
                   <label className="text-xs font-black text-purple-900 flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" className="w-4 h-4 accent-purple-600" checked={editForm.en_valeur} onChange={e => setEditForm({...editForm, en_valeur: e.target.checked})} disabled={isSubmitting} />
@@ -655,11 +683,12 @@ const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', s
                       </div>
                   </div>
               </div>
+              
               <div>
                  <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Description du produit</label>
                  <textarea className="w-full p-3 bg-gray-50 border rounded-xl outline-none text-xs min-h-[80px]" value={editForm.description} onChange={e=>setEditForm({...editForm, description: e.target.value})} disabled={isSubmitting} placeholder="Détails, ingrédients, etc..."></textarea>
               </div>
-<div>
+              <div>
                  <label className="text-[10px] font-bold text-orange-500 uppercase block mb-1">Texte si rupture (Site Web)</label>
                  <input type="text" className="w-full p-3 bg-orange-50 border border-orange-100 rounded-xl outline-none font-bold text-xs" value={editForm.texte_rupture} onChange={e=>setEditForm({...editForm, texte_rupture: e.target.value})} disabled={isSubmitting} placeholder="Ex: De retour jeudi..."/>
               </div>
@@ -671,8 +700,8 @@ const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', s
               <div className="pt-2 border-t"><label className="text-[10px] font-bold text-gray-400 uppercase">Code Superadmin</label><input type="password" placeholder="Mot de passe requis" className="w-full p-3 border rounded-xl font-bold outline-none text-center" value={editForm.pwd} onChange={e=>setEditForm({...editForm, pwd: e.target.value})} required disabled={isSubmitting}/></div>
               <div className="flex gap-2 pt-2"><button type="button" onClick={()=>setEditProd(null)} className="p-3 bg-gray-100 rounded-xl flex-1 font-bold text-gray-600" disabled={isSubmitting}>Annuler</button><button type="submit" className="p-3 bg-blue-600 text-white rounded-xl font-bold flex-1 shadow-md" disabled={isSubmitting}>{isSubmitting ? '...' : 'Enregistrer'}</button></div>
             </form>
-          </div>
-        </div>
+         </div>
+       </div>
       )}
 
       {reapproProd && (<div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50"><div className="bg-white p-6 rounded-3xl w-full max-w-md"><h2 className="text-lg font-black uppercase text-[#800020] mb-4">Réappro : {reapproProd.nom}</h2><form onSubmit={saveReappro} className="space-y-3"><input type="number" placeholder="Qté" className="w-full p-3 border rounded-xl" value={reapproForm.qte} onChange={e=>setReapproForm({...reapproForm, qte: e.target.value})} required /><input type="number" placeholder="Nouv. Prix Achat" className="w-full p-3 border rounded-xl" value={reapproForm.prix_a} onChange={e=>handleRAchat(e.target.value)} required /><div className="flex gap-2"><input type="number" className="w-full p-3 border rounded-xl text-red-600 font-bold" value={reapproForm.prix_v} onChange={e=>handleRVente(e.target.value)} required /><input type="number" className="w-full p-3 border rounded-xl text-[#800020] font-bold" value={reapproForm.marge} onChange={e=>handleRMarge(e.target.value)} /></div><div><label className="text-[10px] font-bold text-gray-400 uppercase">Nouvelle Date Péremption (Optionnel)</label><input type="date" className="w-full p-3 border rounded-xl" value={reapproForm.dlc} onChange={e=>setReapproForm({...reapproForm, dlc: e.target.value})} /></div><div className="flex gap-2 pt-2"><button type="button" onClick={()=>setReapproProd(null)} className="p-3 bg-gray-100 rounded-xl flex-1">Annuler</button><button type="submit" className="p-3 bg-[#800020] text-white rounded-xl font-bold flex-1">Valider</button></div></form></div></div>)}
@@ -1072,7 +1101,7 @@ const ModuleGestionSite = () => {
   const [config, setConfig] = useState({ carousel_urls: ["", "", ""], texte_livraison: "", texte_conditions: "", quartiers_json: [], rubriques_json: [] });
   const load = async () => {
     const { data } = await supabase.from('parametres_web').select('*').eq('id', 1).single();
-    if (data) setConfig({ ...data, quartiers_json: data.quartiers_json || [] });
+  if (data) setConfig({ ...data, quartiers_json: data.quartiers_json || [], categories_hierarchie_json: data.categories_hierarchie_json || [] });
   };
   useEffect(() => { load(); }, []);
 
@@ -1082,7 +1111,8 @@ const ModuleGestionSite = () => {
         texte_livraison: config.texte_livraison,
         texte_conditions: config.texte_conditions,
         quartiers_json: config.quartiers_json,
-        rubriques_json: config.rubriques_json // <-- LA LIGNE AJOUTÉE EST ICI
+        rubriques_json: config.rubriques_json,
+      categories_hierarchie_json: config.categories_hierarchie_json
     }).eq('id', 1);
     alert("🚀 Site Hakimi Plus mis à jour avec succès !");
   };
@@ -1126,6 +1156,36 @@ const ModuleGestionSite = () => {
                <input className="flex-1 p-2 bg-gray-50 border rounded-xl text-xs outline-none focus:border-[#800020]" value={url} onChange={e => { const newC = [...config.carousel_urls]; newC[idx] = e.target.value; setConfig({...config, carousel_urls: newC}); }} placeholder="Lien image ImgBB / Supabase" />
             </div>
           ))}
+        </div>
+          <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-black text-blue-800 uppercase text-sm">🗂️ Menu & Catégories du Site Web</h3>
+            <button onClick={() => setConfig({...config, categories_hierarchie_json: [...(config.categories_hierarchie_json||[]), { parent: "Nouvelle Catégorie", sous_categories: [] }]})} className="bg-blue-600 text-white px-3 py-1 rounded-lg text-xs font-black">+ Ajouter Menu Principal</button>
+          </div>
+          <div className="space-y-4">
+            {(config.categories_hierarchie_json||[]).map((cat, idx) => (
+              <div key={idx} className="bg-white p-4 rounded-lg border border-blue-200">
+                <div className="flex justify-between mb-3">
+                   <input className="font-black text-sm border-b-2 border-blue-200 outline-none flex-1 focus:border-blue-500 transition" value={cat.parent} onChange={e => { const n = [...config.categories_hierarchie_json]; n[idx].parent = e.target.value; setConfig({...config, categories_hierarchie_json: n}); }} placeholder="Ex: Épicerie" />
+                   <button onClick={() => { const n = [...config.categories_hierarchie_json]; n.splice(idx,1); setConfig({...config, categories_hierarchie_json: n}); }} className="text-red-500 font-black ml-4 bg-red-50 px-2 rounded hover:bg-red-500 hover:text-white transition">X</button>
+                </div>
+                <div className="pl-4 border-l-2 border-blue-100">
+                   <p className="text-[9px] font-black text-gray-400 uppercase mb-2">Sous-catégories :</p>
+                   <div className="flex flex-wrap gap-2 mb-2">
+                      {(cat.sous_categories||[]).map((sub, subIdx) => (
+                         <span key={subIdx} className="bg-gray-100 px-3 py-1 rounded-full text-xs font-bold text-gray-700 flex items-center gap-2 border border-gray-200">
+                           {sub} <button onClick={()=>{const n=[...config.categories_hierarchie_json]; n[idx].sous_categories.splice(subIdx,1); setConfig({...config, categories_hierarchie_json: n});}} className="text-red-500 hover:text-red-700">×</button>
+                         </span>
+                      ))}
+                   </div>
+                   <div className="flex gap-2 items-center mt-3">
+                      <input type="text" placeholder="Ajouter une sous-catégorie..." className="text-xs p-2 border border-gray-300 rounded outline-none focus:border-blue-500" onKeyDown={(e) => { if(e.key === 'Enter' && e.target.value.trim()) { e.preventDefault(); const n=[...config.categories_hierarchie_json]; if(!n[idx].sous_categories) n[idx].sous_categories = []; n[idx].sous_categories.push(e.target.value.trim()); setConfig({...config, categories_hierarchie_json: n}); e.target.value=''; } }} />
+                      <span className="text-[9px] text-gray-400 font-bold bg-gray-100 px-2 py-1 rounded">Appuyez sur "Entrée" pour valider ↵</span>
+                   </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
         <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
           <div className="flex justify-between items-center mb-4">
