@@ -445,7 +445,7 @@ const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', s
       if (imageUrl === 'TOO_BIG') { setIsSubmitting(false); return; }
     }
 
-   await supabase.from('produits').insert([{ 
+  const { error } = await supabase.from('produits').insert([{ 
       nom: form.nom.trim(), prix_achat: safeNum(form.prix_a), prix_vente: safeNum(form.prix_v), 
       marge_pourcent: safeNum(form.marge), stock_actuel: safeNum(form.stock), 
       fournisseur_nom: form.fournisseur, categorie: form.categorie, 
@@ -455,12 +455,18 @@ const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', s
       description: form.description,
       en_valeur: form.en_valeur,
       prix_promo: safeNum(form.prix_promo),
-promo_debut: form.promo_debut || null,
+      promo_debut: form.promo_debut || null,
       promo_fin: form.promo_fin || null,
       est_pack: form.est_pack,
       pack_produit_nom: form.pack_produit_nom || null,
       pack_qte: safeNum(form.pack_qte)
-    }]);
+   }]);
+
+   if (error) {
+       alert("🚨 Erreur Supabase : " + error.message);
+       setIsSubmitting(false);
+       return;
+   }
 
     await supabase.from('historique_stock').insert([{ produit_nom: form.nom.trim(), quantite: safeNum(form.stock), prix_achat: safeNum(form.prix_a) }]); 
     setForm({ nom:'', prix_a:'', prix_v:'', marge:'', stock:'', fournisseur:'', categorie: 'Divers', dlc: '', image_file: null, afficher_web: false, categorie_web: '', texte_rupture: '', description: '', en_valeur: false, prix_promo: '', promo_debut: '', promo_fin: '', est_pack: false, pack_produit_nom: '', pack_qte: '' });
