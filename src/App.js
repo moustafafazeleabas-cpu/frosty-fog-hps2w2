@@ -305,7 +305,18 @@ const ModuleVente = ({ mode, params, categoriesDb }) => {
     const frais_liv_val = isLivraison ? fraisLivraison : 0;
     const detailsObj = { heure: formatDateTime(today), remise_globale_pourcent: safeNum(remiseGlobale), frais_livraison: frais_liv_val, paiement_infos: methodePaiement === 'CHEQUE' ? { banque: banqueCheque, numero: numeroCheque } : null, articles: panier.map(i => ({ nom: i.nom, categorie: i.categorie, qte: safeNum(i.qte), prix_unitaire: safeNum(i.prix_vente), remise_unitaire_ar: safeNum(i.remise_montant), total_ligne: (safeNum(i.prix_vente) - safeNum(i.remise_montant)) * safeNum(i.qte) })) };
     const strArticles = panier.map(i => `${safeNum(i.qte)}x ${i.nom}`).join(', ');
-    if (mode === 'devis') { await supabase.from('devis').insert([{ numero_devis: numero_genere, client_nom: selectedClient, articles_liste: strArticles, montant_total: totalNet, total_remise_ar: totalRemisesEnAr, details_json: detailsObj }]); } else { for (let item of panier) { await supabase.rpc('decrement_stock', { row_id: item.id, amount: safeNum(item.qte) }); } const pMethode = mode === 'caisse' ? methodePaiement : 'CASH'; const dbTypeVente = mode === 'caisse' ? 'CAISSE' : mode.replace('admin_', '').toUpperCase(); await supabase.from('historique_ventes').insert([{ numero_facture: numero_genere, type_vente: dbTypeVente, client_nom: selectedClient, articles_liste: strArticles, montant_total: totalNet, benefice_total: beneficeNet, remise_globale_pourcent: safeNum(remiseGlobale), total_remise_ar: totalRemisesEnAr, details_json: detailsObj, methode_paiement: pMethode }]); if (mode === 'admin_credit') { await supabase.from('credits').insert([{ nom_client: selectedClient, montant_du: totalNet, details_articles: strArticles, date_echeance: echeance, numero_facture: numero_genere, details_json: detailsObj, statut: 'non_paye' }]); } }
+    if (mode === 'devis') { await supabase.from('devis').insert([{ numero_devis: numero_genere, client_nom: selectedClient, articles_liste: strArticles, montant_total: totalNet, total_remise_ar: totalRemisesEnAr, details_json: detailsObj }]); } else { for (let item of panier) {
+        // 1. Déduction normale du produit vendu
+        await supabase.rpc('decrement_stock', { row_id: item.id, amount: safeNum(item.qte) });
+        
+        // 2. Si c'est un pack, on déduit AUSSI les unités du produit source
+        if (item.est_pack && item.pack_produit_nom && safeNum(item.pack_qte) > 0) {
+            await supabase.rpc('decrement_stock_by_name', { 
+                p_nom: item.pack_produit_nom, 
+                amount: safeNum(item.qte) * safeNum(item.pack_qte) 
+            });
+        }
+      } const pMethode = mode === 'caisse' ? methodePaiement : 'CASH'; const dbTypeVente = mode === 'caisse' ? 'CAISSE' : mode.replace('admin_', '').toUpperCase(); await supabase.from('historique_ventes').insert([{ numero_facture: numero_genere, type_vente: dbTypeVente, client_nom: selectedClient, articles_liste: strArticles, montant_total: totalNet, benefice_total: beneficeNet, remise_globale_pourcent: safeNum(remiseGlobale), total_remise_ar: totalRemisesEnAr, details_json: detailsObj, methode_paiement: pMethode }]); if (mode === 'admin_credit') { await supabase.from('credits').insert([{ nom_client: selectedClient, montant_du: totalNet, details_articles: strArticles, date_echeance: echeance, numero_facture: numero_genere, details_json: detailsObj, statut: 'non_paye' }]); } }
     const cData = clients.find(c => c.nom === selectedClient) || { nom: selectedClient, nif: '', stat: '' };
     setVenteReussie({ numero: numero_genere, panier, totalNet, totalRemisesEnAr, fraisLivraison: frais_liv_val, methode: mode === 'caisse' ? methodePaiement : null, banque: banqueCheque, client_nom: cData.nom, client_tel: cData.telephone, client_nif: cData.nif, client_stat: cData.stat, date: today, echeance, printSize });
   };
@@ -386,7 +397,7 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
   const [searchStock, setSearchStock] = useState(""); 
   const [sortConfig, setSortConfig] = useState({ key: 'nom', direction: 'asc' });
   
-const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', stock: '', fournisseur: '', categorie: 'Divers', dlc: '', image_file: null, afficher_web: false, categorie_web: '', texte_rupture: '', description: '', en_valeur: false, prix_promo: '', promo_debut: '', promo_fin: '' });
+const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', stock: '', fournisseur: '', categorie: 'Divers', dlc: '', image_file: null, afficher_web: false, categorie_web: '', texte_rupture: '', description: '', en_valeur: false, prix_promo: '', promo_debut: '', promo_fin: '', est_pack: false, pack_produit_nom: '', pack_qte: '' });
   
   const [reapproProd, setReapproProd] = useState(null); 
   const [reapproForm, setReapproForm] = useState({ qte: '', prix_a: '', prix_v: '', marge: '', dlc: '' }); 
@@ -444,12 +455,15 @@ const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', s
       description: form.description,
       en_valeur: form.en_valeur,
       prix_promo: safeNum(form.prix_promo),
-      promo_debut: form.promo_debut || null,
-      promo_fin: form.promo_fin || null
+promo_debut: form.promo_debut || null,
+      promo_fin: form.promo_fin || null,
+      est_pack: form.est_pack,
+      pack_produit_nom: form.pack_produit_nom || null,
+      pack_qte: safeNum(form.pack_qte)
     }]);
 
     await supabase.from('historique_stock').insert([{ produit_nom: form.nom.trim(), quantite: safeNum(form.stock), prix_achat: safeNum(form.prix_a) }]); 
-    setForm({ nom:'', prix_a:'', prix_v:'', marge:'', stock:'', fournisseur:'', categorie: 'Divers', dlc: '', image_file: null, afficher_web: false, categorie_web: '' }); 
+    setForm({ nom:'', prix_a:'', prix_v:'', marge:'', stock:'', fournisseur:'', categorie: 'Divers', dlc: '', image_file: null, afficher_web: false, categorie_web: '', texte_rupture: '', description: '', en_valeur: false, prix_promo: '', promo_debut: '', promo_fin: '', est_pack: false, pack_produit_nom: '', pack_qte: '' });
     load(); setIsSubmitting(false); alert("Produit ajouté avec succès !");
   };
   
@@ -534,7 +548,27 @@ const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', s
           <div><label className="text-[10px] font-bold text-gray-400 uppercase">Stock Initial</label><input type="number" className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.stock} onChange={e=>setForm({...form, stock: e.target.value})} required disabled={isSubmitting}/></div>
           <div><label className="text-[10px] font-bold text-gray-400 uppercase">Date Péremption (Opt.)</label><input type="date" className="w-full p-3 bg-gray-50 border rounded-xl outline-none text-xs" value={form.dlc} onChange={e=>setForm({...form, dlc: e.target.value})} disabled={isSubmitting}/></div>
           <div><label className="text-[10px] font-bold text-gray-400 uppercase">Fournisseur</label><select className="w-full p-3 bg-gray-50 border rounded-xl outline-none text-sm" value={form.fournisseur} onChange={e=>setForm({...form, fournisseur: e.target.value})} required disabled={isSubmitting}><option value="">Sélectionner</option>{fours.map(f=><option key={f.nom} value={f.nom}>{f.nom}</option>)}</select></div>
-          
+          <div className="md:col-span-4 bg-yellow-50 border border-yellow-200 p-3 rounded-xl">
+              <label className="text-xs font-black text-yellow-900 flex items-center gap-2 cursor-pointer mb-2">
+                  <input type="checkbox" className="w-5 h-5 accent-yellow-600" checked={form.est_pack} onChange={e => setForm({...form, est_pack: e.target.checked})} disabled={isSubmitting} />
+                  📦 Ce produit est un Pack / Lot (Déduction automatique du stock)
+              </label>
+              {form.est_pack && (
+                  <div className="flex flex-col md:flex-row gap-3 mt-2 pt-2 border-t border-yellow-200">
+                      <div className="flex-1">
+                          <label className="text-[10px] font-bold text-yellow-800 uppercase">Produit source (à déduire)</label>
+                          <select className="w-full p-2 bg-white border border-yellow-300 rounded-lg outline-none text-xs font-bold text-gray-700" value={form.pack_produit_nom} onChange={e=>setForm({...form, pack_produit_nom: e.target.value})} disabled={isSubmitting}>
+                              <option value="">Sélectionner le produit à l'unité...</option>
+                              {produits.filter(p => !p.est_pack).map(p => <option key={p.id} value={p.nom}>{p.nom}</option>)}
+                          </select>
+                      </div>
+                      <div className="w-32">
+                          <label className="text-[10px] font-bold text-yellow-800 uppercase">Qté à déduire</label>
+                          <input type="number" className="w-full p-2 bg-white border border-yellow-300 rounded-lg outline-none text-xs font-bold text-center" value={form.pack_qte} onChange={e=>setForm({...form, pack_qte: e.target.value})} placeholder="Ex: 6" disabled={isSubmitting} />
+                      </div>
+                  </div>
+              )}
+          </div>
           <div className="md:col-span-2 bg-blue-50 border border-blue-100 p-3 rounded-xl flex items-center justify-between">
               <label className="text-xs font-black text-blue-900 flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" className="w-5 h-5 accent-blue-600" checked={form.afficher_web} onChange={e => setForm({...form, afficher_web: e.target.checked})} disabled={isSubmitting} />
@@ -876,8 +910,20 @@ const ModuleCommandesWeb = () => {
     if (!window.confirm("Confirmer la commande ? Le stock sera déduit et une facture générée.")) return;
     const articles = cmd.articles_json.articles;
     
-    for (let art of articles) {
+for (let art of articles) {
+      // On cherche les infos du produit dans la base pour savoir si c'est un pack
+      const { data: pInfo } = await supabase.from('produits').select('est_pack, pack_produit_nom, pack_qte').eq('nom', art.nom).single();
+      
+      // 1. Déduction normale
       await supabase.rpc('decrement_stock_by_name', { p_nom: art.nom, amount: Number(art.qte) });
+      
+      // 2. Déduction du produit source si c'est un pack
+      if (pInfo && pInfo.est_pack && pInfo.pack_produit_nom && pInfo.pack_qte) {
+          await supabase.rpc('decrement_stock_by_name', { 
+              p_nom: pInfo.pack_produit_nom, 
+              amount: Number(art.qte) * Number(pInfo.pack_qte) 
+          });
+      }
     }
 
     const modePaiement = cmd.articles_json.methode_paiement || 'LIVRAISON';
