@@ -1098,10 +1098,10 @@ const changerStatut = async (id, nouveauStatut) => {
 };
 
 const ModuleGestionSite = () => {
-  const [config, setConfig] = useState({ carousel_urls: ["", "", ""], texte_livraison: "", texte_conditions: "", quartiers_json: [], rubriques_json: [] });
-  const load = async () => {
+  const [config, setConfig] = useState({ carousel_urls: ["", "", ""], texte_livraison: "", texte_conditions: "", quartiers_json: [], rubriques_json: [], maintenance_mode: false, maintenance_date: "" });
+const load = async () => {
     const { data } = await supabase.from('parametres_web').select('*').eq('id', 1).single();
-  if (data) setConfig({ ...data, quartiers_json: data.quartiers_json || [], categories_hierarchie_json: data.categories_hierarchie_json || [] });
+    if (data) setConfig({ ...data, quartiers_json: data.quartiers_json || [], categories_hierarchie_json: data.categories_hierarchie_json || [], maintenance_mode: data.maintenance_mode || false, maintenance_date: data.maintenance_date || "" });
   };
   useEffect(() => { load(); }, []);
 
@@ -1112,7 +1112,9 @@ const ModuleGestionSite = () => {
         texte_conditions: config.texte_conditions,
         quartiers_json: config.quartiers_json,
         rubriques_json: config.rubriques_json,
-      categories_hierarchie_json: config.categories_hierarchie_json
+        categories_hierarchie_json: config.categories_hierarchie_json,
+        maintenance_mode: config.maintenance_mode,
+        maintenance_date: config.maintenance_date
     }).eq('id', 1);
     alert("🚀 Site Hakimi Plus mis à jour avec succès !");
   };
@@ -1131,6 +1133,28 @@ const ModuleGestionSite = () => {
     <div className="max-w-4xl mx-auto space-y-6">
       <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Gestion Hakimi Plus</h2>
       <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-gray-100 space-y-6">
+        
+        {/* --- NOUVEAU BLOC MAINTENANCE --- */}
+        <div className={`p-6 rounded-2xl border-2 transition ${config.maintenance_mode ? 'bg-red-50 border-red-500' : 'bg-gray-50 border-gray-200'}`}>
+          <div className="flex justify-between items-center mb-2">
+            <div>
+              <h3 className={`font-black uppercase text-lg ${config.maintenance_mode ? 'text-red-700' : 'text-gray-700'}`}>🚧 Mode Maintenance</h3>
+              <p className="text-xs text-gray-500">Coupe l'accès au site web sans avoir à décocher vos produits un par un.</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" className="sr-only peer" checked={config.maintenance_mode} onChange={e => setConfig({...config, maintenance_mode: e.target.checked})} />
+              <div className="w-14 h-7 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-red-600"></div>
+            </label>
+          </div>
+          {config.maintenance_mode && (
+            <div className="mt-4 pt-4 border-t border-red-200">
+              <label className="text-xs font-bold text-red-800 uppercase block mb-2">Date et Heure de retour prévue :</label>
+              <input type="datetime-local" className="p-3 rounded-xl border border-red-200 outline-none font-bold w-full md:w-1/2 text-red-900" value={config.maintenance_date} onChange={e => setConfig({...config, maintenance_date: e.target.value})} />
+            </div>
+          )}
+        </div>
+        {/* --------------------------------- */}
+
         <div className="bg-red-50 p-4 rounded-xl border border-red-100">
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-black text-[#800020] uppercase text-sm">📍 Quartiers & Frais de Livraison</h3>
