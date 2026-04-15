@@ -373,6 +373,16 @@ const AdminDashboard = () => {
   let counts = {}; ventes.forEach(v => { if (v.details_json && Array.isArray(v.details_json.articles)) { v.details_json.articles.forEach(art => { counts[art.nom] = (counts[art.nom] || 0) + safeNum(art.qte); }); } });
   const topProducts = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([nom, qte]) => { const pInfo = produits.find(p => p.nom === nom); return { nom, qte, fournisseur: pInfo ? pInfo.fournisseur_nom : 'Inconnu' }; });
   let countFournisseurs = {}; topProducts.forEach(p => { countFournisseurs[p.fournisseur] = (countFournisseurs[p.fournisseur] || 0) + p.qte; }); const topFournisseurs = Object.entries(countFournisseurs).sort((a,b) => b[1] - a[1]).slice(0, 3);
+  // --- NOUVEAU : CALCUL DES VENTES PAR PRODUIT ---
+  const [statProdSelect, setStatProdSelect] = useState("");
+  const qteVendueSelection = ventes.reduce((total, v) => {
+    if (v.details_json && Array.isArray(v.details_json.articles)) {
+      const art = v.details_json.articles.find(a => a.nom === statProdSelect);
+      if (art) return total + safeNum(art.qte);
+    }
+    return total;
+  }, 0);
+  // -----------------------------------------------
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
@@ -381,7 +391,26 @@ const AdminDashboard = () => {
       <div className="bg-green-700 p-6 rounded-2xl shadow-md text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4"><div><p className="text-xs font-bold text-green-200 uppercase tracking-widest mb-1">Bénéfice Net Réel de la période</p><p className="text-[10px] opacity-70">Marge Brute - Charges</p></div><p className="text-4xl md:text-5xl font-black tracking-tighter">{formatAr(benBrutPeriode - depPeriode)} Ar</p></div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col"><h3 className="font-black text-gray-800 uppercase text-xs mb-4">Répartition Paiements</h3><div className="space-y-3 flex-1 justify-center flex flex-col"><div className="flex justify-between items-center"><span className="text-xs font-bold text-gray-500">💵 Cash</span><span className="font-black text-sm">{formatAr(cashP)} Ar</span></div><div className="w-full bg-gray-100 rounded-full h-1.5"><div className="bg-blue-500 h-1.5 rounded-full" style={{width: caPeriode>0 ? `${(cashP/caPeriode)*100}%` : '0%'}}></div></div><div className="flex justify-between items-center mt-1"><span className="text-xs font-bold text-gray-500">🟢 MVola</span><span className="font-black text-sm">{formatAr(mvolaP)} Ar</span></div><div className="w-full bg-gray-100 rounded-full h-1.5"><div className="bg-green-500 h-1.5 rounded-full" style={{width: caPeriode>0 ? `${(mvolaP/caPeriode)*100}%` : '0%'}}></div></div><div className="flex justify-between items-center mt-1"><span className="text-xs font-bold text-gray-500">🟠 Orange</span><span className="font-black text-sm">{formatAr(omP)} Ar</span></div><div className="w-full bg-gray-100 rounded-full h-1.5"><div className="bg-orange-500 h-1.5 rounded-full" style={{width: caPeriode>0 ? `${(omP/caPeriode)*100}%` : '0%'}}></div></div><div className="flex justify-between items-center mt-1"><span className="text-xs font-bold text-gray-500">✍️ Chèques</span><span className="font-black text-sm">{formatAr(chequeP)} Ar</span></div><div className="w-full bg-gray-100 rounded-full h-1.5"><div className="bg-pink-500 h-1.5 rounded-full" style={{width: caPeriode>0 ? `${(chequeP/caPeriode)*100}%` : '0%'}}></div></div></div></div>
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col"><h3 className="font-black text-gray-800 uppercase text-xs mb-4">🏆 Top 5 Produits (Qté)</h3><div className="space-y-2">{topProducts.map((p, idx) => (<div key={idx} className="flex justify-between items-center bg-gray-50 p-2 rounded-lg border border-gray-100"><span className="text-xs font-bold uppercase truncate pr-2"><span className="text-[#800020] mr-1">#{idx+1}</span>{p.nom}</span><span className="font-black text-sm bg-white px-2 py-0.5 rounded shadow-sm">{p.qte}</span></div>))}{topProducts.length === 0 && <p className="text-[10px] text-gray-400 italic text-center">Aucune donnée</p>}</div></div>
+       <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col">
+          {/* --- NOUVEAU : BLOC RECHERCHE PAR PRODUIT --- */}
+          <div className="mb-6 bg-blue-50 p-4 rounded-xl border border-blue-100">
+            <h3 className="font-black text-blue-900 uppercase text-[10px] mb-2 tracking-widest">🔍 Ventes par produit</h3>
+            <select className="w-full p-2 bg-white border border-blue-200 rounded-lg text-xs font-bold outline-none mb-2 text-gray-700" value={statProdSelect} onChange={e => setStatProdSelect(e.target.value)}>
+              <option value="">Sélectionner un produit...</option>
+              {produits.map(p => <option key={p.id} value={p.nom}>{p.nom}</option>)}
+            </select>
+            {statProdSelect && (
+              <div className="flex justify-between items-center bg-white p-2 rounded border border-blue-100 shadow-sm">
+                <span className="text-[10px] font-bold text-gray-500 uppercase">Qté vendue :</span>
+                <span className="font-black text-blue-700 text-xl">{qteVendueSelection}</span>
+              </div>
+            )}
+          </div>
+          {/* ------------------------------------------- */}
+
+          <h3 className="font-black text-gray-800 uppercase text-xs mb-4">🏆 Top 5 Produits (Qté)</h3>
+          <div className="space-y-2">{topProducts.map((p, idx) => (<div key={idx} className="flex justify-between items-center bg-gray-50 p-2 rounded-lg border border-gray-100"><span className="text-xs font-bold uppercase truncate pr-2"><span className="text-[#800020] mr-1">#{idx+1}</span>{p.nom}</span><span className="font-black text-sm bg-white px-2 py-0.5 rounded shadow-sm">{p.qte}</span></div>))}{topProducts.length === 0 && <p className="text-[10px] text-gray-400 italic text-center">Aucune donnée</p>}</div>
+        </div>
         <div className="flex flex-col gap-4"><div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex-1"><h3 className="font-black text-gray-800 uppercase text-[10px] mb-3">🚚 Top Fournisseurs de la période</h3><div className="space-y-2">{topFournisseurs.map((f, idx) => (<div key={idx} className="flex justify-between text-xs"><span className="font-bold text-gray-600">{f[0]}</span><span className="font-black text-[#800020]">{f[1]} pts</span></div>))}{topFournisseurs.length === 0 && <p className="text-[10px] text-gray-400 italic">Aucune donnée</p>}</div></div><div className="flex gap-4"><div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex-1 text-center flex flex-col justify-center"><p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Valeur Stock</p><p className="text-xl font-black text-gray-800">{formatAr(valeurStock)}</p></div><div className="bg-red-50 p-4 rounded-2xl shadow-sm border border-red-100 flex-1 text-center flex flex-col justify-center"><p className="text-[9px] font-bold text-red-500 uppercase tracking-widest mb-1">Créances Clients</p><p className="text-xl font-black text-red-700">{formatAr(totalDettes)}</p></div></div></div>
       </div>
     </div>
