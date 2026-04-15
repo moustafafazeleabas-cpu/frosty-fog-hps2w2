@@ -1271,7 +1271,7 @@ const load = async () => {
                 </div>
               </div>
             ))}
-            ))}
+           
           </div>
         </div>
         <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
