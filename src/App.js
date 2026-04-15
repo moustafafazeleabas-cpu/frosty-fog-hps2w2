@@ -1188,26 +1188,89 @@ const load = async () => {
           </div>
           <div className="space-y-4">
             {(config.categories_hierarchie_json||[]).map((cat, idx) => (
-              <div key={idx} className="bg-white p-4 rounded-lg border border-blue-200">
-                <div className="flex justify-between mb-3">
-                   <input className="font-black text-sm border-b-2 border-blue-200 outline-none flex-1 focus:border-blue-500 transition" value={cat.parent} onChange={e => { const n = [...config.categories_hierarchie_json]; n[idx].parent = e.target.value; setConfig({...config, categories_hierarchie_json: n}); }} placeholder="Ex: Épicerie" />
-                   <button onClick={() => { const n = [...config.categories_hierarchie_json]; n.splice(idx,1); setConfig({...config, categories_hierarchie_json: n}); }} className="text-red-500 font-black ml-4 bg-red-50 px-2 rounded hover:bg-red-500 hover:text-white transition">X</button>
+              <div key={idx} className="bg-white p-4 rounded-lg border border-blue-200 shadow-sm relative">
+                
+                {/* --- LIGNE MENU PRINCIPAL (Modifiable & Déplaçable) --- */}
+                <div className="flex justify-between items-center mb-4 bg-blue-50 p-2 rounded-lg">
+                   <div className="flex items-center gap-3 flex-1">
+                     <div className="flex flex-col bg-white rounded border border-blue-200 shadow-sm">
+                       <button onClick={() => { if(idx > 0) { const n = [...config.categories_hierarchie_json]; const temp = n[idx]; n[idx] = n[idx-1]; n[idx-1] = temp; setConfig({...config, categories_hierarchie_json: n}); } }} disabled={idx === 0} className="px-2 text-[9px] text-blue-600 hover:bg-blue-100 disabled:opacity-30">▲</button>
+                       <button onClick={() => { if(idx < config.categories_hierarchie_json.length - 1) { const n = [...config.categories_hierarchie_json]; const temp = n[idx]; n[idx] = n[idx+1]; n[idx+1] = temp; setConfig({...config, categories_hierarchie_json: n}); } }} disabled={idx === config.categories_hierarchie_json.length - 1} className="px-2 text-[9px] text-blue-600 hover:bg-blue-100 disabled:opacity-30">▼</button>
+                     </div>
+                     <input className="font-black text-sm bg-transparent border-b-2 border-blue-200 outline-none flex-1 focus:border-blue-500 transition text-blue-900" value={cat.parent} onChange={e => { const n = [...config.categories_hierarchie_json]; n[idx].parent = e.target.value; setConfig({...config, categories_hierarchie_json: n}); }} placeholder="Ex: Épicerie" />
+                   </div>
+                   <button onClick={() => { const n = [...config.categories_hierarchie_json]; n.splice(idx,1); setConfig({...config, categories_hierarchie_json: n}); }} className="text-red-500 font-black ml-4 bg-white border border-red-200 px-3 py-1 rounded-lg hover:bg-red-500 hover:text-white transition shadow-sm text-xs uppercase">Supprimer Menu</button>
                 </div>
+
+                {/* --- LIGNE SOUS-CATÉGORIES (Renommables & Déplaçables) --- */}
                 <div className="pl-4 border-l-2 border-blue-100">
-                   <p className="text-[9px] font-black text-gray-400 uppercase mb-2">Sous-catégories :</p>
+                   <p className="text-[9px] font-black text-gray-400 uppercase mb-2">Sous-catégories (Modifiez le texte ou déplacez) :</p>
                    <div className="flex flex-wrap gap-2 mb-2">
                       {(cat.sous_categories||[]).map((sub, subIdx) => (
-                         <span key={subIdx} className="bg-gray-100 px-3 py-1 rounded-full text-xs font-bold text-gray-700 flex items-center gap-2 border border-gray-200">
-                           {sub} <button onClick={()=>{const n=[...config.categories_hierarchie_json]; n[idx].sous_categories.splice(subIdx,1); setConfig({...config, categories_hierarchie_json: n});}} className="text-red-500 hover:text-red-700">×</button>
-                         </span>
+                         <div key={subIdx} className="bg-gray-100 pl-3 pr-1 py-1 rounded-full text-xs font-bold text-gray-700 flex items-center gap-1 border border-gray-200 focus-within:border-blue-400 focus-within:bg-white transition-all shadow-sm">
+                           
+                           {/* Champ pour renommer */}
+                           <input 
+                             type="text" 
+                             value={sub} 
+                             onChange={(e) => {
+                               const n = [...config.categories_hierarchie_json];
+                               n[idx].sous_categories[subIdx] = e.target.value;
+                               setConfig({...config, categories_hierarchie_json: n});
+                             }}
+                             className="bg-transparent outline-none w-24 focus:w-32 transition-all font-bold text-gray-800"
+                           />
+
+                           {/* Boutons Gauche/Droite */}
+                           <div className="flex items-center bg-white rounded-full px-1 shadow-sm border border-gray-200 ml-1">
+                             <button 
+                               onClick={() => {
+                                 if (subIdx > 0) {
+                                   const n = [...config.categories_hierarchie_json];
+                                   const temp = n[idx].sous_categories[subIdx];
+                                   n[idx].sous_categories[subIdx] = n[idx].sous_categories[subIdx - 1];
+                                   n[idx].sous_categories[subIdx - 1] = temp;
+                                   setConfig({...config, categories_hierarchie_json: n});
+                                 }
+                               }}
+                               disabled={subIdx === 0}
+                               className="px-1 text-gray-400 hover:text-blue-600 disabled:opacity-30"
+                               title="Déplacer à gauche"
+                             >◀</button>
+                             <button 
+                               onClick={() => {
+                                 if (subIdx < cat.sous_categories.length - 1) {
+                                   const n = [...config.categories_hierarchie_json];
+                                   const temp = n[idx].sous_categories[subIdx];
+                                   n[idx].sous_categories[subIdx] = n[idx].sous_categories[subIdx + 1];
+                                   n[idx].sous_categories[subIdx + 1] = temp;
+                                   setConfig({...config, categories_hierarchie_json: n});
+                                 }
+                               }}
+                               disabled={subIdx === cat.sous_categories.length - 1}
+                               className="px-1 text-gray-400 hover:text-blue-600 disabled:opacity-30"
+                               title="Déplacer à droite"
+                             >▶</button>
+                           </div>
+
+                           {/* Bouton Supprimer */}
+                           <button 
+                             onClick={()=>{const n=[...config.categories_hierarchie_json]; n[idx].sous_categories.splice(subIdx,1); setConfig({...config, categories_hierarchie_json: n});}} 
+                             className="ml-1 text-gray-400 hover:text-white hover:bg-red-500 rounded-full w-5 h-5 flex items-center justify-center transition font-black"
+                             title="Supprimer"
+                           >×</button>
+                         </div>
                       ))}
                    </div>
+
+                   {/* --- AJOUT NOUVELLE SOUS-CATÉGORIE --- */}
                    <div className="flex gap-2 items-center mt-3">
                       <input type="text" placeholder="Ajouter une sous-catégorie..." className="text-xs p-2 border border-gray-300 rounded outline-none focus:border-blue-500" onKeyDown={(e) => { if(e.key === 'Enter' && e.target.value.trim()) { e.preventDefault(); const n=[...config.categories_hierarchie_json]; if(!n[idx].sous_categories) n[idx].sous_categories = []; n[idx].sous_categories.push(e.target.value.trim()); setConfig({...config, categories_hierarchie_json: n}); e.target.value=''; } }} />
                       <span className="text-[9px] text-gray-400 font-bold bg-gray-100 px-2 py-1 rounded">Appuyez sur "Entrée" pour valider ↵</span>
                    </div>
                 </div>
               </div>
+            ))}
             ))}
           </div>
         </div>
