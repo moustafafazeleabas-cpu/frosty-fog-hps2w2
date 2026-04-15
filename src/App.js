@@ -1153,6 +1153,40 @@ const load = async () => {
             </div>
           )}
         </div>
+{/* --- NOUVEAU BLOC TEXTES LÉGAUX & LIVRAISON --- */}
+        <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200">
+          <div className="mb-6 bg-blue-50 p-4 rounded-xl border border-blue-100">
+            <p className="text-xs font-black text-blue-900 uppercase mb-2">💡 Comment formater le texte ?</p>
+            <ul className="text-[10px] text-blue-800 space-y-1 font-medium">
+              <li>Ligne commençant par <strong># </strong> = <span className="font-black text-[#800020] text-xs">Grand Titre Bordeaux</span></li>
+              <li>Ligne commençant par <strong>## </strong> = <span className="font-black text-gray-800 text-xs">Sous-titre Noir</span></li>
+              <li>Ligne commençant par <strong>- </strong> = Liste à puces</li>
+              <li>Saut de ligne normal = Nouveau paragraphe</li>
+            </ul>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+               <h3 className="font-black text-[#800020] uppercase text-sm mb-2">🚚 Texte page Livraison</h3>
+               <textarea 
+                 className="w-full p-4 bg-white border border-gray-300 rounded-xl outline-none text-xs min-h-[300px] font-medium leading-relaxed" 
+                 value={config.texte_livraison || ""} 
+                 onChange={e => setConfig({...config, texte_livraison: e.target.value})} 
+                 placeholder="# Zones de livraison&#10;&#10;Nous livrons dans Tana.&#10;&#10;## Tarifs&#10;- Centre-ville : 3000 Ar&#10;- Périphérie : 5000 Ar"
+               />
+            </div>
+            <div>
+               <h3 className="font-black text-[#800020] uppercase text-sm mb-2">📜 Texte page Conditions</h3>
+               <textarea 
+                 className="w-full p-4 bg-white border border-gray-300 rounded-xl outline-none text-xs min-h-[300px] font-medium leading-relaxed" 
+                 value={config.texte_conditions || ""} 
+                 onChange={e => setConfig({...config, texte_conditions: e.target.value})} 
+                 placeholder="# Conditions de vente&#10;&#10;Toute commande est ferme.&#10;&#10;## Retours&#10;Les produits frais ne sont ni repris ni échangés."
+               />
+            </div>
+          </div>
+        </div>
+        {/* ---------------------------------------------- */}
         {/* --------------------------------- */}
 
         <div className="bg-red-50 p-4 rounded-xl border border-red-100">
