@@ -305,18 +305,38 @@ const ModuleVente = ({ mode, params, categoriesDb }) => {
     const frais_liv_val = isLivraison ? fraisLivraison : 0;
     const detailsObj = { heure: formatDateTime(today), remise_globale_pourcent: safeNum(remiseGlobale), frais_livraison: frais_liv_val, paiement_infos: methodePaiement === 'CHEQUE' ? { banque: banqueCheque, numero: numeroCheque } : null, articles: panier.map(i => ({ nom: i.nom, categorie: i.categorie, qte: safeNum(i.qte), prix_unitaire: safeNum(i.prix_vente), remise_unitaire_ar: safeNum(i.remise_montant), total_ligne: (safeNum(i.prix_vente) - safeNum(i.remise_montant)) * safeNum(i.qte) })) };
     const strArticles = panier.map(i => `${safeNum(i.qte)}x ${i.nom}`).join(', ');
-    if (mode === 'devis') { await supabase.from('devis').insert([{ numero_devis: numero_genere, client_nom: selectedClient, articles_liste: strArticles, montant_total: totalNet, total_remise_ar: totalRemisesEnAr, details_json: detailsObj }]); } else { for (let item of panier) {
-        // 1. Déduction normale du produit vendu
-        await supabase.rpc('decrement_stock', { row_id: item.id, amount: safeNum(item.qte) });
-        
-        // 2. Si c'est un pack, on déduit AUSSI les unités du produit source
-        if (item.est_pack && item.pack_produit_nom && safeNum(item.pack_qte) > 0) {
-            await supabase.rpc('decrement_stock_by_name', { 
-                p_nom: item.pack_produit_nom, 
-                amount: safeNum(item.qte) * safeNum(item.pack_qte) 
-            });
+   if (mode === 'devis') { 
+      await supabase.from('devis').insert([{ numero_devis: numero_genere, client_nom: selectedClient, articles_liste: strArticles, montant_total: totalNet, total_remise_ar: totalRemisesEnAr, details_json: detailsObj }]); 
+    } else { 
+      // --- NOUVEAU SYSTÈME SÉCURISÉ DE DÉDUCTION DE STOCK ---
+      for (let item of panier) {
+        // 1. Déduction normale de l'article
+        const { data: currentItem } = await supabase.from('produits').select('stock_actuel').eq('id', item.id).single();
+        if (currentItem) {
+          const nouveauStock = Math.max(0, safeNum(currentItem.stock_actuel) - safeNum(item.qte));
+          await supabase.from('produits').update({ stock_actuel: nouveauStock }).eq('id', item.id);
         }
-      } const pMethode = mode === 'caisse' ? methodePaiement : 'CASH'; const dbTypeVente = mode === 'caisse' ? 'CAISSE' : mode.replace('admin_', '').toUpperCase(); await supabase.from('historique_ventes').insert([{ numero_facture: numero_genere, type_vente: dbTypeVente, client_nom: selectedClient, articles_liste: strArticles, montant_total: totalNet, benefice_total: beneficeNet, remise_globale_pourcent: safeNum(remiseGlobale), total_remise_ar: totalRemisesEnAr, details_json: detailsObj, methode_paiement: pMethode }]); if (mode === 'admin_credit') { await supabase.from('credits').insert([{ nom_client: selectedClient, montant_du: totalNet, details_articles: strArticles, date_echeance: echeance, numero_facture: numero_genere, details_json: detailsObj, statut: 'non_paye' }]); } }
+        
+        // 2. Gestion des packs
+        if (item.est_pack && item.pack_produit_nom && safeNum(item.pack_qte) > 0) {
+           const quantiteTotaleADeduire = safeNum(item.qte) * safeNum(item.pack_qte);
+           const { data: sourceItem } = await supabase.from('produits').select('id, stock_actuel').eq('nom', item.pack_produit_nom).single();
+           if (sourceItem) {
+             const nouveauStockSource = Math.max(0, safeNum(sourceItem.stock_actuel) - quantiteTotaleADeduire);
+             await supabase.from('produits').update({ stock_actuel: nouveauStockSource }).eq('id', sourceItem.id);
+           }
+        }
+      }
+      // ------------------------------------------------------
+      
+      const pMethode = mode === 'caisse' ? methodePaiement : 'CASH'; 
+      const dbTypeVente = mode === 'caisse' ? 'CAISSE' : mode.replace('admin_', '').toUpperCase(); 
+      await supabase.from('historique_ventes').insert([{ numero_facture: numero_genere, type_vente: dbTypeVente, client_nom: selectedClient, articles_liste: strArticles, montant_total: totalNet, benefice_total: beneficeNet, remise_globale_pourcent: safeNum(remiseGlobale), total_remise_ar: totalRemisesEnAr, details_json: detailsObj, methode_paiement: pMethode }]); 
+      
+      if (mode === 'admin_credit') { 
+        await supabase.from('credits').insert([{ nom_client: selectedClient, montant_du: totalNet, details_articles: strArticles, date_echeance: echeance, numero_facture: numero_genere, details_json: detailsObj, statut: 'non_paye' }]); 
+      } 
+    }
     const cData = clients.find(c => c.nom === selectedClient) || { nom: selectedClient, nif: '', stat: '' };
     setVenteReussie({ numero: numero_genere, panier, totalNet, totalRemisesEnAr, fraisLivraison: frais_liv_val, methode: mode === 'caisse' ? methodePaiement : null, banque: banqueCheque, client_nom: cData.nom, client_tel: cData.telephone, client_nif: cData.nif, client_stat: cData.stat, date: today, echeance, printSize });
   };
