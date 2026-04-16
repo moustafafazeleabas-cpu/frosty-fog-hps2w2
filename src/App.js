@@ -835,10 +835,85 @@ const ModuleJournalFactures = ({ params }) => {
 
 const AdminParametres = ({ params, setParams }) => {
   const [form, setForm] = useState(params);
+  const [isRecalculating, setIsRecalculating] = useState(false);
+
   const save = async (e) => { e.preventDefault(); const { data } = await supabase.from('parametres').update(form).eq('id', 1).select(); if (data) { setParams(data[0]); alert("Mise à jour OK !"); } };
+
+  // --- NOUVEAU : LE BOUTON D'URGENCE POUR RECALCULER LES STOCKS ---
+  const recalculerStocksComplet = async () => {
+    const confirm1 = window.confirm("⚠️ DANGER : Cette action va effacer les stocks actuels et les recalculer intégralement en faisant (Toutes les entrées) - (Toutes les ventes).");
+    if (!confirm1) return;
+    const confirm2 = window.confirm("Êtes-vous VRAIMENT sûr ? Si vous avez modifié des stocks 'à la main' sans passer par la case 'Réappro', ces modifications manuelles seront perdues.");
+    if (!confirm2) return;
+
+    setIsRecalculating(true);
+    try {
+      // 1. Récupération des données
+      const { data: prods } = await supabase.from('produits').select('*');
+      const { data: histStock } = await supabase.from('historique_stock').select('*');
+      const { data: histVentes } = await supabase.from('historique_ventes').select('details_json');
+
+      // 2. Préparation du dictionnaire de calcul
+      const prodMap = {};
+      prods.forEach(p => { prodMap[p.nom] = { id: p.id, stock_calcule: 0 }; });
+
+      // 3. Additionner toutes les entrées (Historique Réappro/Ajout)
+      histStock.forEach(h => {
+        if (prodMap[h.produit_nom]) {
+          prodMap[h.produit_nom].stock_calcule += Number(h.quantite || 0);
+        }
+      });
+
+      // 4. Soustraire toutes les sorties (Ventes réelles)
+      histVentes.forEach(v => {
+        if (v.details_json && v.details_json.articles) {
+          v.details_json.articles.forEach(art => {
+             // Déduction de l'article principal
+             if (prodMap[art.nom]) {
+               prodMap[art.nom].stock_calcule -= Number(art.qte || 0);
+             }
+             // Déduction de la matière première si c'était un pack
+             const pDef = prods.find(p => p.nom === art.nom);
+             if (pDef && pDef.est_pack && pDef.pack_produit_nom) {
+               if (prodMap[pDef.pack_produit_nom]) {
+                 prodMap[pDef.pack_produit_nom].stock_calcule -= (Number(art.qte || 0) * Number(pDef.pack_qte || 0));
+               }
+             }
+          });
+        }
+      });
+
+      // 5. Envoi des nouveaux stocks parfaits à la base de données
+      for (let p of prods) {
+        const vraiStock = Math.max(0, prodMap[p.nom].stock_calcule);
+        await supabase.from('produits').update({ stock_actuel: vraiStock }).eq('id', p.id);
+      }
+
+      alert("✅ SUCCÈS : Tous les stocks ont été recalculés et réparés ! Vous pouvez aller vérifier dans l'onglet Stock.");
+    } catch (err) {
+      alert("❌ Erreur pendant le recalcul : " + err.message);
+    }
+    setIsRecalculating(false);
+  };
+  // ----------------------------------------------------------------
+
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Paramètres Ticket & ERP</h2>
+      
+      {/* NOUVEAU BLOC : ZONE DE DANGER */}
+      <div className="bg-red-50 border-2 border-red-200 p-6 rounded-3xl shadow-sm">
+        <h3 className="font-black text-red-600 uppercase mb-2 flex items-center gap-2">⚠️ Zone de Danger : Recalcul des stocks</h3>
+        <p className="text-xs text-red-800 mb-4 font-bold">Si vos stocks sont faussés suite à un bug de vente, ce bouton va recompter absolument tout depuis la création du logiciel (Achats - Ventes).</p>
+        <button 
+          onClick={recalculerStocksComplet} 
+          disabled={isRecalculating}
+          className="w-full bg-red-600 hover:bg-red-700 text-white p-3 rounded-xl font-black uppercase text-sm shadow-md transition disabled:opacity-50"
+        >
+          {isRecalculating ? "🔄 Recalcul intense en cours..." : "🛠️ Lancer le recalcul complet du stock"}
+        </button>
+      </div>
+
       <form onSubmit={save} className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-gray-100 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="text-xs font-bold text-gray-500 uppercase">Nom de l'entreprise</label><input className="w-full p-3 bg-gray-50 border rounded-xl font-black text-lg outline-none" value={form.nom_entreprise||''} onChange={e=>setForm({...form, nom_entreprise: e.target.value})} required /></div><div><label className="text-xs font-bold text-gray-500 uppercase">Contact (Tél)</label><input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.contact||''} onChange={e=>setForm({...form, contact: e.target.value})} /></div></div>
         <div><label className="text-xs font-bold text-gray-500 uppercase">Adresse</label><input className="w-full p-3 bg-gray-50 border rounded-xl outline-none" value={form.adresse||''} onChange={e=>setForm({...form, adresse: e.target.value})} required /></div>
