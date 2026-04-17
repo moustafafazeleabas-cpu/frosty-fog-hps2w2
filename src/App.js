@@ -55,9 +55,9 @@ const lancerImpression = (type, data, params) => {
         <hr style="border-top:1px dashed #000;"/>
         <div style="width:100%;">
           ${panierList.length > 0 ? panierList.map(i => {
-            const { prixU, remiseU, qte, totalLigne } = getLineData(i);
-            return `<div class="item-block"><div class="item-line1">${qte}x ${i.nom}</div><div class="item-line2"><span>${formatAr(prixU - remiseU)} Ar/u</span><span style="font-weight:bold;">${formatAr(totalLigne)} Ar</span></div><div class="item-line3">[${i.categorie || 'Divers'}]</div></div>`;
-          }).join('') : `<p style="font-size:10px; text-align:left;">Ancien format : ${data.articles_liste || data.details_articles || 'Détails non disponibles'}</p>`}
+            const { prixU, remiseU, qte, totalLigne } = getLineData(i);
+            return `<div class="item-block"><div class="item-line1">${qte}x ${i.nom}</div><div class="item-line2"><span>${formatAr(prixU - remiseU)} Ar/u</span><span style="font-weight:bold;">${formatAr(totalLigne)} Ar</span></div>${i.categorie ? `<div class="item-line3">[${i.categorie}]</div>` : ''}</div>`;
+          }).join('') : `<p style="font-size:10px; text-align:left;">Ancien format : ${data.articles_liste || data.details_articles || 'Détails non disponibles'}</p>`}
         </div>
         <hr style="border-top:1px dashed #000;"/>
         <div style="text-align:right; font-size:12px; margin:3px 0;">Total Articles: ${formatAr(data.totalNet)} Ar</div>
@@ -69,8 +69,16 @@ const lancerImpression = (type, data, params) => {
       </body></html>
     `);
   } else {
-    let titre = 'FACTURE'; if (type === 'devis') titre = 'PROFORMA / DEVIS'; if (type === 'admin_credit') titre = 'FACTURE À CRÉDIT';
-    win.document.write(`
+} else {
+    let titre = 'FACTURE'; 
+    if (type === 'devis') titre = 'PROFORMA / DEVIS'; 
+    if (type === 'admin_credit') titre = 'FACTURE À CRÉDIT';
+    
+    const hasAcompte = data.panier && Array.isArray(data.panier) && data.panier.some(a => a.sur_commande === true);
+    const acompteValeur = hasAcompte ? Math.round(safeNum(data.totalNet) * 0.6) : 0;
+    if (hasAcompte && type !== 'devis') titre = 'FACTURE PROVISOIRE (ACOMPTE)';
+
+    win.document.write(`
       <html><head><title>${data.numero || titre}</title>
         <style>@media print { @page { margin: 0; size: auto; } body { margin: 1cm; } .no-print { display: none !important; } } body { font-family: Arial, sans-serif; font-size: 13px; color: #333; } table { width: 100%; border-collapse: collapse; margin-top: 15px; } th, td { padding: 8px; border-bottom: 1px solid #eee; text-align: left; } th { background-color: #800020; color: white; } .header-flex { display: flex; justify-content: space-between; border-bottom: 2px solid #800020; padding-bottom: 15px; margin-bottom: 15px; } .client-box { background-color: #f9f9f9; border-left: 4px solid #800020; padding: 15px; width: 50%; margin-bottom: 20px; } .total-line { font-size: 20px; font-weight: bold; color: #800020; text-align: right; margin-top: 10px; }</style>
       </head><body>
@@ -81,11 +89,26 @@ const lancerImpression = (type, data, params) => {
         <div class="client-box"><strong>Client :</strong> ${data.client_nom}<br/><strong>NIF :</strong> ${data.client_nif || '-'}<br/><strong>STAT :</strong> ${data.client_stat || '-'}<br/>${data.client_tel ? `<strong>Contact :</strong> ${data.client_tel}<br/>` : ''}${type === 'admin_credit' && data.echeance ? `<br/><strong style="color:red;">Échéance : ${formatDate(data.echeance)}</strong>` : ''}</div>
         <table><thead><tr><th>Désignation</th><th>Qté</th><th>Prix U.</th><th style="text-align:right;">Total</th></tr></thead><tbody>
             ${panierList.length > 0 ? panierList.map(i => {
-              const { prixU, remiseU, qte, totalLigne } = getLineData(i);
-              return `<tr><td>${i.nom} <span style="font-size:10px; color:#666;">(${i.categorie || 'Divers'})</span></td><td>${qte}</td><td>${formatAr(prixU - remiseU)}</td><td style="text-align:right;">${formatAr(totalLigne)} Ar</td></tr>`;
-            }).join('') : `<tr><td colspan="4">${data.articles_liste || data.details_articles || 'Détails non disponibles'}</td></tr>`}
+             ${panierList.length > 0 ? panierList.map(i => {
+              const { prixU, remiseU, qte, totalLigne } = getLineData(i);
+              return `<tr><td>${i.nom} ${i.categorie ? `<span style="font-size:10px; color:#666;">(${i.categorie})</span>` : ''}</td><td>${qte}</td><td>${formatAr(prixU - remiseU)}</td><td style="text-align:right;">${formatAr(totalLigne)} Ar</td></tr>`;
+            }).join('') : `<tr><td colspan="4">${data.articles_liste || data.details_articles || 'Détails non disponibles'}</td></tr>`}
         </tbody></table>
-        <div style="margin-top:20px; text-align:right;"><div style="font-size:16px; font-weight:bold; color:#555;">TOTAL ARTICLES : ${formatAr(data.totalNet)} Ar</div>${fraisLivraison > 0 ? `<div style="font-size:16px; font-weight:bold; color:#555; margin-top:5px;">FRAIS LIVRAISON : ${formatAr(fraisLivraison)} Ar</div>` : ''}<div class="total-line">NET À PAYER : ${formatAr(safeNum(data.totalNet) + fraisLivraison)} Ar</div>${data.totalRemisesEnAr > 0 ? `<p style="font-size:11px; color:green; margin:5px 0;">(Remise globale appliquée : ${formatAr(data.totalRemisesEnAr)} Ar)</p>` : ''}</div>
+       <div style="margin-top:20px; text-align:right;">
+          <div style="font-size:16px; font-weight:bold; color:#555;">TOTAL ARTICLES : ${formatAr(data.totalNet)} Ar</div>
+          ${fraisLivraison > 0 ? `<div style="font-size:16px; font-weight:bold; color:#555; margin-top:5px;">FRAIS LIVRAISON : ${formatAr(fraisLivraison)} Ar</div>` : ''}
+          
+          ${hasAcompte ? `
+            <div style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc; display: inline-block; text-align: right;">
+              <div style="font-size:18px; font-weight:bold; color:#d97706;">ACOMPTE REQUIS (60%) : ${formatAr(acompteValeur)} Ar</div>
+              <div style="font-size:14px; font-weight:bold; color:#555; margin-top:5px;">RESTE À LA LIVRAISON : ${formatAr((safeNum(data.totalNet) - acompteValeur) + fraisLivraison)} Ar</div>
+            </div>
+          ` : `
+            <div class="total-line">NET À PAYER : ${formatAr(safeNum(data.totalNet) + fraisLivraison)} Ar</div>
+          `}
+          
+          ${data.totalRemisesEnAr > 0 ? `<p style="font-size:11px; color:green; margin:5px 0;">(Remise globale appliquée : ${formatAr(data.totalRemisesEnAr)} Ar)</p>` : ''}
+        </div>
         ${type === 'devis' ? '<p style="text-align:center; margin-top:40px; font-size:11px; font-style:italic; color:#888;">Ce document est un devis estimatif et ne constitue pas une facture. Valable 30 jours.</p>' : ''}
       </body></html>
     `);
@@ -1099,10 +1122,13 @@ for (let art of articles) {
     const modePaiement = cmd.articles_json.methode_paiement || 'LIVRAISON';
     const fraisLivraison = Number(cmd.frais_livraison || 0);
 
-    await supabase.from('historique_ventes').insert([{
-      numero_facture: `WEB-${cmd.id.toString().slice(0,5)}`,
-      type_vente: 'SITE_WEB',
-      client_nom: cmd.client_nom,
+   const { count } = await supabase.from('historique_ventes').select('*', { count: 'exact', head: true }).eq('type_vente', 'SITE_WEB');
+    const numeroWebSeq = `WEB-HP${String((count || 0) + 1).padStart(6, '0')}`;
+
+    await supabase.from('historique_ventes').insert([{
+      numero_facture: numeroWebSeq,
+      type_vente: 'SITE_WEB',
+      client_nom: cmd.client_nom,
       articles_liste: articles.map(a => `${a.qte}x ${a.nom}`).join(', '),
       montant_total: Number(cmd.montant_total),
       details_json: { ...cmd.articles_json, frais_livraison: fraisLivraison },
