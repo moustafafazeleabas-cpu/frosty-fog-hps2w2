@@ -1195,6 +1195,7 @@ const ModuleCommandesWeb = () => {
     const fraisLivraison = Number(cmd.frais_livraison || 0);
 
     // --- NOUVEAU : Numérotation WEB séquentielle (Ex: WEB-HP000001) ---
+   // Numérotation WEB séquentielle
     const { count } = await supabase.from('historique_ventes').select('*', { count: 'exact', head: true }).eq('type_vente', 'SITE_WEB');
     const numeroWebSeq = `WEB-HP${String((count || 0) + 1).padStart(6, '0')}`;
 
