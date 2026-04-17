@@ -82,15 +82,47 @@ const lancerImpression = (type, data, params) => {
         <p style="color:#fff;">.</p>
       </body></html>
     `);
-  } else {
+ } else {
     let titre = 'FACTURE'; 
     if (type === 'devis') titre = 'PROFORMA / DEVIS'; 
     if (type === 'admin_credit') titre = 'FACTURE À CRÉDIT';
     
-    // Détection de l'acompte
+    // Détection de l'acompte et des étapes de pré-commande
     const hasAcompte = data.panier && Array.isArray(data.panier) && data.panier.some(a => a.sur_commande === true);
     const acompteValeur = hasAcompte ? Math.round(safeNum(data.totalNet) * 0.6) : 0;
-    if (hasAcompte && type !== 'devis') titre = 'FACTURE PROVISOIRE (ACOMPTE)';
+    const resteValeur = hasAcompte ? (safeNum(data.totalNet) - acompteValeur) + fraisLivraison : 0;
+    let blocPaiement = '';
+
+    if (hasAcompte) {
+      if (type === 'commande_web') {
+        if (data.statut === 'Acompte Payé') {
+          titre = 'FACTURE PROVISOIRE (ACOMPTE)';
+          blocPaiement = `
+            <div style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc; display: inline-block; text-align: right;">
+              <div style="font-size:16px; font-weight:bold; color:green;">ACOMPTE REÇU (60%) : ${formatAr(acompteValeur)} Ar</div>
+              <div style="font-size:11px; color:#555; margin-bottom: 5px;">Payé le : ${formatDate(data.date_acompte)} via ${data.methode_acompte}</div>
+              <div style="font-size:14px; font-weight:bold; color:#d97706;">SOLDE À PAYER À LA LIVRAISON : ${formatAr(resteValeur)} Ar</div>
+            </div>`;
+        } else {
+          titre = 'PROFORMA (PRÉ-COMMANDE)';
+          blocPaiement = `
+            <div style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc; display: inline-block; text-align: right;">
+              <div style="font-size:16px; font-weight:bold; color:#d97706;">ACOMPTE REQUIS (60%) : ${formatAr(acompteValeur)} Ar</div>
+              <div style="font-size:12px; font-weight:bold; color:#555; margin-top:5px;">RESTE À LA LIVRAISON : ${formatAr(resteValeur)} Ar</div>
+            </div>`;
+        }
+      } else if (type === 'facture_a4' && data.type_original === 'SITE_WEB') {
+        titre = 'FACTURE DÉFINITIVE';
+        blocPaiement = `
+            <div style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc; display: inline-block; text-align: right;">
+              <div style="font-size:12px; color:#555;">Acompte déjà réglé (60%) : - ${formatAr(acompteValeur)} Ar</div>
+              <div style="font-size:16px; font-weight:bold; color:green; margin-top:5px;">SOLDE RÉGLÉ À LA LIVRAISON : ${formatAr(resteValeur)} Ar</div>
+              <div style="font-size:14px; font-weight:900; color:#800020; margin-top:5px;">FACTURE SOLDÉE</div>
+            </div>`;
+      }
+    } else {
+      blocPaiement = `<div class="total-line">NET À PAYER : ${formatAr(safeNum(data.totalNet) + fraisLivraison)} Ar</div>`;
+    }
 
     win.document.write(`
       <html><head><title>${data.numero || titre}</title>
@@ -110,16 +142,7 @@ const lancerImpression = (type, data, params) => {
         <div style="margin-top:20px; text-align:right;">
           <div style="font-size:16px; font-weight:bold; color:#555;">TOTAL ARTICLES : ${formatAr(data.totalNet)} Ar</div>
           ${fraisLivraison > 0 ? `<div style="font-size:16px; font-weight:bold; color:#555; margin-top:5px;">FRAIS LIVRAISON : ${formatAr(fraisLivraison)} Ar</div>` : ''}
-          
-          ${hasAcompte ? `
-            <div style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc; display: inline-block; text-align: right;">
-              <div style="font-size:18px; font-weight:bold; color:#d97706;">ACOMPTE REQUIS (60%) : ${formatAr(acompteValeur)} Ar</div>
-              <div style="font-size:14px; font-weight:bold; color:#555; margin-top:5px;">RESTE À LA LIVRAISON : ${formatAr((safeNum(data.totalNet) - acompteValeur) + fraisLivraison)} Ar</div>
-            </div>
-          ` : `
-            <div class="total-line">NET À PAYER : ${formatAr(safeNum(data.totalNet) + fraisLivraison)} Ar</div>
-          `}
-          
+          ${blocPaiement}
           ${data.totalRemisesEnAr > 0 ? `<p style="font-size:11px; color:green; margin:5px 0;">(Remise globale appliquée : ${formatAr(data.totalRemisesEnAr)} Ar)</p>` : ''}
         </div>
         ${type === 'devis' ? '<p style="text-align:center; margin-top:40px; font-size:11px; font-style:italic; color:#888;">Ce document est un devis estimatif et ne constitue pas une facture. Valable 30 jours.</p>' : ''}
@@ -820,7 +843,7 @@ const ModuleHistorique = ({ params }) => {
   useEffect(() => { load(); }, [dateFiltre]);
 
   const reImprimer = (v) => { const type = v.type_vente === 'CAISSE' ? 'caisse' : (v.type_vente === 'FACTURE' ? 'facture_a4' : 'admin_credit'); const dataPrint = { numero: v.numero_facture, methode: v.methode_paiement, banque: v.details_json?.paiement_infos?.banque, client_nom: v.client_nom, date: v.date_vente, totalNet: v.montant_total, totalRemisesEnAr: v.total_remise_ar, panier: v.details_json?.articles || [], fraisLivraison: safeNum(v.details_json?.frais_livraison), printSize: '58mm' }; lancerImpression(type, dataPrint, params); };
-  const imprimerPDF = (v) => { const dataPrint = { numero: v.numero_facture, methode: v.methode_paiement, banque: v.details_json?.paiement_infos?.banque, client_nom: v.client_nom, date: v.date_vente, totalNet: v.montant_total, totalRemisesEnAr: v.total_remise_ar, panier: v.details_json?.articles || [], fraisLivraison: safeNum(v.details_json?.frais_livraison), printSize: 'A4' }; lancerImpression('facture_a4', dataPrint, params); };
+ const imprimerPDF = (v) => { const dataPrint = { numero: v.numero_facture, methode: v.methode_paiement, banque: v.details_json?.paiement_infos?.banque, client_nom: v.client_nom, date: v.date_vente, totalNet: v.montant_total, totalRemisesEnAr: v.total_remise_ar, panier: v.details_json?.articles || [], fraisLivraison: safeNum(v.details_json?.frais_livraison), printSize: 'A4', type_original: v.type_vente }; lancerImpression('facture_a4', dataPrint, params); };
 
   const executerAnnulation = async (e) => { e.preventDefault(); if(isCancelling) return; setIsCancelling(true); const { data: admins } = await supabase.from('utilisateurs').select('*').eq('role', 'superadmin').eq('mot_de_passe', cancelPwd); if (!admins || admins.length === 0) { alert("⚠️ Code Superadmin incorrect !"); setIsCancelling(false); return; } if (cancelModal.details_json && cancelModal.details_json.articles) { for (let art of cancelModal.details_json.articles) { const { data: pData } = await supabase.from('produits').select('stock_actuel').eq('nom', art.nom).single(); if (pData) { await supabase.from('produits').update({ stock_actuel: safeNum(pData.stock_actuel) + safeNum(art.qte) }).eq('nom', art.nom); } } } await supabase.from('historique_ventes').delete().eq('id', cancelModal.id); alert("✅ Vente annulée avec succès. Le stock a été restauré."); setCancelModal(null); setCancelPwd(""); setIsCancelling(false); load(); };
 
@@ -1138,6 +1161,10 @@ const ModuleCommandesWeb = () => {
     const { count } = await supabase.from('historique_ventes').select('*', { count: 'exact', head: true }).eq('type_vente', 'SITE_WEB');
     const numeroWebSeq = `WEB-HP${String((count || 0) + 1).padStart(6, '0')}`;
 
+    // Numérotation WEB séquentielle
+    const { count } = await supabase.from('historique_ventes').select('*', { count: 'exact', head: true }).eq('type_vente', 'SITE_WEB');
+    const numeroWebSeq = `WEB-HP${String((count || 0) + 1).padStart(6, '0')}`;
+
     await supabase.from('historique_ventes').insert([{
       numero_facture: numeroWebSeq,
       type_vente: 'SITE_WEB',
@@ -1163,6 +1190,33 @@ const ModuleCommandesWeb = () => {
     const msg = encodeURIComponent(`Bonjour ${cmd.client_nom}, c'est Hakimi Plus. Votre commande a été annulée car `);
     window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
     load();
+  };
+
+  // --- NOUVELLE FONCTION : Gérer l'acompte ---
+  const validerAcompte = async (cmd) => {
+    const methode = window.prompt("Méthode de paiement de l'acompte ? (ex: CASH, MVOLA, ORANGE)");
+    if (!methode) return;
+    const newJson = { ...cmd.articles_json, acompte_paye_le: new Date().toISOString(), methode_acompte: methode.toUpperCase() };
+    await supabase.from('commandes_web').update({ statut: 'Acompte Payé', articles_json: newJson }).eq('id', cmd.id);
+    load();
+    alert("✅ Acompte validé et enregistré !");
+  };
+
+  // --- NOUVELLE FONCTION : Imprimer depuis le Web ---
+  const imprimerCommandeWeb = (cmd) => {
+    const dataPrint = {
+      numero: cmd.numero_commande,
+      client_nom: cmd.client_nom,
+      date: cmd.date_commande,
+      totalNet: cmd.montant_total,
+      panier: cmd.articles_json?.articles || [],
+      fraisLivraison: Number(cmd.frais_livraison),
+      statut: cmd.statut,
+      date_acompte: cmd.articles_json?.acompte_paye_le,
+      methode_acompte: cmd.articles_json?.methode_acompte,
+      printSize: 'A4'
+    };
+    lancerImpression('commande_web', dataPrint, params);
   };
 
   const telechargerAdresse = (cmd) => {
@@ -1230,16 +1284,25 @@ const changerStatut = async (id, nouveauStatut) => {
                   </div>
                   {/* --- PANNEAU DE CONTRÔLE DES STATUTS --- */}
                   <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-200 w-full">
-                    <p className="text-[10px] font-black uppercase text-gray-500 mb-3">Statut actuel : <span className="text-[#800020]">{cmd.statut}</span></p>
+                    <div className="flex justify-between items-center mb-3">
+                      <p className="text-[10px] font-black uppercase text-gray-500">Statut actuel : <span className="text-[#800020]">{cmd.statut}</span></p>
+                      <button onClick={() => imprimerCommandeWeb(cmd)} className="text-[10px] font-black bg-blue-100 text-blue-800 px-3 py-1.5 rounded shadow-sm hover:bg-blue-200 transition">🖨️ Imprimer Reçu</button>
+                    </div>
                     
                     <div className="flex flex-wrap items-center gap-2">
                       <button onClick={() => annulerCommandeWeb(cmd)} disabled={cmd.statut === 'Annulée' || cmd.statut === 'Livrée'} className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded-lg text-[10px] font-black uppercase transition shadow-sm disabled:opacity-50">
                         ❌ Annuler
                       </button>
                       
-                      <button onClick={() => changerStatut(cmd.id, "En cours de préparation")} disabled={cmd.statut === 'Annulée' || cmd.statut === 'Livrée'} className="bg-yellow-100 hover:bg-yellow-200 text-yellow-700 px-3 py-2 rounded-lg text-[10px] font-black uppercase transition shadow-sm disabled:opacity-50">
-                        📦 Préparation
-                      </button>
+                      {cmd.articles_json?.articles?.some(a => a.sur_commande) ? (
+                        <button onClick={() => validerAcompte(cmd)} disabled={cmd.statut === 'Annulée' || cmd.statut === 'Livrée' || cmd.statut === 'Acompte Payé'} className="bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-2 rounded-lg text-[10px] font-black uppercase transition shadow-sm disabled:opacity-50">
+                          💰 Valider Acompte
+                        </button>
+                      ) : (
+                        <button onClick={() => changerStatut(cmd.id, "En cours de préparation")} disabled={cmd.statut === 'Annulée' || cmd.statut === 'Livrée'} className="bg-yellow-100 hover:bg-yellow-200 text-yellow-700 px-3 py-2 rounded-lg text-[10px] font-black uppercase transition shadow-sm disabled:opacity-50">
+                          📦 Préparation
+                        </button>
+                      )}
                       
                       <div className="flex items-center gap-2 bg-blue-100 p-1.5 rounded-lg border border-blue-200 shadow-sm">
                         <input 
