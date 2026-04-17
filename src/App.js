@@ -1314,19 +1314,17 @@ const changerStatut = async (id, nouveauStatut) => {
                         </button>
                       </div>
 
-                    <button onClick={() => validerCommandeWeb(cmd)} disabled={cmd.statut === 'Annulée' || cmd.statut === 'Livrée'} className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-[10px] font-black uppercase transition shadow-sm disabled:opacity-50">
+              <button onClick={() => validerCommandeWeb(cmd)} disabled={cmd.statut === 'Annulée' || cmd.statut === 'Livrée'} className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-[10px] font-black uppercase transition shadow-sm disabled:opacity-50">
                     ✅ Livrée
                   </button>
                 </div>
               </div>
               {/* --------------------------------------- */}
             </div>
-          </div>
-        </div>
-      );
-    })}
+          );
+        })}
+      </div>
     </div>
-  </div>
   );
 };
 
