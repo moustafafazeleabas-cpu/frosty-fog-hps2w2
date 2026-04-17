@@ -304,7 +304,7 @@ export default function App() {
       )}
 
       <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto relative">
-        {view==='commandes_web' && <ModuleCommandesWeb />}
+      {view==='commandes_web' && <ModuleCommandesWeb params={parametres} />}
         {view==='gestion_site' && <ModuleGestionSite />}
         {(view==='caisse' || view==='facture_a4' || view==='admin_credit' || view==='devis') && <ModuleVente mode={view} params={parametres} categoriesDb={categoriesDb} />}
         {view==='admin_stock' && <AdminStock categoriesDb={categoriesDb} refreshCategories={loadCategories} />}
@@ -1161,7 +1161,7 @@ const ModuleDepenses = () => {
   );
 };
 
-const ModuleCommandesWeb = () => {
+const ModuleCommandesWeb = ({ params }) => {
   const [datesLivraison, setDatesLivraison] = useState({});
   const [commandes, setCommandes] = useState([]);
   
@@ -1312,14 +1312,14 @@ const changerStatut = async (id, nouveauStatut) => {
                   </div>
                 </div>
                 
-               <div className="text-right flex flex-col items-end">
+              <div className="text-right shrink-0">
                   <p className="text-[10px] text-gray-500 font-bold">Articles : {formatAr(cmd.montant_total)} Ar</p>
                   <p className="text-[10px] text-orange-500 font-bold mb-1">+ Liv. : {formatAr(cmd.frais_livraison)} Ar</p>
                   <p className="text-2xl font-black text-[#800020]">Total : {formatAr(Number(cmd.montant_total) + Number(cmd.frais_livraison))} Ar</p>
                 </div>
               </div>
 
-              {/* --- PANNEAU DE CONTRÔLE DES STATUTS (Déplacé pour la largeur) --- */}
+              {/* --- PANNEAU DE CONTRÔLE DES STATUTS EN PLEINE LARGEUR --- */}
               <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-200 w-full">
                 <div className="flex flex-wrap justify-between items-center mb-3 gap-2">
                   <p className="text-[10px] font-black uppercase text-gray-500">Statut actuel : <span className="text-[#800020]">{cmd.statut}</span></p>
@@ -1361,11 +1361,6 @@ const changerStatut = async (id, nouveauStatut) => {
               </div>
               {/* --------------------------------------- */}
             </div>
-          )
-        })}
-      </div>
-    </div>
-  );
 };
 
 const ModuleGestionSite = () => {
