@@ -16,7 +16,6 @@ const formatDate = (dateStr) => { if (!dateStr) return '-'; const d = new Date(d
 const formatDateTime = (dateStr) => { if (!dateStr) return '-'; const d = new Date(dateStr); return isNaN(d.getTime()) ? '-' : d.toLocaleString('fr-FR'); };
 const formatHeureMessage = (dateStr) => { if (!dateStr) return '-'; const d = new Date(dateStr); return isNaN(d.getTime()) ? '-' : `le ${d.toLocaleDateString('fr-FR')} à ${d.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}`; };
 
-
 const lancerImpression = (type, data, params) => {
   const isTicket = data.printSize === '58mm' || data.printSize === '80mm';
   const win = window.open('', '', isTicket ? 'width=350,height=600' : 'width=800,height=900');
@@ -52,7 +51,7 @@ const lancerImpression = (type, data, params) => {
         <img src="${LOGO_URL}" style="max-width:80%; height:auto; margin-bottom:5px;" onerror="this.style.display='none'"/>
         <h2 style="margin:0;">${params.nom_entreprise || 'HAKIMI PLUS'}</h2>
         <p style="margin:0; font-size:10px;">${params.adresse || ''}<br/>${params.contact || ''}</p>
-        ${params.message_entete ? `<p style="margin:3px 0; font-size:10px;">${String(params.message_entete).replace(/\n/g, '<br/>')}</p>` : ''}
+        ${params.message_entete ? `<p style="margin:3px 0; font-size:10px;">${String(params.message_entete).replace(/\\n/g, '<br/>')}</p>` : ''}
         <p style="margin:5px 0; font-size:10px;">${dateDoc}</p>
         ${titreType ? `<div style="border: 2px solid #000; padding: 4px; margin: 5px 0;"><h3 style="margin:0; font-size:12px; text-transform:uppercase;">${titreType}</h3>${data.client_nom && data.client_nom !== 'Vente à consommateur' ? `<p style="margin:2px 0 0 0; font-size:10px; font-weight:bold;">Client: ${data.client_nom}</p>` : ''}${data.echeance ? `<p style="margin:2px 0 0 0; font-size:10px; color:red;">Échéance : ${formatDate(data.echeance)}</p>` : ''}</div>` : ''}
         ${data.numero ? `<p style="margin:0; font-weight:bold; font-size:11px; border:1px solid #000; padding:2px; display:inline-block;">${data.numero}</p>` : ''}
@@ -78,7 +77,7 @@ const lancerImpression = (type, data, params) => {
         `}
         
         ${data.totalRemisesEnAr > 0 ? `<p style="text-align:right; font-size:10px; margin:0;">(Dont remise : ${formatAr(data.totalRemisesEnAr)} Ar)</p>` : ''}
-        <p style="margin-top:10px; font-size:11px;">${(params.message_ticket ? String(params.message_ticket) : 'Merci de votre visite !').replace(/\n/g, '<br/>')}</p>
+        <p style="margin-top:10px; font-size:11px;">${(params.message_ticket ? String(params.message_ticket) : 'Merci de votre visite !').replace(/\\n/g, '<br/>')}</p>
         <p style="color:#fff;">.</p>
       </body></html>
     `);
@@ -150,6 +149,7 @@ const lancerImpression = (type, data, params) => {
   }
   win.document.close(); setTimeout(() => { win.print(); }, 800);
 };
+
 export default function App() {
   const [user, setUser] = useState(() => { const savedUser = localStorage.getItem('hakimi_user'); return savedUser ? JSON.parse(savedUser) : null; });
   const [view, setView] = useState('dashboard');
@@ -450,7 +450,6 @@ const AdminDashboard = () => {
   let counts = {}; ventes.forEach(v => { if (v.details_json && Array.isArray(v.details_json.articles)) { v.details_json.articles.forEach(art => { counts[art.nom] = (counts[art.nom] || 0) + safeNum(art.qte); }); } });
   const topProducts = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([nom, qte]) => { const pInfo = produits.find(p => p.nom === nom); return { nom, qte, fournisseur: pInfo ? pInfo.fournisseur_nom : 'Inconnu' }; });
   let countFournisseurs = {}; topProducts.forEach(p => { countFournisseurs[p.fournisseur] = (countFournisseurs[p.fournisseur] || 0) + p.qte; }); const topFournisseurs = Object.entries(countFournisseurs).sort((a,b) => b[1] - a[1]).slice(0, 3);
-  // --- NOUVEAU : CALCUL DES VENTES PAR PRODUIT ---
   const [statProdSelect, setStatProdSelect] = useState("");
   const qteVendueSelection = ventes.reduce((total, v) => {
     if (v.details_json && Array.isArray(v.details_json.articles)) {
@@ -459,7 +458,6 @@ const AdminDashboard = () => {
     }
     return total;
   }, 0);
-  // -----------------------------------------------
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
@@ -469,7 +467,6 @@ const AdminDashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col"><h3 className="font-black text-gray-800 uppercase text-xs mb-4">Répartition Paiements</h3><div className="space-y-3 flex-1 justify-center flex flex-col"><div className="flex justify-between items-center"><span className="text-xs font-bold text-gray-500">💵 Cash</span><span className="font-black text-sm">{formatAr(cashP)} Ar</span></div><div className="w-full bg-gray-100 rounded-full h-1.5"><div className="bg-blue-500 h-1.5 rounded-full" style={{width: caPeriode>0 ? `${(cashP/caPeriode)*100}%` : '0%'}}></div></div><div className="flex justify-between items-center mt-1"><span className="text-xs font-bold text-gray-500">🟢 MVola</span><span className="font-black text-sm">{formatAr(mvolaP)} Ar</span></div><div className="w-full bg-gray-100 rounded-full h-1.5"><div className="bg-green-500 h-1.5 rounded-full" style={{width: caPeriode>0 ? `${(mvolaP/caPeriode)*100}%` : '0%'}}></div></div><div className="flex justify-between items-center mt-1"><span className="text-xs font-bold text-gray-500">🟠 Orange</span><span className="font-black text-sm">{formatAr(omP)} Ar</span></div><div className="w-full bg-gray-100 rounded-full h-1.5"><div className="bg-orange-500 h-1.5 rounded-full" style={{width: caPeriode>0 ? `${(omP/caPeriode)*100}%` : '0%'}}></div></div><div className="flex justify-between items-center mt-1"><span className="text-xs font-bold text-gray-500">✍️ Chèques</span><span className="font-black text-sm">{formatAr(chequeP)} Ar</span></div><div className="w-full bg-gray-100 rounded-full h-1.5"><div className="bg-pink-500 h-1.5 rounded-full" style={{width: caPeriode>0 ? `${(chequeP/caPeriode)*100}%` : '0%'}}></div></div></div></div>
        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col">
-          {/* --- NOUVEAU : BLOC RECHERCHE PAR PRODUIT --- */}
           <div className="mb-6 bg-blue-50 p-4 rounded-xl border border-blue-100">
             <h3 className="font-black text-blue-900 uppercase text-[10px] mb-2 tracking-widest">🔍 Ventes par produit</h3>
             <select className="w-full p-2 bg-white border border-blue-200 rounded-lg text-xs font-bold outline-none mb-2 text-gray-700" value={statProdSelect} onChange={e => setStatProdSelect(e.target.value)}>
@@ -483,8 +480,6 @@ const AdminDashboard = () => {
               </div>
             )}
           </div>
-          {/* ------------------------------------------- */}
-
           <h3 className="font-black text-gray-800 uppercase text-xs mb-4">🏆 Top 5 Produits (Qté)</h3>
           <div className="space-y-2">{topProducts.map((p, idx) => (<div key={idx} className="flex justify-between items-center bg-gray-50 p-2 rounded-lg border border-gray-100"><span className="text-xs font-bold uppercase truncate pr-2"><span className="text-[#800020] mr-1">#{idx+1}</span>{p.nom}</span><span className="font-black text-sm bg-white px-2 py-0.5 rounded shadow-sm">{p.qte}</span></div>))}{topProducts.length === 0 && <p className="text-[10px] text-gray-400 italic text-center">Aucune donnée</p>}</div>
         </div>
@@ -493,6 +488,7 @@ const AdminDashboard = () => {
     </div>
   );
 };
+
 const AdminStock = ({ categoriesDb, refreshCategories }) => { 
   const [produits, setProduits] = useState([]); 
   const [fours, setFours] = useState([]); 
@@ -907,7 +903,6 @@ const AdminParametres = ({ params, setParams }) => {
 
   const save = async (e) => { e.preventDefault(); const { data } = await supabase.from('parametres').update(form).eq('id', 1).select(); if (data) { setParams(data[0]); alert("Mise à jour OK !"); } };
 
-  // --- NOUVEAU : LE BOUTON D'URGENCE POUR RECALCULER LES STOCKS ---
   const recalculerStocksComplet = async () => {
     const confirm1 = window.confirm("⚠️ DANGER : Cette action va effacer les stocks actuels et les recalculer intégralement en faisant (Toutes les entrées) - (Toutes les ventes).");
     if (!confirm1) return;
@@ -916,31 +911,25 @@ const AdminParametres = ({ params, setParams }) => {
 
     setIsRecalculating(true);
     try {
-      // 1. Récupération des données
       const { data: prods } = await supabase.from('produits').select('*');
       const { data: histStock } = await supabase.from('historique_stock').select('*');
       const { data: histVentes } = await supabase.from('historique_ventes').select('details_json');
 
-      // 2. Préparation du dictionnaire de calcul
       const prodMap = {};
       prods.forEach(p => { prodMap[p.nom] = { id: p.id, stock_calcule: 0 }; });
 
-      // 3. Additionner toutes les entrées (Historique Réappro/Ajout)
       histStock.forEach(h => {
         if (prodMap[h.produit_nom]) {
           prodMap[h.produit_nom].stock_calcule += Number(h.quantite || 0);
         }
       });
 
-      // 4. Soustraire toutes les sorties (Ventes réelles)
       histVentes.forEach(v => {
         if (v.details_json && v.details_json.articles) {
           v.details_json.articles.forEach(art => {
-             // Déduction de l'article principal
              if (prodMap[art.nom]) {
                prodMap[art.nom].stock_calcule -= Number(art.qte || 0);
              }
-             // Déduction de la matière première si c'était un pack
              const pDef = prods.find(p => p.nom === art.nom);
              if (pDef && pDef.est_pack && pDef.pack_produit_nom) {
                if (prodMap[pDef.pack_produit_nom]) {
@@ -951,7 +940,6 @@ const AdminParametres = ({ params, setParams }) => {
         }
       });
 
-      // 5. Envoi des nouveaux stocks parfaits à la base de données
       for (let p of prods) {
         const vraiStock = Math.max(0, prodMap[p.nom].stock_calcule);
         await supabase.from('produits').update({ stock_actuel: vraiStock }).eq('id', p.id);
@@ -963,13 +951,11 @@ const AdminParametres = ({ params, setParams }) => {
     }
     setIsRecalculating(false);
   };
-  // ----------------------------------------------------------------
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Paramètres Ticket & ERP</h2>
       
-      {/* NOUVEAU BLOC : ZONE DE DANGER */}
       <div className="bg-red-50 border-2 border-red-200 p-6 rounded-3xl shadow-sm">
         <h3 className="font-black text-red-600 uppercase mb-2 flex items-center gap-2">⚠️ Zone de Danger : Recalcul des stocks</h3>
         <p className="text-xs text-red-800 mb-4 font-bold">Si vos stocks sont faussés suite à un bug de vente, ce bouton va recompter absolument tout depuis la création du logiciel (Achats - Ventes).</p>
@@ -992,7 +978,6 @@ const AdminParametres = ({ params, setParams }) => {
     </div>
   );
 };
-
 const ModuleClients = () => {
   const [list, setList] = useState([]); 
   const [form, setForm] = useState({ nom: '', tel: '', wa: '', adresse: '', nif: '', stat: '' });
@@ -1111,460 +1096,4 @@ const SuiviCredits = ({ params }) => {
   );
 };
 
-const ModuleDepenses = () => {
-  const [depenses, setDepenses] = useState([]); const [form, setForm] = useState({ desc: '', montant: '', date: new Date().toISOString().split('T')[0] });
-  const load = async () => { const { data } = await supabase.from('depenses').select('*').order('date_depense', { ascending: false }); setDepenses(data || []); }; useEffect(() => { load(); }, []);
-  const save = async (e) => { e.preventDefault(); await supabase.from('depenses').insert([{ description: form.desc, montant: safeNum(form.montant), date_depense: form.date }]); setForm({ ...form, desc: '', montant: '' }); load(); };
-  return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <form onSubmit={save} className="bg-white p-6 rounded-3xl shadow-sm grid grid-cols-1 md:grid-cols-4 gap-3 border-t-4 border-[#800020]"><input placeholder="Dépense" className="p-3 bg-gray-50 border rounded-xl md:col-span-2" value={form.desc} onChange={e=>setForm({...form, desc: e.target.value})} required /><input type="number" placeholder="Montant" className="p-3 bg-red-50 text-red-600 font-bold border rounded-xl" value={form.montant} onChange={e=>setForm({...form, montant: e.target.value})} required /><button className="bg-[#800020] text-white p-3 rounded-xl font-black">Ajouter</button></form>
-      <div className="space-y-2">{depenses.map(d => (<div key={d.id} className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-red-600 flex justify-between"><p className="font-bold text-sm uppercase">{d.description}</p><p className="font-black text-red-600">-{formatAr(d.montant)}</p></div>))}</div>
-    </div>
-  );
-};
-
-const ModuleCommandesWeb = ({ params }) => {
-  const [datesLivraison, setDatesLivraison] = useState({});
-  const [commandes, setCommandes] = useState([]);
-  
-  const load = async () => {
-    const { data } = await supabase.from('commandes_web').select('*').order('date_commande', { ascending: false });
-    setCommandes(data || []);
-  };
-  useEffect(() => { load(); }, []);
-
- const validerCommandeWeb = async (cmd) => {
-    if (!window.confirm("Confirmer la commande ? Le stock sera déduit et une facture générée.")) return;
-    const articles = cmd.articles_json.articles;
-    
-    for (let art of articles) {
-      // On cherche les infos du produit dans la base pour savoir si c'est un pack
-      const { data: pInfo } = await supabase.from('produits').select('est_pack, pack_produit_nom, pack_qte').eq('nom', art.nom).single();
-      
-      // 1. Déduction normale
-      await supabase.rpc('decrement_stock_by_name', { p_nom: art.nom, amount: Number(art.qte) });
-      
-      // 2. Déduction du produit source si c'est un pack
-      if (pInfo && pInfo.est_pack && pInfo.pack_produit_nom && pInfo.pack_qte) {
-          await supabase.rpc('decrement_stock_by_name', { 
-              p_nom: pInfo.pack_produit_nom, 
-              amount: Number(art.qte) * Number(pInfo.pack_qte) 
-          });
-      }
-    }
-
-  const modePaiement = cmd.articles_json.methode_paiement || 'LIVRAISON';
-    const fraisLivraison = Number(cmd.frais_livraison || 0);
-
-    // --- NOUVEAU : Numérotation WEB séquentielle (Ex: WEB-HP000001) ---
-   // Numérotation WEB séquentielle
-    const { count } = await supabase.from('historique_ventes').select('*', { count: 'exact', head: true }).eq('type_vente', 'SITE_WEB');
-    const numeroWebSeq = `WEB-HP${String((count || 0) + 1).padStart(6, '0')}`;
-
-    await supabase.from('historique_ventes').insert([{
-      numero_facture: numeroWebSeq,
-      type_vente: 'SITE_WEB',
-      client_nom: cmd.client_nom,
-      articles_liste: articles.map(a => `${a.qte}x ${a.nom}`).join(', '),
-      montant_total: Number(cmd.montant_total),
-      details_json: { ...cmd.articles_json, frais_livraison: fraisLivraison },
-      methode_paiement: modePaiement
-    }]);
-
-    const { data: existingClient } = await supabase.from('clients').select('id').eq('contact_whatsapp', cmd.client_whatsapp).maybeSingle();
-    if (!existingClient) {
-      await supabase.from('clients').insert([{ nom: cmd.client_nom, telephone: cmd.client_whatsapp, contact_whatsapp: cmd.client_whatsapp, adresse: `${cmd.quartier} - ${cmd.adresse_detail}` }]);
-    }
-
-    await supabase.from('commandes_web').update({ statut: 'Livrée' }).eq('id', cmd.id);
-    alert("✅ Commande traitée avec succès ! Numéro : " + numeroWebSeq); load();
-  };
-const annulerCommandeWeb = async (cmd) => {
-    if (!window.confirm("Annuler cette commande ?")) return;
-    await supabase.from('commandes_web').update({ statut: 'Annulée' }).eq('id', cmd.id);
-    const num = String(cmd.client_whatsapp).replace(/[^0-9]/g, '');
-    const msg = encodeURIComponent(`Bonjour ${cmd.client_nom}, c'est Hakimi Plus. Votre commande a été annulée car `);
-    window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
-    load();
-  };
-
-  // --- NOUVELLES FONCTIONS : Acompte et Impression ---
-  const validerAcompte = async (cmd) => {
-    const methode = window.prompt("Méthode de paiement de l'acompte ? (ex: CASH, MVOLA, ORANGE)");
-    if (!methode) return;
-    const newJson = { ...cmd.articles_json, acompte_paye_le: new Date().toISOString(), methode_acompte: methode.toUpperCase() };
-    await supabase.from('commandes_web').update({ statut: 'Acompte Payé', articles_json: newJson }).eq('id', cmd.id);
-    load();
-    alert("✅ Acompte validé et enregistré !");
-  };
-
-  const imprimerCommandeWeb = (cmd) => {
-    const dataPrint = {
-      numero: cmd.numero_commande,
-      client_nom: cmd.client_nom,
-      date: cmd.date_commande,
-      totalNet: cmd.montant_total,
-      panier: cmd.articles_json?.articles || [],
-      fraisLivraison: Number(cmd.frais_livraison),
-      statut: cmd.statut,
-      date_acompte: cmd.articles_json?.acompte_paye_le,
-      methode_acompte: cmd.articles_json?.methode_acompte,
-      printSize: 'A4',
-      type_original: 'SITE_WEB'
-    };
-    lancerImpression('commande_web', dataPrint, params);
-  };
-  // ---------------------------------------------------
-
-  const telechargerAdresse = (cmd) => {
-    const contenu = `--- FICHE LIVRAISON HAKIMI PLUS ---\nCLIENT : ${cmd.client_nom}\nTEL 1 : ${cmd.client_whatsapp}\nTEL 2 : ${cmd.client_whatsapp2 || 'N/A'}\nQUARTIER : ${cmd.quartier}\nADRESSE : ${cmd.adresse_detail}\nTOTAL : ${Number(cmd.montant_total).toLocaleString()} Ar\n-----------------------------------`;
-    const element = document.createElement("a");
-    const file = new Blob([contenu], {type: 'text/plain'});
-    element.href = URL.createObjectURL(file);
-    element.download = `LIVRAISON_${cmd.client_nom.replace(/\s+/g, '_')}.txt`;
-    document.body.appendChild(element);
-    element.click();
-  };
-const changerStatut = async (id, nouveauStatut) => {
-    let updateData = { statut: nouveauStatut };
-    if (nouveauStatut === "En cours de livraison") {
-      const dateSaisie = datesLivraison[id];
-      if (!dateSaisie) return alert("⚠️ Veuillez saisir une date et heure de livraison !");
-      updateData.date_livraison_prevue = dateSaisie;
-    }
-    await supabase.from('commandes_web').update(updateData).eq('id', id);
-    load();
-  };
-  return (
-    <div className="max-w-5xl mx-auto space-y-4">
-      <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Commandes Site Web</h2>
-      <div className="grid gap-4">
-        {commandes.map(cmd => {
-           const pMeth = cmd.articles_json?.methode_paiement;
-           let badgeColor = "bg-gray-100 text-gray-600";
-           if(pMeth === 'CASH') badgeColor = "bg-blue-100 text-blue-700";
-           if(pMeth === 'MVOLA') badgeColor = "bg-green-100 text-green-700";
-           if(pMeth === 'ORANGE MONEY') badgeColor = "bg-orange-100 text-orange-700";
-
-           return (
-            <div key={cmd.id} className={`bg-white p-6 rounded-3xl shadow-sm border-l-8 ${cmd.statut === 'Validée' ? 'border-green-500 opacity-60' : cmd.statut === 'Annulée' ? 'border-gray-400 opacity-50' : 'border-blue-600'}`}>
-              <div className="flex flex-col md:flex-row justify-between gap-4">
-                <div className="flex-1 space-y-2">
-                  <div className="flex items-center gap-3">
-                    <div className="flex flex-col">
-                      <p className="font-black text-gray-800 uppercase leading-tight">{cmd.client_nom}</p>
-                      <p className="text-[10px] font-black text-[#800020] bg-red-50 w-fit px-2 py-0.5 rounded border border-red-100 mt-1">N° SUIVI : {cmd.numero_commande || 'N/A'}</p>
-                    </div>
-                    <span className="bg-red-50 text-[#800020] px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter">📍 {cmd.quartier}</span>
-                    <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase ${badgeColor}`}>💳 {pMeth || 'À DÉFINIR'}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">📞 {cmd.client_whatsapp}</span>
-                    {cmd.client_whatsapp2 && <span className="text-[10px] font-bold text-gray-500 bg-gray-50 px-2 py-1 rounded">📞 {cmd.client_whatsapp2}</span>}
-                  </div>
-                  <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
-                    <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Précisions Adresse :</p>
-                    <p className="text-xs font-bold text-gray-600 italic">{cmd.adresse_detail}</p>
-                    <button onClick={() => telechargerAdresse(cmd)} className="mt-2 text-[9px] font-black bg-gray-800 text-white px-2 py-1 rounded uppercase hover:bg-black">💾 Télécharger .txt</button>
-                  </div>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {cmd.articles_json?.articles?.map((a, i) => (
-                      <span key={i} className="text-[10px] font-bold bg-white border px-2 py-1 rounded-lg"> {a.qte}x {a.nom} </span>
-                    ))}
-                  </div>
-                </div>
-                
-              <div className="text-right shrink-0">
-                  <p className="text-[10px] text-gray-500 font-bold">Articles : {formatAr(cmd.montant_total)} Ar</p>
-                  <p className="text-[10px] text-orange-500 font-bold mb-1">+ Liv. : {formatAr(cmd.frais_livraison)} Ar</p>
-                  <p className="text-2xl font-black text-[#800020]">Total : {formatAr(Number(cmd.montant_total) + Number(cmd.frais_livraison))} Ar</p>
-                </div>
-              </div>
-
-              {/* --- PANNEAU DE CONTRÔLE DES STATUTS EN PLEINE LARGEUR --- */}
-              <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-200 w-full">
-                <div className="flex flex-wrap justify-between items-center mb-3 gap-2">
-                  <p className="text-[10px] font-black uppercase text-gray-500">Statut actuel : <span className="text-[#800020]">{cmd.statut}</span></p>
-                  <button onClick={() => imprimerCommandeWeb(cmd)} className="text-[10px] font-black bg-blue-100 text-blue-800 px-3 py-1.5 rounded shadow-sm hover:bg-blue-200 transition">🖨️ Imprimer Reçu</button>
-                </div>
-                
-                <div className="flex flex-wrap items-center gap-2">
-                  <button onClick={() => annulerCommandeWeb(cmd)} disabled={cmd.statut === 'Annulée' || cmd.statut === 'Livrée'} className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded-lg text-[10px] font-black uppercase transition shadow-sm disabled:opacity-50">
-                    ❌ Annuler
-                  </button>
-                  
-                  {cmd.articles_json?.articles?.some(a => a.sur_commande) ? (
-                    <button onClick={() => validerAcompte(cmd)} disabled={cmd.statut === 'Annulée' || cmd.statut === 'Livrée' || cmd.statut === 'Acompte Payé'} className="bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-2 rounded-lg text-[10px] font-black uppercase transition shadow-sm disabled:opacity-50">
-                      💰 Valider Acompte
-                    </button>
-                  ) : (
-                    <button onClick={() => changerStatut(cmd.id, "En cours de préparation")} disabled={cmd.statut === 'Annulée' || cmd.statut === 'Livrée'} className="bg-yellow-100 hover:bg-yellow-200 text-yellow-700 px-3 py-2 rounded-lg text-[10px] font-black uppercase transition shadow-sm disabled:opacity-50">
-                      📦 Préparation
-                    </button>
-                  )}
-                  
-                  <div className="flex items-center gap-2 bg-blue-100 p-1.5 rounded-lg border border-blue-200 shadow-sm">
-                    <input 
-                      type="datetime-local" 
-                      className="text-[10px] font-bold p-1 rounded outline-none text-blue-900 bg-white disabled:opacity-50"
-                      value={datesLivraison[cmd.id] || ""}
-                      onChange={(e) => setDatesLivraison({...datesLivraison, [cmd.id]: e.target.value})}
-                      disabled={cmd.statut === 'Annulée' || cmd.statut === 'Livrée'}
-                    />
-                    <button onClick={() => changerStatut(cmd.id, "En cours de livraison")} disabled={cmd.statut === 'Annulée' || cmd.statut === 'Livrée'} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-[10px] font-black uppercase transition disabled:opacity-50">
-                      🛵 Livraison
-                    </button>
-                  </div>
-
-                  <button onClick={() => validerCommandeWeb(cmd)} disabled={cmd.statut === 'Annulée' || cmd.statut === 'Livrée'} className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-[10px] font-black uppercase transition shadow-sm disabled:opacity-50">
-                    ✅ Livrée
-                  </button>
-                </div>
-            {/* --------------------------------------- */}
-          </div>
-        </div>
-      </div>
-    )
-  })}
-  </div>
-</div>
-);
-};
-
-const ModuleGestionSite = () => {
-  const [config, setConfig] = useState({ carousel_urls: ["", "", ""], texte_livraison: "", texte_conditions: "", quartiers_json: [], rubriques_json: [], maintenance_mode: false, maintenance_date: "" });
-const load = async () => {
-    const { data } = await supabase.from('parametres_web').select('*').eq('id', 1).single();
-    if (data) setConfig({ ...data, quartiers_json: data.quartiers_json || [], categories_hierarchie_json: data.categories_hierarchie_json || [], maintenance_mode: data.maintenance_mode || false, maintenance_date: data.maintenance_date || "" });
-  };
-  useEffect(() => { load(); }, []);
-
- const save = async () => {
-    await supabase.from('parametres_web').update({
-        carousel_urls: config.carousel_urls,
-        texte_livraison: config.texte_livraison,
-        texte_conditions: config.texte_conditions,
-        quartiers_json: config.quartiers_json,
-        rubriques_json: config.rubriques_json,
-        categories_hierarchie_json: config.categories_hierarchie_json,
-        maintenance_mode: config.maintenance_mode,
-        maintenance_date: config.maintenance_date
-    }).eq('id', 1);
-    alert("🚀 Site Hakimi Plus mis à jour avec succès !");
-  };
-
-  const addQuartier = () => setConfig({...config, quartiers_json: [...config.quartiers_json, { nom: "", frais: 0 }]});
-  const removeQuartier = (index) => {
-    const newQ = [...config.quartiers_json]; newQ.splice(index, 1);
-    setConfig({...config, quartiers_json: newQ});
-  };
-  const updateQuartier = (index, champ, valeur) => {
-    const newQ = [...config.quartiers_json]; newQ[index][champ] = valeur;
-    setConfig({...config, quartiers_json: newQ});
-  };
-
-  return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">Gestion Hakimi Plus</h2>
-      <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-gray-100 space-y-6">
-        
-        {/* --- NOUVEAU BLOC MAINTENANCE --- */}
-        <div className={`p-6 rounded-2xl border-2 transition ${config.maintenance_mode ? 'bg-red-50 border-red-500' : 'bg-gray-50 border-gray-200'}`}>
-          <div className="flex justify-between items-center mb-2">
-            <div>
-              <h3 className={`font-black uppercase text-lg ${config.maintenance_mode ? 'text-red-700' : 'text-gray-700'}`}>🚧 Mode Maintenance</h3>
-              <p className="text-xs text-gray-500">Coupe l'accès au site web sans avoir à décocher vos produits un par un.</p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" className="sr-only peer" checked={config.maintenance_mode} onChange={e => setConfig({...config, maintenance_mode: e.target.checked})} />
-              <div className="w-14 h-7 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-red-600"></div>
-            </label>
-          </div>
-          {config.maintenance_mode && (
-            <div className="mt-4 pt-4 border-t border-red-200">
-              <label className="text-xs font-bold text-red-800 uppercase block mb-2">Date et Heure de retour prévue :</label>
-              <input type="datetime-local" className="p-3 rounded-xl border border-red-200 outline-none font-bold w-full md:w-1/2 text-red-900" value={config.maintenance_date} onChange={e => setConfig({...config, maintenance_date: e.target.value})} />
-            </div>
-          )}
-        </div>
-{/* --- NOUVEAU BLOC TEXTES LÉGAUX & LIVRAISON --- */}
-        <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200">
-          <div className="mb-6 bg-blue-50 p-4 rounded-xl border border-blue-100">
-            <p className="text-xs font-black text-blue-900 uppercase mb-2">💡 Comment formater le texte ?</p>
-            <ul className="text-[10px] text-blue-800 space-y-1 font-medium">
-              <li>Ligne commençant par <strong># </strong> = <span className="font-black text-[#800020] text-xs">Grand Titre Bordeaux</span></li>
-              <li>Ligne commençant par <strong>## </strong> = <span className="font-black text-gray-800 text-xs">Sous-titre Noir</span></li>
-              <li>Ligne commençant par <strong>- </strong> = Liste à puces</li>
-              <li>Saut de ligne normal = Nouveau paragraphe</li>
-            </ul>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-               <h3 className="font-black text-[#800020] uppercase text-sm mb-2">🚚 Texte page Livraison</h3>
-               <textarea 
-                 className="w-full p-4 bg-white border border-gray-300 rounded-xl outline-none text-xs min-h-[300px] font-medium leading-relaxed" 
-                 value={config.texte_livraison || ""} 
-                 onChange={e => setConfig({...config, texte_livraison: e.target.value})} 
-                 placeholder="# Zones de livraison&#10;&#10;Nous livrons dans Tana.&#10;&#10;## Tarifs&#10;- Centre-ville : 3000 Ar&#10;- Périphérie : 5000 Ar"
-               />
-            </div>
-            <div>
-               <h3 className="font-black text-[#800020] uppercase text-sm mb-2">📜 Texte page Conditions</h3>
-               <textarea 
-                 className="w-full p-4 bg-white border border-gray-300 rounded-xl outline-none text-xs min-h-[300px] font-medium leading-relaxed" 
-                 value={config.texte_conditions || ""} 
-                 onChange={e => setConfig({...config, texte_conditions: e.target.value})} 
-                 placeholder="# Conditions de vente&#10;&#10;Toute commande est ferme.&#10;&#10;## Retours&#10;Les produits frais ne sont ni repris ni échangés."
-               />
-            </div>
-          </div>
-        </div>
-        {/* ---------------------------------------------- */}
-        {/* --------------------------------- */}
-
-        <div className="bg-red-50 p-4 rounded-xl border border-red-100">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="font-black text-[#800020] uppercase text-sm">📍 Quartiers & Frais de Livraison</h3>
-            <button onClick={addQuartier} className="bg-[#800020] text-white px-3 py-1 rounded-lg text-xs font-black">+ Ajouter</button>
-          </div>
-          <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar pr-2">
-            {config.quartiers_json.map((q, idx) => (
-              <div key={idx} className="flex gap-2 items-center bg-white p-2 rounded-lg border">
-                <input placeholder="Nom du quartier" className="flex-1 p-2 bg-gray-50 border rounded outline-none text-xs font-bold" value={q.nom} onChange={e => updateQuartier(idx, 'nom', e.target.value)} />
-                <input type="number" placeholder="Frais (Ar)" className="w-24 p-2 bg-gray-50 border rounded outline-none text-xs font-black text-red-600" value={q.frais} onChange={e => updateQuartier(idx, 'frais', Number(e.target.value))} />
-                <button onClick={() => removeQuartier(idx)} className="text-red-500 font-black px-2">X</button>
-              </div>
-            ))}
-            {config.quartiers_json.length === 0 && <p className="text-xs text-gray-500 italic">Aucun quartier défini. Le client ne pourra pas commander.</p>}
-          </div>
-        </div>
-
-        <div>
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Photos du Carrousel (Liens directs)</label>
-          {config.carousel_urls?.map((url, idx) => (
-            <div key={idx} className="flex gap-2 mb-2">
-               <span className="bg-gray-100 p-2 rounded-lg text-[10px] font-black w-8 text-center">{idx+1}</span>
-               <input className="flex-1 p-2 bg-gray-50 border rounded-xl text-xs outline-none focus:border-[#800020]" value={url} onChange={e => { const newC = [...config.carousel_urls]; newC[idx] = e.target.value; setConfig({...config, carousel_urls: newC}); }} placeholder="Lien image ImgBB / Supabase" />
-            </div>
-          ))}
-        </div>
-          <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="font-black text-blue-800 uppercase text-sm">🗂️ Menu & Catégories du Site Web</h3>
-            <button onClick={() => setConfig({...config, categories_hierarchie_json: [...(config.categories_hierarchie_json||[]), { parent: "Nouvelle Catégorie", sous_categories: [] }]})} className="bg-blue-600 text-white px-3 py-1 rounded-lg text-xs font-black">+ Ajouter Menu Principal</button>
-          </div>
-          <div className="space-y-4">
-            {(config.categories_hierarchie_json||[]).map((cat, idx) => (
-              <div key={idx} className="bg-white p-4 rounded-lg border border-blue-200 shadow-sm relative">
-                
-                {/* --- LIGNE MENU PRINCIPAL (Modifiable & Déplaçable) --- */}
-                <div className="flex justify-between items-center mb-4 bg-blue-50 p-2 rounded-lg">
-                   <div className="flex items-center gap-3 flex-1">
-                     <div className="flex flex-col bg-white rounded border border-blue-200 shadow-sm">
-                       <button onClick={() => { if(idx > 0) { const n = [...config.categories_hierarchie_json]; const temp = n[idx]; n[idx] = n[idx-1]; n[idx-1] = temp; setConfig({...config, categories_hierarchie_json: n}); } }} disabled={idx === 0} className="px-2 text-[9px] text-blue-600 hover:bg-blue-100 disabled:opacity-30">▲</button>
-                       <button onClick={() => { if(idx < config.categories_hierarchie_json.length - 1) { const n = [...config.categories_hierarchie_json]; const temp = n[idx]; n[idx] = n[idx+1]; n[idx+1] = temp; setConfig({...config, categories_hierarchie_json: n}); } }} disabled={idx === config.categories_hierarchie_json.length - 1} className="px-2 text-[9px] text-blue-600 hover:bg-blue-100 disabled:opacity-30">▼</button>
-                     </div>
-                     <input className="font-black text-sm bg-transparent border-b-2 border-blue-200 outline-none flex-1 focus:border-blue-500 transition text-blue-900" value={cat.parent} onChange={e => { const n = [...config.categories_hierarchie_json]; n[idx].parent = e.target.value; setConfig({...config, categories_hierarchie_json: n}); }} placeholder="Ex: Épicerie" />
-                   </div>
-                   <button onClick={() => { const n = [...config.categories_hierarchie_json]; n.splice(idx,1); setConfig({...config, categories_hierarchie_json: n}); }} className="text-red-500 font-black ml-4 bg-white border border-red-200 px-3 py-1 rounded-lg hover:bg-red-500 hover:text-white transition shadow-sm text-xs uppercase">Supprimer Menu</button>
-                </div>
-
-                {/* --- LIGNE SOUS-CATÉGORIES (Renommables & Déplaçables) --- */}
-                <div className="pl-4 border-l-2 border-blue-100">
-                   <p className="text-[9px] font-black text-gray-400 uppercase mb-2">Sous-catégories (Modifiez le texte ou déplacez) :</p>
-                   <div className="flex flex-wrap gap-2 mb-2">
-                      {(cat.sous_categories||[]).map((sub, subIdx) => (
-                         <div key={subIdx} className="bg-gray-100 pl-3 pr-1 py-1 rounded-full text-xs font-bold text-gray-700 flex items-center gap-1 border border-gray-200 focus-within:border-blue-400 focus-within:bg-white transition-all shadow-sm">
-                           
-                           {/* Champ pour renommer */}
-                           <input 
-                             type="text" 
-                             value={sub} 
-                             onChange={(e) => {
-                               const n = [...config.categories_hierarchie_json];
-                               n[idx].sous_categories[subIdx] = e.target.value;
-                               setConfig({...config, categories_hierarchie_json: n});
-                             }}
-                             className="bg-transparent outline-none w-24 focus:w-32 transition-all font-bold text-gray-800"
-                           />
-
-                           {/* Boutons Gauche/Droite */}
-                           <div className="flex items-center bg-white rounded-full px-1 shadow-sm border border-gray-200 ml-1">
-                             <button 
-                               onClick={() => {
-                                 if (subIdx > 0) {
-                                   const n = [...config.categories_hierarchie_json];
-                                   const temp = n[idx].sous_categories[subIdx];
-                                   n[idx].sous_categories[subIdx] = n[idx].sous_categories[subIdx - 1];
-                                   n[idx].sous_categories[subIdx - 1] = temp;
-                                   setConfig({...config, categories_hierarchie_json: n});
-                                 }
-                               }}
-                               disabled={subIdx === 0}
-                               className="px-1 text-gray-400 hover:text-blue-600 disabled:opacity-30"
-                               title="Déplacer à gauche"
-                             >◀</button>
-                             <button 
-                               onClick={() => {
-                                 if (subIdx < cat.sous_categories.length - 1) {
-                                   const n = [...config.categories_hierarchie_json];
-                                   const temp = n[idx].sous_categories[subIdx];
-                                   n[idx].sous_categories[subIdx] = n[idx].sous_categories[subIdx + 1];
-                                   n[idx].sous_categories[subIdx + 1] = temp;
-                                   setConfig({...config, categories_hierarchie_json: n});
-                                 }
-                               }}
-                               disabled={subIdx === cat.sous_categories.length - 1}
-                               className="px-1 text-gray-400 hover:text-blue-600 disabled:opacity-30"
-                               title="Déplacer à droite"
-                             >▶</button>
-                           </div>
-
-                           {/* Bouton Supprimer */}
-                           <button 
-                             onClick={()=>{const n=[...config.categories_hierarchie_json]; n[idx].sous_categories.splice(subIdx,1); setConfig({...config, categories_hierarchie_json: n});}} 
-                             className="ml-1 text-gray-400 hover:text-white hover:bg-red-500 rounded-full w-5 h-5 flex items-center justify-center transition font-black"
-                             title="Supprimer"
-                           >×</button>
-                         </div>
-                      ))}
-                   </div>
-
-                   {/* --- AJOUT NOUVELLE SOUS-CATÉGORIE --- */}
-                   <div className="flex gap-2 items-center mt-3">
-                      <input type="text" placeholder="Ajouter une sous-catégorie..." className="text-xs p-2 border border-gray-300 rounded outline-none focus:border-blue-500" onKeyDown={(e) => { if(e.key === 'Enter' && e.target.value.trim()) { e.preventDefault(); const n=[...config.categories_hierarchie_json]; if(!n[idx].sous_categories) n[idx].sous_categories = []; n[idx].sous_categories.push(e.target.value.trim()); setConfig({...config, categories_hierarchie_json: n}); e.target.value=''; } }} />
-                      <span className="text-[9px] text-gray-400 font-bold bg-gray-100 px-2 py-1 rounded">Appuyez sur "Entrée" pour valider ↵</span>
-                   </div>
-                </div>
-              </div>
-            ))}
-           
-          </div>
-        </div>
-        <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="font-black text-orange-800 uppercase text-sm">📰 Rubriques (Recettes & Saviez-vous)</h3>
-            <button onClick={() => setConfig({...config, rubriques_json: [...(config.rubriques_json||[]), { type: "Recette", titre: "", description: "", contenu: "", image_url: "" }]})} className="bg-orange-600 text-white px-3 py-1 rounded-lg text-xs font-black">+ Ajouter</button>
-          </div>
-          <div className="space-y-4">
-            {(config.rubriques_json||[]).map((r, idx) => (
-              <div key={idx} className="bg-white p-4 rounded-lg border flex flex-col gap-2 relative">
-                <button onClick={() => { const newR = [...config.rubriques_json]; newR.splice(idx, 1); setConfig({...config, rubriques_json: newR}); }} className="absolute top-2 right-2 text-red-500 font-black">X</button>
-                <select className="p-2 border rounded font-bold text-xs w-1/3" value={r.type} onChange={e => { const newR = [...config.rubriques_json]; newR[idx].type = e.target.value; setConfig({...config, rubriques_json: newR}); }}>
-                    <option value="Recette">Recette</option>
-                    <option value="Saviez-vous">Saviez-vous ?</option>
-                </select>
-                <input placeholder="Titre de la rubrique" className="p-2 border rounded text-xs font-bold" value={r.titre} onChange={e => { const newR = [...config.rubriques_json]; newR[idx].titre = e.target.value; setConfig({...config, rubriques_json: newR}); }} />
-                <input placeholder="Lien de l'image (URL)" className="p-2 border rounded text-xs" value={r.image_url} onChange={e => { const newR = [...config.rubriques_json]; newR[idx].image_url = e.target.value; setConfig({...config, rubriques_json: newR}); }} />
-                <input placeholder="Petite description (Visible sur l'accueil)" className="p-2 border rounded text-xs" value={r.description} onChange={e => { const newR = [...config.rubriques_json]; newR[idx].description = e.target.value; setConfig({...config, rubriques_json: newR}); }} />
-                <textarea placeholder="Le contenu complet (Suite)..." className="p-2 border rounded text-xs min-h-[60px]" value={r.contenu} onChange={e => { const newR = [...config.rubriques_json]; newR[idx].contenu = e.target.value; setConfig({...config, rubriques_json: newR}); }} />
-              </div>
-            ))}
-          </div>
-        </div>
-        <button onClick={save} className="w-full bg-[#800020] text-white p-4 rounded-2xl font-black uppercase shadow-xl hover:bg-black transition">💾 Sauvegarder la configuration</button>
-      </div>
-    </div>
-  );
-};
+export default App;
