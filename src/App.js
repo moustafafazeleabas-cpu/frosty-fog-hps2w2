@@ -59,92 +59,92 @@ const lancerImpression = (type, data, params) => {
         ${data.methode && type !== 'admin_credit' && type !== 'devis' ? `<p style="margin:2px 0; font-weight:bold; font-size:10px;">Payé par : ${data.methode}${data.banque ? ` (${data.banque})` : ''}</p>` : ''}
         <hr style="border-top:1px dashed #000;"/>
         <div style="width:100%;">
-          ${panierList.length > 0 ? panierList.map(i => {
-            const { prixU, remiseU, qte, totalLigne } = getLineData(i);
-            return `<div class="item-block"><div class="item-line1">${qte}x ${i.nom}</div><div class="item-line2"><span>${formatAr(prixU - remiseU)} Ar/u</span><span style="font-weight:bold;">${formatAr(totalLigne)} Ar</span></div>${i.categorie ? `<div class="item-line3">[${i.categorie}]</div>` : ''}</div>`;
-          }).join('') : `<p style="font-size:10px; text-align:left;">Ancien format : ${data.articles_liste || data.details_articles || 'Détails non disponibles'}</p>`}
-        </div>
-        <hr style="border-top:1px dashed #000;"/>
-        <div style="text-align:right; font-size:12px; margin:3px 0;">Total Articles: ${formatAr(data.totalNet)} Ar</div>
-        ${fraisLivraison > 0 ? `<div style="text-align:right; font-size:12px; margin:3px 0;">Livraison: ${formatAr(fraisLivraison)} Ar</div>` : ''}
-        
-        ${hasAcompte ? `
-          <div style="margin-top: 5px; padding-top: 5px; border-top: 1px dashed #ccc; text-align: right;">
-            <div style="font-size:12px; font-weight:bold; color:#d97706;">ACOMPTE (60%) : ${formatAr(acompteValeur)} Ar</div>
-            <div style="font-size:11px; font-weight:bold; color:#555; margin-top:2px;">RESTE À LA LIVRAISON : ${formatAr((safeNum(data.totalNet) - acompteValeur) + fraisLivraison)} Ar</div>
-          </div>
-        ` : `
-          <h3 style="text-align:right; margin:5px 0;">${type === 'devis' ? 'TOTAL ESTIMÉ' : 'À PAYER'}: ${formatAr(safeNum(data.totalNet) + fraisLivraison)} Ar</h3>
-        `}
-        
-        ${data.totalRemisesEnAr > 0 ? `<p style="text-align:right; font-size:10px; margin:0;">(Dont remise : ${formatAr(data.totalRemisesEnAr)} Ar)</p>` : ''}
-        <p style="margin-top:10px; font-size:11px;">${(params.message_ticket ? String(params.message_ticket) : 'Merci de votre visite !').replace(/\n/g, '<br/>')}</p>
-        <p style="color:#fff;">.</p>
-      </body></html>
-    `);
- } else {
-    let titre = 'FACTURE'; 
-    if (type === 'devis') titre = 'PROFORMA / DEVIS'; 
-    if (type === 'admin_credit') titre = 'FACTURE À CRÉDIT';
-    
-    // Détection de l'acompte et des étapes de pré-commande
-    const hasAcompte = data.panier && Array.isArray(data.panier) && data.panier.some(a => a.sur_commande === true);
-    const acompteValeur = hasAcompte ? Math.round(safeNum(data.totalNet) * 0.6) : 0;
-    const resteValeur = hasAcompte ? (safeNum(data.totalNet) - acompteValeur) + fraisLivraison : 0;
-    let blocPaiement = '';
+          ${panierList.length > 0 ? panierList.map(i => {
+            const { prixU, remiseU, qte, totalLigne } = getLineData(i);
+            return `<div class="item-block"><div class="item-line1">${qte}x ${i.nom}</div><div class="item-line2"><span>${formatAr(prixU - remiseU)} Ar/u</span><span style="font-weight:bold;">${formatAr(totalLigne)} Ar</span></div><div class="item-line3">[${i.categorie || 'Divers'}]</div></div>`;
+          }).join('') : `<p style="font-size:10px; text-align:left;">Ancien format : ${data.articles_liste || data.details_articles || 'Détails non disponibles'}</p>`}
+        </div>
+        <hr style="border-top:1px dashed #000;"/>
+        <div style="text-align:right; font-size:12px; margin:3px 0;">Total Articles: ${formatAr(data.totalNet)} Ar</div>
+        ${fraisLivraison > 0 ? `<div style="text-align:right; font-size:12px; margin:3px 0;">Livraison: ${formatAr(fraisLivraison)} Ar</div>` : ''}
+        
+        ${hasAcompte ? `
+          <div style="margin-top: 5px; padding-top: 5px; border-top: 1px dashed #ccc; text-align: right;">
+            <div style="font-size:12px; font-weight:bold; color:#d97706;">ACOMPTE (60%) : ${formatAr(acompteValeur)} Ar</div>
+            <div style="font-size:11px; font-weight:bold; color:#555; margin-top:2px;">RESTE À LA LIVRAISON : ${formatAr((safeNum(data.totalNet) - acompteValeur) + fraisLivraison)} Ar</div>
+          </div>
+        ` : `
+          <h3 style="text-align:right; margin:5px 0;">${type === 'devis' ? 'TOTAL ESTIMÉ' : 'À PAYER'}: ${formatAr(safeNum(data.totalNet) + fraisLivraison)} Ar</h3>
+        `}
+        
+        ${data.totalRemisesEnAr > 0 ? `<p style="text-align:right; font-size:10px; margin:0;">(Dont remise : ${formatAr(data.totalRemisesEnAr)} Ar)</p>` : ''}
+        <p style="margin-top:10px; font-size:11px;">${(params.message_ticket ? String(params.message_ticket) : 'Merci de votre visite !').replace(/\n/g, '<br/>')}</p>
+        <p style="color:#fff;">.</p>
+      </body></html>
+    `);
+ } else {
+    let titre = 'FACTURE'; 
+    if (type === 'devis') titre = 'PROFORMA / DEVIS'; 
+    if (type === 'admin_credit') titre = 'FACTURE À CRÉDIT';
+    
+    // Détection de l'acompte et des étapes de pré-commande
+    const hasAcompte = data.panier && Array.isArray(data.panier) && data.panier.some(a => a.sur_commande === true);
+    const acompteValeur = hasAcompte ? Math.round(safeNum(data.totalNet) * 0.6) : 0;
+    const resteValeur = hasAcompte ? (safeNum(data.totalNet) - acompteValeur) + fraisLivraison : 0;
+    let blocPaiement = '';
 
-    if (hasAcompte) {
-      if (type === 'commande_web') {
-        if (data.statut === 'Acompte Payé') {
-          titre = 'FACTURE PROVISOIRE (ACOMPTE)';
-          blocPaiement = `
-            <div style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc; display: inline-block; text-align: right;">
-              <div style="font-size:16px; font-weight:bold; color:green;">ACOMPTE REÇU (60%) : ${formatAr(acompteValeur)} Ar</div>
-              <div style="font-size:11px; color:#555; margin-bottom: 5px;">Payé le : ${formatDate(data.date_acompte)} via ${data.methode_acompte}</div>
-              <div style="font-size:14px; font-weight:bold; color:#d97706;">SOLDE À PAYER À LA LIVRAISON : ${formatAr(resteValeur)} Ar</div>
-            </div>`;
-        } else {
-          titre = 'PROFORMA (PRÉ-COMMANDE)';
-          blocPaiement = `
-            <div style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc; display: inline-block; text-align: right;">
-              <div style="font-size:16px; font-weight:bold; color:#d97706;">ACOMPTE REQUIS (60%) : ${formatAr(acompteValeur)} Ar</div>
-              <div style="font-size:12px; font-weight:bold; color:#555; margin-top:5px;">RESTE À LA LIVRAISON : ${formatAr(resteValeur)} Ar</div>
-            </div>`;
-        }
-      } else if (type === 'facture_a4' && data.type_original === 'SITE_WEB') {
-        titre = 'FACTURE DÉFINITIVE';
-        blocPaiement = `
-            <div style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc; display: inline-block; text-align: right;">
-              <div style="font-size:12px; color:#555;">Acompte déjà réglé (60%) : - ${formatAr(acompteValeur)} Ar</div>
-              <div style="font-size:16px; font-weight:bold; color:green; margin-top:5px;">SOLDE RÉGLÉ À LA LIVRAISON : ${formatAr(resteValeur)} Ar</div>
-              <div style="font-size:14px; font-weight:900; color:#800020; margin-top:5px;">FACTURE SOLDÉE</div>
-            </div>`;
-      }
-    } else {
-      blocPaiement = `<div class="total-line">NET À PAYER : ${formatAr(safeNum(data.totalNet) + fraisLivraison)} Ar</div>`;
-    }
+    if (hasAcompte) {
+      if (type === 'commande_web') {
+        if (data.statut === 'Acompte Payé') {
+          titre = 'FACTURE PROVISOIRE (ACOMPTE)';
+          blocPaiement = `
+            <div style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc; display: inline-block; text-align: right;">
+              <div style="font-size:16px; font-weight:bold; color:green;">ACOMPTE REÇU (60%) : ${formatAr(acompteValeur)} Ar</div>
+              <div style="font-size:11px; color:#555; margin-bottom: 5px;">Payé le : ${formatDate(data.date_acompte)} via ${data.methode_acompte}</div>
+              <div style="font-size:14px; font-weight:bold; color:#d97706;">SOLDE À PAYER À LA LIVRAISON : ${formatAr(resteValeur)} Ar</div>
+            </div>`;
+        } else {
+          titre = 'PROFORMA (PRÉ-COMMANDE)';
+          blocPaiement = `
+            <div style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc; display: inline-block; text-align: right;">
+              <div style="font-size:16px; font-weight:bold; color:#d97706;">ACOMPTE REQUIS (60%) : ${formatAr(acompteValeur)} Ar</div>
+              <div style="font-size:12px; font-weight:bold; color:#555; margin-top:5px;">RESTE À LA LIVRAISON : ${formatAr(resteValeur)} Ar</div>
+            </div>`;
+        }
+      } else if (type === 'facture_a4' && data.type_original === 'SITE_WEB') {
+        titre = 'FACTURE DÉFINITIVE';
+        blocPaiement = `
+            <div style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc; display: inline-block; text-align: right;">
+              <div style="font-size:12px; color:#555;">Acompte déjà réglé (60%) : - ${formatAr(acompteValeur)} Ar</div>
+              <div style="font-size:16px; font-weight:bold; color:green; margin-top:5px;">SOLDE RÉGLÉ À LA LIVRAISON : ${formatAr(resteValeur)} Ar</div>
+              <div style="font-size:14px; font-weight:900; color:#800020; margin-top:5px;">FACTURE SOLDÉE</div>
+            </div>`;
+      }
+    } else {
+      blocPaiement = `<div class="total-line">NET À PAYER : ${formatAr(safeNum(data.totalNet) + fraisLivraison)} Ar</div>`;
+    }
 
-    win.document.write(`
-      <html><head><title>${data.numero || titre}</title>
-        <style>@media print { @page { margin: 0; size: auto; } body { margin: 1cm; } .no-print { display: none !important; } } body { font-family: Arial, sans-serif; font-size: 13px; color: #333; } table { width: 100%; border-collapse: collapse; margin-top: 15px; } th, td { padding: 8px; border-bottom: 1px solid #eee; text-align: left; } th { background-color: #800020; color: white; } .header-flex { display: flex; justify-content: space-between; border-bottom: 2px solid #800020; padding-bottom: 15px; margin-bottom: 15px; } .client-box { background-color: #f9f9f9; border-left: 4px solid #800020; padding: 15px; width: 50%; margin-bottom: 20px; } .total-line { font-size: 20px; font-weight: bold; color: #800020; text-align: right; margin-top: 10px; }</style>
-      </head><body>
-        <div class="no-print" style="background:#fff3cd; color:#856404; padding:10px; text-align:center; font-weight:bold; margin-bottom:20px; border-radius:5px; border: 1px solid #ffeeba;">
-           💡 Pour télécharger en PDF : Choisissez "Enregistrer au format PDF" dans la case "Destination" (ou Imprimante) ci-contre.
-        </div>
-        <div class="header-flex"><div><img src="${LOGO_URL}" style="height:50px; margin-bottom:5px;" onerror="this.style.display='none'"/><h3 style="margin:0; color:#800020;">${params.nom_entreprise || 'HAKIMI PLUS'}</h3><p style="margin:0; font-size:11px;">${params.adresse || ''}<br/>${params.nif_stat || ''}<br/>${params.contact || ''}</p></div><div style="text-align:right;"><h2 style="margin:0; color:#800020; font-size: 22px;">${titre}</h2>${data.numero ? `<h3 style="margin:5px 0;">N° ${data.numero}</h3>` : ''}<p style="margin:5px 0 0 0;">Date : ${dateDoc}</p>${data.methode && type !== 'admin_credit' ? `<p style="margin:5px 0 0 0; font-weight:bold; font-size:11px;">Payé par : ${data.methode}${data.banque ? ` (${data.banque})` : ''}</p>` : ''}</div></div>
-        <div class="client-box"><strong>Client :</strong> ${data.client_nom}<br/><strong>NIF :</strong> ${data.client_nif || '-'}<br/><strong>STAT :</strong> ${data.client_stat || '-'}<br/>${data.client_tel ? `<strong>Contact :</strong> ${data.client_tel}<br/>` : ''}${type === 'admin_credit' && data.echeance ? `<br/><strong style="color:red;">Échéance : ${formatDate(data.echeance)}</strong>` : ''}</div>
-        <table><thead><tr><th>Désignation</th><th>Qté</th><th>Prix U.</th><th style="text-align:right;">Total</th></tr></thead><tbody>
-            ${panierList.length > 0 ? panierList.map(i => {
-              const { prixU, remiseU, qte, totalLigne } = getLineData(i);
-              return `<tr><td>${i.nom} ${i.categorie ? `<span style="font-size:10px; color:#666;">(${i.categorie})</span>` : ''}</td><td>${qte}</td><td>${formatAr(prixU - remiseU)}</td><td style="text-align:right;">${formatAr(totalLigne)} Ar</td></tr>`;
-            }).join('') : `<tr><td colspan="4">${data.articles_liste || data.details_articles || 'Détails non disponibles'}</td></tr>`}
-        </tbody></table>
-        <div style="margin-top:20px; text-align:right;">
-          <div style="font-size:16px; font-weight:bold; color:#555;">TOTAL ARTICLES : ${formatAr(data.totalNet)} Ar</div>
-          ${fraisLivraison > 0 ? `<div style="font-size:16px; font-weight:bold; color:#555; margin-top:5px;">FRAIS LIVRAISON : ${formatAr(fraisLivraison)} Ar</div>` : ''}
-          ${blocPaiement}
-          ${data.totalRemisesEnAr > 0 ? `<p style="font-size:11px; color:green; margin:5px 0;">(Remise globale appliquée : ${formatAr(data.totalRemisesEnAr)} Ar)</p>` : ''}
-        </div>
+    win.document.write(`
+      <html><head><title>${data.numero || titre}</title>
+        <style>@media print { @page { margin: 0; size: auto; } body { margin: 1cm; } .no-print { display: none !important; } } body { font-family: Arial, sans-serif; font-size: 13px; color: #333; } table { width: 100%; border-collapse: collapse; margin-top: 15px; } th, td { padding: 8px; border-bottom: 1px solid #eee; text-align: left; } th { background-color: #800020; color: white; } .header-flex { display: flex; justify-content: space-between; border-bottom: 2px solid #800020; padding-bottom: 15px; margin-bottom: 15px; } .client-box { background-color: #f9f9f9; border-left: 4px solid #800020; padding: 15px; width: 50%; margin-bottom: 20px; } .total-line { font-size: 20px; font-weight: bold; color: #800020; text-align: right; margin-top: 10px; }</style>
+      </head><body>
+        <div class="no-print" style="background:#fff3cd; color:#856404; padding:10px; text-align:center; font-weight:bold; margin-bottom:20px; border-radius:5px; border: 1px solid #ffeeba;">
+           💡 Pour télécharger en PDF : Choisissez "Enregistrer au format PDF" dans la case "Destination" (ou Imprimante) ci-contre.
+        </div>
+        <div class="header-flex"><div><img src="${LOGO_URL}" style="height:50px; margin-bottom:5px;" onerror="this.style.display='none'"/><h3 style="margin:0; color:#800020;">${params.nom_entreprise || 'HAKIMI PLUS'}</h3><p style="margin:0; font-size:11px;">${params.adresse || ''}<br/>${params.nif_stat || ''}<br/>${params.contact || ''}</p></div><div style="text-align:right;"><h2 style="margin:0; color:#800020; font-size: 22px;">${titre}</h2>${data.numero ? `<h3 style="margin:5px 0;">N° ${data.numero}</h3>` : ''}<p style="margin:5px 0 0 0;">Date : ${dateDoc}</p>${data.methode && type !== 'admin_credit' ? `<p style="margin:5px 0 0 0; font-weight:bold; font-size:11px;">Payé par : ${data.methode}${data.banque ? ` (${data.banque})` : ''}</p>` : ''}</div></div>
+        <div class="client-box"><strong>Client :</strong> ${data.client_nom}<br/><strong>NIF :</strong> ${data.client_nif || '-'}<br/><strong>STAT :</strong> ${data.client_stat || '-'}<br/>${data.client_tel ? `<strong>Contact :</strong> ${data.client_tel}<br/>` : ''}${type === 'admin_credit' && data.echeance ? `<br/><strong style="color:red;">Échéance : ${formatDate(data.echeance)}</strong>` : ''}</div>
+        <table><thead><tr><th>Désignation</th><th>Qté</th><th>Prix U.</th><th style="text-align:right;">Total</th></tr></thead><tbody>
+            ${panierList.length > 0 ? panierList.map(i => {
+              const { prixU, remiseU, qte, totalLigne } = getLineData(i);
+              return `<tr><td>${i.nom} <span style="font-size:10px; color:#666;">(${i.categorie || 'Divers'})</span></td><td>${qte}</td><td>${formatAr(prixU - remiseU)}</td><td style="text-align:right;">${formatAr(totalLigne)} Ar</td></tr>`;
+            }).join('') : `<tr><td colspan="4">${data.articles_liste || data.details_articles || 'Détails non disponibles'}</td></tr>`}
+        </tbody></table>
+        <div style="margin-top:20px; text-align:right;">
+          <div style="font-size:16px; font-weight:bold; color:#555;">TOTAL ARTICLES : ${formatAr(data.totalNet)} Ar</div>
+          ${fraisLivraison > 0 ? `<div style="font-size:16px; font-weight:bold; color:#555; margin-top:5px;">FRAIS LIVRAISON : ${formatAr(fraisLivraison)} Ar</div>` : ''}
+          ${blocPaiement}
+          ${data.totalRemisesEnAr > 0 ? `<p style="font-size:11px; color:green; margin:5px 0;">(Remise globale appliquée : ${formatAr(data.totalRemisesEnAr)} Ar)</p>` : ''}
+        </div>
         ${type === 'devis' ? '<p style="text-align:center; margin-top:40px; font-size:11px; font-style:italic; color:#888;">Ce document est un devis estimatif et ne constitue pas une facture. Valable 30 jours.</p>' : ''}
       </body></html>
     `);
@@ -1154,14 +1154,10 @@ const ModuleCommandesWeb = () => {
       }
     }
 
-    const modePaiement = cmd.articles_json.methode_paiement || 'LIVRAISON';
+  const modePaiement = cmd.articles_json.methode_paiement || 'LIVRAISON';
     const fraisLivraison = Number(cmd.frais_livraison || 0);
 
     // --- NOUVEAU : Numérotation WEB séquentielle (Ex: WEB-HP000001) ---
-    const { count } = await supabase.from('historique_ventes').select('*', { count: 'exact', head: true }).eq('type_vente', 'SITE_WEB');
-    const numeroWebSeq = `WEB-HP${String((count || 0) + 1).padStart(6, '0')}`;
-
-    // Numérotation WEB séquentielle
     const { count } = await supabase.from('historique_ventes').select('*', { count: 'exact', head: true }).eq('type_vente', 'SITE_WEB');
     const numeroWebSeq = `WEB-HP${String((count || 0) + 1).padStart(6, '0')}`;
 
