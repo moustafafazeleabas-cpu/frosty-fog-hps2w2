@@ -1320,9 +1320,16 @@ const changerStatut = async (id, nouveauStatut) => {
                     ✅ Livrée
                   </button>
                 </div>
-              </div>
-              {/* --------------------------------------- */}
-            </div>
+            {/* --------------------------------------- */}
+          </div>
+        </div>
+      </div>
+    )
+  })}
+  </div>
+</div>
+);
+};
 
 const ModuleGestionSite = () => {
   const [config, setConfig] = useState({ carousel_urls: ["", "", ""], texte_livraison: "", texte_conditions: "", quartiers_json: [], rubriques_json: [], maintenance_mode: false, maintenance_date: "" });
