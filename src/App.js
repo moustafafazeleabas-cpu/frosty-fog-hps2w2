@@ -120,31 +120,68 @@ const lancerImpression = (type, data, params) => {
               <div style="font-size:14px; font-weight:900; color:#800020; margin-top:5px;">FACTURE SOLDÉE</div>
             </div>`;
       }
-    } else {
-      blocPaiement = `<div class="total-line">NET À PAYER : ${formatAr(safeNum(data.totalNet) + fraisLivraison)} Ar</div>`;
-    }
+   } else {
+    let titre = 'FACTURE'; 
+    if (type === 'devis') titre = 'PROFORMA / DEVIS'; 
+    if (type === 'admin_credit') titre = 'FACTURE À CRÉDIT';
+    
+    const hasAcompte = data.panier && Array.isArray(data.panier) && data.panier.some(a => a.sur_commande === true);
+    const acompteValeur = hasAcompte ? Math.round(safeNum(data.totalNet) * 0.6) : 0;
+    const resteValeur = hasAcompte ? (safeNum(data.totalNet) - acompteValeur) + fraisLivraison : 0;
+    let blocPaiement = '';
 
-    win.document.write(`
-      <html><head><title>${data.numero || titre}</title>
-        <style>@media print { @page { margin: 0; size: auto; } body { margin: 1cm; } .no-print { display: none !important; } } body { font-family: Arial, sans-serif; font-size: 13px; color: #333; } table { width: 100%; border-collapse: collapse; margin-top: 15px; } th, td { padding: 8px; border-bottom: 1px solid #eee; text-align: left; } th { background-color: #800020; color: white; } .header-flex { display: flex; justify-content: space-between; border-bottom: 2px solid #800020; padding-bottom: 15px; margin-bottom: 15px; } .client-box { background-color: #f9f9f9; border-left: 4px solid #800020; padding: 15px; width: 50%; margin-bottom: 20px; } .total-line { font-size: 20px; font-weight: bold; color: #800020; text-align: right; margin-top: 10px; }</style>
-      </head><body>
-        <div class="no-print" style="background:#fff3cd; color:#856404; padding:10px; text-align:center; font-weight:bold; margin-bottom:20px; border-radius:5px; border: 1px solid #ffeeba;">
-           💡 Pour télécharger en PDF : Choisissez "Enregistrer au format PDF" dans la case "Destination" (ou Imprimante) ci-contre.
-        </div>
-        <div class="header-flex"><div><img src="${LOGO_URL}" style="height:50px; margin-bottom:5px;" onerror="this.style.display='none'"/><h3 style="margin:0; color:#800020;">${params.nom_entreprise || 'HAKIMI PLUS'}</h3><p style="margin:0; font-size:11px;">${params.adresse || ''}<br/>${params.nif_stat || ''}<br/>${params.contact || ''}</p></div><div style="text-align:right;"><h2 style="margin:0; color:#800020; font-size: 22px;">${titre}</h2>${data.numero ? `<h3 style="margin:5px 0;">N° ${data.numero}</h3>` : ''}<p style="margin:5px 0 0 0;">Date : ${dateDoc}</p>${data.methode && type !== 'admin_credit' ? `<p style="margin:5px 0 0 0; font-weight:bold; font-size:11px;">Payé par : ${data.methode}${data.banque ? ` (${data.banque})` : ''}</p>` : ''}</div></div>
-        <div class="client-box"><strong>Client :</strong> ${data.client_nom}<br/><strong>NIF :</strong> ${data.client_nif || '-'}<br/><strong>STAT :</strong> ${data.client_stat || '-'}<br/>${data.client_tel ? `<strong>Contact :</strong> ${data.client_tel}<br/>` : ''}${type === 'admin_credit' && data.echeance ? `<br/><strong style="color:red;">Échéance : ${formatDate(data.echeance)}</strong>` : ''}</div>
-        <table><thead><tr><th>Désignation</th><th>Qté</th><th>Prix U.</th><th style="text-align:right;">Total</th></tr></thead><tbody>
-            ${panierList.length > 0 ? panierList.map(i => {
-              const { prixU, remiseU, qte, totalLigne } = getLineData(i);
-              return `<tr><td>${i.nom} <span style="font-size:10px; color:#666;">(${i.categorie || 'Divers'})</span></td><td>${qte}</td><td>${formatAr(prixU - remiseU)}</td><td style="text-align:right;">${formatAr(totalLigne)} Ar</td></tr>`;
-            }).join('') : `<tr><td colspan="4">${data.articles_liste || data.details_articles || 'Détails non disponibles'}</td></tr>`}
-        </tbody></table>
-        <div style="margin-top:20px; text-align:right;">
-          <div style="font-size:16px; font-weight:bold; color:#555;">TOTAL ARTICLES : ${formatAr(data.totalNet)} Ar</div>
-          ${fraisLivraison > 0 ? `<div style="font-size:16px; font-weight:bold; color:#555; margin-top:5px;">FRAIS LIVRAISON : ${formatAr(fraisLivraison)} Ar</div>` : ''}
-          ${blocPaiement}
-          ${data.totalRemisesEnAr > 0 ? `<p style="font-size:11px; color:green; margin:5px 0;">(Remise globale appliquée : ${formatAr(data.totalRemisesEnAr)} Ar)</p>` : ''}
-        </div>
+    if (hasAcompte) {
+      if (type === 'commande_web') {
+        if (data.statut === 'Acompte Payé') {
+          titre = 'FACTURE PROVISOIRE (ACOMPTE)';
+          blocPaiement = `
+            <div style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc; display: inline-block; text-align: right;">
+              <div style="font-size:16px; font-weight:bold; color:green;">ACOMPTE REÇU (60%) : ${formatAr(acompteValeur)} Ar</div>
+              <div style="font-size:11px; color:#555; margin-bottom: 5px;">Payé le : ${formatDate(data.date_acompte)} via ${data.methode_acompte}</div>
+              <div style="font-size:14px; font-weight:bold; color:#d97706;">SOLDE À PAYER À LA LIVRAISON : ${formatAr(resteValeur)} Ar</div>
+            </div>`;
+        } else {
+          titre = 'PROFORMA (PRÉ-COMMANDE)';
+          blocPaiement = `
+            <div style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc; display: inline-block; text-align: right;">
+              <div style="font-size:16px; font-weight:bold; color:#d97706;">ACOMPTE REQUIS (60%) : ${formatAr(acompteValeur)} Ar</div>
+              <div style="font-size:12px; font-weight:bold; color:#555; margin-top:5px;">RESTE À LA LIVRAISON : ${formatAr(resteValeur)} Ar</div>
+            </div>`;
+        }
+      } else if (type === 'facture_a4' && data.type_original === 'SITE_WEB') {
+        titre = 'FACTURE DÉFINITIVE';
+        blocPaiement = `
+            <div style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc; display: inline-block; text-align: right;">
+              <div style="font-size:12px; color:#555;">Acompte déjà réglé (60%) : - ${formatAr(acompteValeur)} Ar</div>
+              <div style="font-size:16px; font-weight:bold; color:green; margin-top:5px;">SOLDE RÉGLÉ À LA LIVRAISON : ${formatAr(resteValeur)} Ar</div>
+              <div style="font-size:14px; font-weight:900; color:#800020; margin-top:5px;">FACTURE SOLDÉE</div>
+            </div>`;
+      }
+    } else {
+      blocPaiement = `<div class="total-line">NET À PAYER : ${formatAr(safeNum(data.totalNet) + fraisLivraison)} Ar</div>`;
+    }
+
+    win.document.write(`
+      <html><head><title>${data.numero || titre}</title>
+        <style>@media print { @page { margin: 0; size: auto; } body { margin: 1cm; } .no-print { display: none !important; } } body { font-family: Arial, sans-serif; font-size: 13px; color: #333; } table { width: 100%; border-collapse: collapse; margin-top: 15px; } th, td { padding: 8px; border-bottom: 1px solid #eee; text-align: left; } th { background-color: #800020; color: white; } .header-flex { display: flex; justify-content: space-between; border-bottom: 2px solid #800020; padding-bottom: 15px; margin-bottom: 15px; } .client-box { background-color: #f9f9f9; border-left: 4px solid #800020; padding: 15px; width: 50%; margin-bottom: 20px; } .total-line { font-size: 20px; font-weight: bold; color: #800020; text-align: right; margin-top: 10px; }</style>
+      </head><body>
+        <div class="no-print" style="background:#fff3cd; color:#856404; padding:10px; text-align:center; font-weight:bold; margin-bottom:20px; border-radius:5px; border: 1px solid #ffeeba;">
+           💡 Pour télécharger en PDF : Choisissez "Enregistrer au format PDF" dans la case "Destination" (ou Imprimante) ci-contre.
+        </div>
+        <div class="header-flex"><div><img src="${LOGO_URL}" style="height:50px; margin-bottom:5px;" onerror="this.style.display='none'"/><h3 style="margin:0; color:#800020;">${params.nom_entreprise || 'HAKIMI PLUS'}</h3><p style="margin:0; font-size:11px;">${params.adresse || ''}<br/>${params.nif_stat || ''}<br/>${params.contact || ''}</p></div><div style="text-align:right;"><h2 style="margin:0; color:#800020; font-size: 22px;">${titre}</h2>${data.numero ? `<h3 style="margin:5px 0;">N° ${data.numero}</h3>` : ''}<p style="margin:5px 0 0 0;">Date : ${dateDoc}</p>${data.methode && type !== 'admin_credit' ? `<p style="margin:5px 0 0 0; font-weight:bold; font-size:11px;">Payé par : ${data.methode}${data.banque ? ` (${data.banque})` : ''}</p>` : ''}</div></div>
+        <div class="client-box"><strong>Client :</strong> ${data.client_nom}<br/><strong>NIF :</strong> ${data.client_nif || '-'}<br/><strong>STAT :</strong> ${data.client_stat || '-'}<br/>${data.client_tel ? `<strong>Contact :</strong> ${data.client_tel}<br/>` : ''}${type === 'admin_credit' && data.echeance ? `<br/><strong style="color:red;">Échéance : ${formatDate(data.echeance)}</strong>` : ''}</div>
+        <table><thead><tr><th>Désignation</th><th>Qté</th><th>Prix U.</th><th style="text-align:right;">Total</th></tr></thead><tbody>
+            ${panierList.length > 0 ? panierList.map(i => {
+              const { prixU, remiseU, qte, totalLigne } = getLineData(i);
+              return `<tr><td>${i.nom} ${i.categorie ? `<span style="font-size:10px; color:#666;">(${i.categorie})</span>` : ''}</td><td>${qte}</td><td>${formatAr(prixU - remiseU)}</td><td style="text-align:right;">${formatAr(totalLigne)} Ar</td></tr>`;
+            }).join('') : `<tr><td colspan="4">${data.articles_liste || data.details_articles || 'Détails non disponibles'}</td></tr>`}
+        </tbody></table>
+        <div style="margin-top:20px; text-align:right;">
+          <div style="font-size:16px; font-weight:bold; color:#555;">TOTAL ARTICLES : ${formatAr(data.totalNet)} Ar</div>
+          ${fraisLivraison > 0 ? `<div style="font-size:16px; font-weight:bold; color:#555; margin-top:5px;">FRAIS LIVRAISON : ${formatAr(fraisLivraison)} Ar</div>` : ''}
+          ${blocPaiement}
+          ${data.totalRemisesEnAr > 0 ? `<p style="font-size:11px; color:green; margin:5px 0;">(Remise globale appliquée : ${formatAr(data.totalRemisesEnAr)} Ar)</p>` : ''}
+        </div>
         ${type === 'devis' ? '<p style="text-align:center; margin-top:40px; font-size:11px; font-style:italic; color:#888;">Ce document est un devis estimatif et ne constitue pas une facture. Valable 30 jours.</p>' : ''}
       </body></html>
     `);
@@ -1179,7 +1216,7 @@ const ModuleCommandesWeb = () => {
     await supabase.from('commandes_web').update({ statut: 'Livrée' }).eq('id', cmd.id);
     alert("✅ Commande traitée avec succès ! Numéro : " + numeroWebSeq); load();
   };
-  const annulerCommandeWeb = async (cmd) => {
+const annulerCommandeWeb = async (cmd) => {
     if (!window.confirm("Annuler cette commande ?")) return;
     await supabase.from('commandes_web').update({ statut: 'Annulée' }).eq('id', cmd.id);
     const num = String(cmd.client_whatsapp).replace(/[^0-9]/g, '');
@@ -1188,7 +1225,7 @@ const ModuleCommandesWeb = () => {
     load();
   };
 
-  // --- NOUVELLE FONCTION : Gérer l'acompte ---
+  // --- NOUVELLES FONCTIONS : Acompte et Impression ---
   const validerAcompte = async (cmd) => {
     const methode = window.prompt("Méthode de paiement de l'acompte ? (ex: CASH, MVOLA, ORANGE)");
     if (!methode) return;
@@ -1198,7 +1235,6 @@ const ModuleCommandesWeb = () => {
     alert("✅ Acompte validé et enregistré !");
   };
 
-  // --- NOUVELLE FONCTION : Imprimer depuis le Web ---
   const imprimerCommandeWeb = (cmd) => {
     const dataPrint = {
       numero: cmd.numero_commande,
@@ -1210,10 +1246,12 @@ const ModuleCommandesWeb = () => {
       statut: cmd.statut,
       date_acompte: cmd.articles_json?.acompte_paye_le,
       methode_acompte: cmd.articles_json?.methode_acompte,
-      printSize: 'A4'
+      printSize: 'A4',
+      type_original: 'SITE_WEB'
     };
     lancerImpression('commande_web', dataPrint, params);
   };
+  // ---------------------------------------------------
 
   const telechargerAdresse = (cmd) => {
     const contenu = `--- FICHE LIVRAISON HAKIMI PLUS ---\nCLIENT : ${cmd.client_nom}\nTEL 1 : ${cmd.client_whatsapp}\nTEL 2 : ${cmd.client_whatsapp2 || 'N/A'}\nQUARTIER : ${cmd.quartier}\nADRESSE : ${cmd.adresse_detail}\nTOTAL : ${Number(cmd.montant_total).toLocaleString()} Ar\n-----------------------------------`;
@@ -1272,55 +1310,55 @@ const changerStatut = async (id, nouveauStatut) => {
                     ))}
                   </div>
                 </div>
-                <div className="text-right flex flex-col justify-between items-end">
-                  <div className="text-right">
-                    <p className="text-[10px] text-gray-500 font-bold">Articles : {formatAr(cmd.montant_total)} Ar</p>
-                    <p className="text-[10px] text-orange-500 font-bold mb-1">+ Liv. : {formatAr(cmd.frais_livraison)} Ar</p>
-                    <p className="text-2xl font-black text-[#800020]">Total : {formatAr(Number(cmd.montant_total) + Number(cmd.frais_livraison))} Ar</p>
-                  </div>
-                  {/* --- PANNEAU DE CONTRÔLE DES STATUTS --- */}
-                  <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-200 w-full">
-                    <div className="flex justify-between items-center mb-3">
-                      <p className="text-[10px] font-black uppercase text-gray-500">Statut actuel : <span className="text-[#800020]">{cmd.statut}</span></p>
-                      <button onClick={() => imprimerCommandeWeb(cmd)} className="text-[10px] font-black bg-blue-100 text-blue-800 px-3 py-1.5 rounded shadow-sm hover:bg-blue-200 transition">🖨️ Imprimer Reçu</button>
-                    </div>
-                    
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button onClick={() => annulerCommandeWeb(cmd)} disabled={cmd.statut === 'Annulée' || cmd.statut === 'Livrée'} className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded-lg text-[10px] font-black uppercase transition shadow-sm disabled:opacity-50">
-                        ❌ Annuler
-                      </button>
-                      
-                      {cmd.articles_json?.articles?.some(a => a.sur_commande) ? (
-                        <button onClick={() => validerAcompte(cmd)} disabled={cmd.statut === 'Annulée' || cmd.statut === 'Livrée' || cmd.statut === 'Acompte Payé'} className="bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-2 rounded-lg text-[10px] font-black uppercase transition shadow-sm disabled:opacity-50">
-                          💰 Valider Acompte
-                        </button>
-                      ) : (
-                        <button onClick={() => changerStatut(cmd.id, "En cours de préparation")} disabled={cmd.statut === 'Annulée' || cmd.statut === 'Livrée'} className="bg-yellow-100 hover:bg-yellow-200 text-yellow-700 px-3 py-2 rounded-lg text-[10px] font-black uppercase transition shadow-sm disabled:opacity-50">
-                          📦 Préparation
-                        </button>
-                      )}
-                      
-                      <div className="flex items-center gap-2 bg-blue-100 p-1.5 rounded-lg border border-blue-200 shadow-sm">
-                        <input 
-                          type="datetime-local" 
-                          className="text-[10px] font-bold p-1 rounded outline-none text-blue-900 bg-white disabled:opacity-50"
-                          value={datesLivraison[cmd.id] || ""}
-                          onChange={(e) => setDatesLivraison({...datesLivraison, [cmd.id]: e.target.value})}
-                          disabled={cmd.statut === 'Annulée' || cmd.statut === 'Livrée'}
-                        />
-                        <button onClick={() => changerStatut(cmd.id, "En cours de livraison")} disabled={cmd.statut === 'Annulée' || cmd.statut === 'Livrée'} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-[10px] font-black uppercase transition disabled:opacity-50">
-                          🛵 Livraison
-                        </button>
-                      </div>
-
-                      <button onClick={() => validerCommandeWeb(cmd)} disabled={cmd.statut === 'Annulée' || cmd.statut === 'Livrée'} className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-[10px] font-black uppercase transition shadow-sm disabled:opacity-50">
-                        ✅ Livrée
-                      </button>
-                    </div>
-                  </div>
-                  {/* --------------------------------------- */}
+                
+               <div className="text-right flex flex-col items-end">
+                  <p className="text-[10px] text-gray-500 font-bold">Articles : {formatAr(cmd.montant_total)} Ar</p>
+                  <p className="text-[10px] text-orange-500 font-bold mb-1">+ Liv. : {formatAr(cmd.frais_livraison)} Ar</p>
+                  <p className="text-2xl font-black text-[#800020]">Total : {formatAr(Number(cmd.montant_total) + Number(cmd.frais_livraison))} Ar</p>
                 </div>
               </div>
+
+              {/* --- PANNEAU DE CONTRÔLE DES STATUTS (Déplacé pour la largeur) --- */}
+              <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-200 w-full">
+                <div className="flex flex-wrap justify-between items-center mb-3 gap-2">
+                  <p className="text-[10px] font-black uppercase text-gray-500">Statut actuel : <span className="text-[#800020]">{cmd.statut}</span></p>
+                  <button onClick={() => imprimerCommandeWeb(cmd)} className="text-[10px] font-black bg-blue-100 text-blue-800 px-3 py-1.5 rounded shadow-sm hover:bg-blue-200 transition">🖨️ Imprimer Reçu</button>
+                </div>
+                
+                <div className="flex flex-wrap items-center gap-2">
+                  <button onClick={() => annulerCommandeWeb(cmd)} disabled={cmd.statut === 'Annulée' || cmd.statut === 'Livrée'} className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded-lg text-[10px] font-black uppercase transition shadow-sm disabled:opacity-50">
+                    ❌ Annuler
+                  </button>
+                  
+                  {cmd.articles_json?.articles?.some(a => a.sur_commande) ? (
+                    <button onClick={() => validerAcompte(cmd)} disabled={cmd.statut === 'Annulée' || cmd.statut === 'Livrée' || cmd.statut === 'Acompte Payé'} className="bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-2 rounded-lg text-[10px] font-black uppercase transition shadow-sm disabled:opacity-50">
+                      💰 Valider Acompte
+                    </button>
+                  ) : (
+                    <button onClick={() => changerStatut(cmd.id, "En cours de préparation")} disabled={cmd.statut === 'Annulée' || cmd.statut === 'Livrée'} className="bg-yellow-100 hover:bg-yellow-200 text-yellow-700 px-3 py-2 rounded-lg text-[10px] font-black uppercase transition shadow-sm disabled:opacity-50">
+                      📦 Préparation
+                    </button>
+                  )}
+                  
+                  <div className="flex items-center gap-2 bg-blue-100 p-1.5 rounded-lg border border-blue-200 shadow-sm">
+                    <input 
+                      type="datetime-local" 
+                      className="text-[10px] font-bold p-1 rounded outline-none text-blue-900 bg-white disabled:opacity-50"
+                      value={datesLivraison[cmd.id] || ""}
+                      onChange={(e) => setDatesLivraison({...datesLivraison, [cmd.id]: e.target.value})}
+                      disabled={cmd.statut === 'Annulée' || cmd.statut === 'Livrée'}
+                    />
+                    <button onClick={() => changerStatut(cmd.id, "En cours de livraison")} disabled={cmd.statut === 'Annulée' || cmd.statut === 'Livrée'} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-[10px] font-black uppercase transition disabled:opacity-50">
+                      🛵 Livraison
+                    </button>
+                  </div>
+
+                  <button onClick={() => validerCommandeWeb(cmd)} disabled={cmd.statut === 'Annulée' || cmd.statut === 'Livrée'} className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-[10px] font-black uppercase transition shadow-sm disabled:opacity-50">
+                    ✅ Livrée
+                  </button>
+                </div>
+              </div>
+              {/* --------------------------------------- */}
             </div>
           )
         })}
