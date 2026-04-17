@@ -445,15 +445,15 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
   const [selectedCatFilter, setSelectedCatFilter] = useState(""); 
   const [searchStock, setSearchStock] = useState(""); 
   const [sortConfig, setSortConfig] = useState({ key: 'nom', direction: 'asc' });
-  
-const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', stock: '', fournisseur: '', categorie: 'Divers', dlc: '', image_file: null, afficher_web: false, categorie_web: '', sous_categorie_web: '', texte_rupture: '', description: '', en_valeur: false, prix_promo: '', promo_debut: '', promo_fin: '', est_pack: false, pack_produit_nom: '', pack_qte: '' });
+
+  const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', stock: '', fournisseur: '', categorie: 'Divers', dlc: '', image_file: null, afficher_web: false, categorie_web: '', sous_categorie_web: '', texte_rupture: '', description: '', en_valeur: false, prix_promo: '', promo_debut: '', promo_fin: '', est_pack: false, pack_produit_nom: '', pack_qte: '', sur_commande: false, delai_commande: '' });
   
   const [reapproProd, setReapproProd] = useState(null); 
   const [reapproForm, setReapproForm] = useState({ qte: '', prix_a: '', prix_v: '', marge: '', dlc: '' }); 
   const [showHistoProd, setShowHistoProd] = useState(null); 
   
   const [editProd, setEditProd] = useState(null); 
-  const [editForm, setEditForm] = useState({ nom: '', prix_v: '', marge: '', pwd: '', image_file: null, afficher_web: false, categorie_web: '', texte_rupture: '', description: '' });
+  const [editForm, setEditForm] = useState({ nom: '', prix_v: '', marge: '', pwd: '', image_file: null, afficher_web: false, categorie_web: '', texte_rupture: '', description: '', sur_commande: false, delai_commande: '' });
   const [deleteProd, setDeleteProd] = useState(null); 
   const [deletePwd, setDeletePwd] = useState(""); 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -510,7 +510,9 @@ const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', s
       promo_fin: form.promo_fin || null,
       est_pack: form.est_pack,
       pack_produit_nom: form.pack_produit_nom || null,
-      pack_qte: safeNum(form.pack_qte)
+      pack_qte: safeNum(form.pack_qte),
+      sur_commande: form.sur_commande,
+      delai_commande: form.delai_commande
    }]);
 
    if (error) {
@@ -520,7 +522,7 @@ const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', s
    }
 
     await supabase.from('historique_stock').insert([{ produit_nom: form.nom.trim(), quantite: safeNum(form.stock), prix_achat: safeNum(form.prix_a) }]); 
-    setForm({ nom:'', prix_a:'', prix_v:'', marge:'', stock:'', fournisseur:'', categorie: 'Divers', dlc: '', image_file: null, afficher_web: false, categorie_web: '', texte_rupture: '', description: '', en_valeur: false, prix_promo: '', promo_debut: '', promo_fin: '', est_pack: false, pack_produit_nom: '', pack_qte: '' });
+    setForm({ nom:'', prix_a:'', prix_v:'', marge:'', stock:'', fournisseur:'', categorie: 'Divers', dlc: '', image_file: null, afficher_web: false, categorie_web: '', texte_rupture: '', description: '', en_valeur: false, prix_promo: '', promo_debut: '', promo_fin: '', est_pack: false, pack_produit_nom: '', pack_qte: '', sur_commande: false, delai_commande: '' });
     load(); setIsSubmitting(false); alert("Produit ajouté avec succès !");
   };
   
@@ -665,6 +667,15 @@ const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', s
           <div className="md:col-span-2">
             <label className="text-[10px] font-bold text-gray-400 uppercase">Photo (Max 200Ko) - Optionnel mais conseillé pour le web</label>
             <input type="file" accept="image/*" className="w-full p-2 bg-gray-50 border rounded-xl text-xs" onChange={e=>setForm({...form, image_file: e.target.files[0]})} disabled={isSubmitting}/>
+          </div>
+          <div className="md:col-span-4 bg-orange-50 border border-orange-200 p-3 rounded-xl flex flex-col md:flex-row gap-3 items-center">
+             <label className="text-xs font-black text-orange-900 flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" className="w-5 h-5 accent-orange-600" checked={form.sur_commande} onChange={e => setForm({...form, sur_commande: e.target.checked})} disabled={isSubmitting} />
+                📦 Vente sur commande uniquement
+             </label>
+             {form.sur_commande && (
+                <input type="text" className="flex-1 p-2 bg-white border border-orange-200 rounded-lg outline-none text-xs font-bold text-orange-900" placeholder="Délai (Ex: Dispo sous 15 jours)" value={form.delai_commande} onChange={e => setForm({...form, delai_commande: e.target.value})} disabled={isSubmitting} />
+             )}
           </div>
           <button className="w-full bg-[#800020] text-white p-3 rounded-xl font-black uppercase shadow-md md:col-span-4 mt-2" disabled={isSubmitting}>{isSubmitting ? 'Ajout...' : 'Ajouter au Stock'}</button>
         </form>
