@@ -16,6 +16,7 @@ const formatDate = (dateStr) => { if (!dateStr) return '-'; const d = new Date(d
 const formatDateTime = (dateStr) => { if (!dateStr) return '-'; const d = new Date(dateStr); return isNaN(d.getTime()) ? '-' : d.toLocaleString('fr-FR'); };
 const formatHeureMessage = (dateStr) => { if (!dateStr) return '-'; const d = new Date(dateStr); return isNaN(d.getTime()) ? '-' : `le ${d.toLocaleDateString('fr-FR')} à ${d.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}`; };
 
+
 const lancerImpression = (type, data, params) => {
   const isTicket = data.printSize === '58mm' || data.printSize === '80mm';
   const win = window.open('', '', isTicket ? 'width=350,height=600' : 'width=800,height=900');
@@ -40,7 +41,6 @@ const lancerImpression = (type, data, params) => {
     if (type === 'devis') titreType = 'DEVIS ESTIMATIF';
     if (type === 'facture_a4') titreType = 'FACTURE';
 
-    // Détection de l'acompte
     const hasAcompte = data.panier && Array.isArray(data.panier) && data.panier.some(a => a.sur_commande === true);
     const acompteValeur = hasAcompte ? Math.round(safeNum(data.totalNet) * 0.6) : 0;
     if (hasAcompte && type !== 'devis') titreType = 'FACTURE PROVISOIRE (ACOMPTE)';
@@ -59,68 +59,30 @@ const lancerImpression = (type, data, params) => {
         ${data.methode && type !== 'admin_credit' && type !== 'devis' ? `<p style="margin:2px 0; font-weight:bold; font-size:10px;">Payé par : ${data.methode}${data.banque ? ` (${data.banque})` : ''}</p>` : ''}
         <hr style="border-top:1px dashed #000;"/>
         <div style="width:100%;">
-          ${panierList.length > 0 ? panierList.map(i => {
-            const { prixU, remiseU, qte, totalLigne } = getLineData(i);
-            return `<div class="item-block"><div class="item-line1">${qte}x ${i.nom}</div><div class="item-line2"><span>${formatAr(prixU - remiseU)} Ar/u</span><span style="font-weight:bold;">${formatAr(totalLigne)} Ar</span></div><div class="item-line3">[${i.categorie || 'Divers'}]</div></div>`;
-          }).join('') : `<p style="font-size:10px; text-align:left;">Ancien format : ${data.articles_liste || data.details_articles || 'Détails non disponibles'}</p>`}
-        </div>
-        <hr style="border-top:1px dashed #000;"/>
-        <div style="text-align:right; font-size:12px; margin:3px 0;">Total Articles: ${formatAr(data.totalNet)} Ar</div>
-        ${fraisLivraison > 0 ? `<div style="text-align:right; font-size:12px; margin:3px 0;">Livraison: ${formatAr(fraisLivraison)} Ar</div>` : ''}
-        
-        ${hasAcompte ? `
-          <div style="margin-top: 5px; padding-top: 5px; border-top: 1px dashed #ccc; text-align: right;">
-            <div style="font-size:12px; font-weight:bold; color:#d97706;">ACOMPTE (60%) : ${formatAr(acompteValeur)} Ar</div>
-            <div style="font-size:11px; font-weight:bold; color:#555; margin-top:2px;">RESTE À LA LIVRAISON : ${formatAr((safeNum(data.totalNet) - acompteValeur) + fraisLivraison)} Ar</div>
-          </div>
-        ` : `
-          <h3 style="text-align:right; margin:5px 0;">${type === 'devis' ? 'TOTAL ESTIMÉ' : 'À PAYER'}: ${formatAr(safeNum(data.totalNet) + fraisLivraison)} Ar</h3>
-        `}
-        
-        ${data.totalRemisesEnAr > 0 ? `<p style="text-align:right; font-size:10px; margin:0;">(Dont remise : ${formatAr(data.totalRemisesEnAr)} Ar)</p>` : ''}
-        <p style="margin-top:10px; font-size:11px;">${(params.message_ticket ? String(params.message_ticket) : 'Merci de votre visite !').replace(/\n/g, '<br/>')}</p>
-        <p style="color:#fff;">.</p>
-      </body></html>
-    `);
- } else {
-    let titre = 'FACTURE'; 
-    if (type === 'devis') titre = 'PROFORMA / DEVIS'; 
-    if (type === 'admin_credit') titre = 'FACTURE À CRÉDIT';
-    
-    // Détection de l'acompte et des étapes de pré-commande
-    const hasAcompte = data.panier && Array.isArray(data.panier) && data.panier.some(a => a.sur_commande === true);
-    const acompteValeur = hasAcompte ? Math.round(safeNum(data.totalNet) * 0.6) : 0;
-    const resteValeur = hasAcompte ? (safeNum(data.totalNet) - acompteValeur) + fraisLivraison : 0;
-    let blocPaiement = '';
-
-    if (hasAcompte) {
-      if (type === 'commande_web') {
-        if (data.statut === 'Acompte Payé') {
-          titre = 'FACTURE PROVISOIRE (ACOMPTE)';
-          blocPaiement = `
-            <div style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc; display: inline-block; text-align: right;">
-              <div style="font-size:16px; font-weight:bold; color:green;">ACOMPTE REÇU (60%) : ${formatAr(acompteValeur)} Ar</div>
-              <div style="font-size:11px; color:#555; margin-bottom: 5px;">Payé le : ${formatDate(data.date_acompte)} via ${data.methode_acompte}</div>
-              <div style="font-size:14px; font-weight:bold; color:#d97706;">SOLDE À PAYER À LA LIVRAISON : ${formatAr(resteValeur)} Ar</div>
-            </div>`;
-        } else {
-          titre = 'PROFORMA (PRÉ-COMMANDE)';
-          blocPaiement = `
-            <div style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc; display: inline-block; text-align: right;">
-              <div style="font-size:16px; font-weight:bold; color:#d97706;">ACOMPTE REQUIS (60%) : ${formatAr(acompteValeur)} Ar</div>
-              <div style="font-size:12px; font-weight:bold; color:#555; margin-top:5px;">RESTE À LA LIVRAISON : ${formatAr(resteValeur)} Ar</div>
-            </div>`;
-        }
-      } else if (type === 'facture_a4' && data.type_original === 'SITE_WEB') {
-        titre = 'FACTURE DÉFINITIVE';
-        blocPaiement = `
-            <div style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc; display: inline-block; text-align: right;">
-              <div style="font-size:12px; color:#555;">Acompte déjà réglé (60%) : - ${formatAr(acompteValeur)} Ar</div>
-              <div style="font-size:16px; font-weight:bold; color:green; margin-top:5px;">SOLDE RÉGLÉ À LA LIVRAISON : ${formatAr(resteValeur)} Ar</div>
-              <div style="font-size:14px; font-weight:900; color:#800020; margin-top:5px;">FACTURE SOLDÉE</div>
-            </div>`;
-      }
-   } else {
+          ${panierList.length > 0 ? panierList.map(i => {
+            const { prixU, remiseU, qte, totalLigne } = getLineData(i);
+            return `<div class="item-block"><div class="item-line1">${qte}x ${i.nom}</div><div class="item-line2"><span>${formatAr(prixU - remiseU)} Ar/u</span><span style="font-weight:bold;">${formatAr(totalLigne)} Ar</span></div>${i.categorie ? `<div class="item-line3">[${i.categorie}]</div>` : ''}</div>`;
+          }).join('') : `<p style="font-size:10px; text-align:left;">Ancien format : ${data.articles_liste || data.details_articles || 'Détails non disponibles'}</p>`}
+        </div>
+        <hr style="border-top:1px dashed #000;"/>
+        <div style="text-align:right; font-size:12px; margin:3px 0;">Total Articles: ${formatAr(data.totalNet)} Ar</div>
+        ${fraisLivraison > 0 ? `<div style="text-align:right; font-size:12px; margin:3px 0;">Livraison: ${formatAr(fraisLivraison)} Ar</div>` : ''}
+        
+        ${hasAcompte ? `
+          <div style="margin-top: 5px; padding-top: 5px; border-top: 1px dashed #ccc; text-align: right;">
+            <div style="font-size:12px; font-weight:bold; color:#d97706;">ACOMPTE (60%) : ${formatAr(acompteValeur)} Ar</div>
+            <div style="font-size:11px; font-weight:bold; color:#555; margin-top:2px;">RESTE À LA LIVRAISON : ${formatAr((safeNum(data.totalNet) - acompteValeur) + fraisLivraison)} Ar</div>
+          </div>
+        ` : `
+          <h3 style="text-align:right; margin:5px 0;">${type === 'devis' ? 'TOTAL ESTIMÉ' : 'À PAYER'}: ${formatAr(safeNum(data.totalNet) + fraisLivraison)} Ar</h3>
+        `}
+        
+        ${data.totalRemisesEnAr > 0 ? `<p style="text-align:right; font-size:10px; margin:0;">(Dont remise : ${formatAr(data.totalRemisesEnAr)} Ar)</p>` : ''}
+        <p style="margin-top:10px; font-size:11px;">${(params.message_ticket ? String(params.message_ticket) : 'Merci de votre visite !').replace(/\n/g, '<br/>')}</p>
+        <p style="color:#fff;">.</p>
+      </body></html>
+    `);
+  } else {
     let titre = 'FACTURE'; 
     if (type === 'devis') titre = 'PROFORMA / DEVIS'; 
     if (type === 'admin_credit') titre = 'FACTURE À CRÉDIT';
