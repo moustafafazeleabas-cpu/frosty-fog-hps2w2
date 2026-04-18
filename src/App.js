@@ -687,7 +687,38 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
   const handleVente = (val) => { const pv = safeNum(val)||0; const pa = safeNum(form.prix_a)||0; let m = form.marge; if(pa>0 && pv>0) m = (((pv-pa)/pa)*100).toFixed(2); setForm(prev => ({...prev, prix_v: val, marge: m})); };
   const handleMarge = (val) => { const m = safeNum(val)||0; const pa = safeNum(form.prix_a)||0; let pv = form.prix_v; if(pa>0) pv = Math.round(pa*(1+(m/100))); setForm(prev => ({...prev, marge: val, prix_v: pv})); };
 
-  const saveReappro = async (e) => { e.preventDefault(); await supabase.from('produits').update({ stock_actuel: reapproProd.stock_actuel + safeNum(reapproForm.qte), prix_achat: safeNum(reapproForm.prix_a), prix_vente: safeNum(reapproForm.prix_v), marge_pourcent: safeNum(reapproForm.marge), date_peremption: reapproForm.dlc || reapproProd.date_peremption }).eq('id', reapproProd.id); await supabase.from('historique_stock').insert([{ produit_nom: reapproProd.nom, quantite: safeNum(reapproForm.qte), prix_achat: safeNum(reapproForm.prix_a) }]); setReapproProd(null); load(); };
+ const saveReappro = async (e) => { 
+    e.preventDefault(); 
+    
+    // 1. On sécurise l'addition (évite que 10 + 5 devienne 105)
+    const nouveauStock = safeNum(reapproProd.stock_actuel) + safeNum(reapproForm.qte);
+
+    // 2. On envoie à Supabase et on écoute s'il y a une erreur RLS
+    const { error } = await supabase.from('produits').update({ 
+      stock_actuel: nouveauStock, 
+      prix_achat: safeNum(reapproForm.prix_a), 
+      prix_vente: safeNum(reapproForm.prix_v), 
+      marge_pourcent: safeNum(reapproForm.marge), 
+      date_peremption: reapproForm.dlc || reapproProd.date_peremption 
+    }).eq('id', reapproProd.id); 
+
+    // 3. S'il y a une erreur de sécurité, on l'affiche
+    if (error) {
+      alert("🚨 Erreur Supabase (Bloqué par la sécurité RLS ?) : " + error.message);
+      return;
+    }
+
+    // 4. Si c'est bon, on met à jour l'historique
+    await supabase.from('historique_stock').insert([{ 
+      produit_nom: reapproProd.nom, 
+      quantite: safeNum(reapproForm.qte), 
+      prix_achat: safeNum(reapproForm.prix_a) 
+    }]); 
+
+    setReapproProd(null); 
+    load(); 
+    alert("✅ Stock réapprovisionné avec succès !");
+  };
   const handleRAchat = (val) => { const pa = safeNum(val)||0; const pv = safeNum(reapproForm.prix_v)||0; let m = reapproForm.marge; if(pa>0 && pv>0) m = (((pv-pa)/pa)*100).toFixed(2); setReapproForm(prev => ({...prev, prix_a: val, marge: m})); };
   const handleRVente = (val) => { const pv = safeNum(val)||0; const pa = safeNum(reapproForm.prix_a)||0; let m = reapproForm.marge; if(pa>0 && pv>0) m = (((pv-pa)/pa)*100).toFixed(2); setReapproForm(prev => ({...prev, prix_v: val, marge: m})); };
   const handleRMarge = (val) => { const m = safeNum(val)||0; const pa = safeNum(reapproForm.prix_a)||0; let pv = reapproForm.prix_v; if(pa>0) pv = Math.round(pa*(1+(m/100))); setReapproForm(prev => ({...prev, marge: val, prix_v: pv})); };
