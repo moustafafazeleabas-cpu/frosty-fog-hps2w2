@@ -479,13 +479,18 @@ const ModuleVente = ({ mode, params, categoriesDb }) => {
       const dbTypeVente = mode === 'caisse' ? 'CAISSE' : mode.replace('admin_', '').toUpperCase(); 
       await supabase.from('historique_ventes').insert([{ numero_facture: numero_genere, type_vente: dbTypeVente, client_nom: selectedClient, articles_liste: strArticles, montant_total: totalNet, benefice_total: beneficeNet, remise_globale_pourcent: safeNum(remiseGlobale), total_remise_ar: totalRemisesEnAr, details_json: detailsObj, methode_paiement: pMethode }]); 
       
-      if (mode === 'admin_credit') { 
-        await supabase.from('credits').insert([{ nom_client: selectedClient, montant_du: totalNet, details_articles: strArticles, date_echeance: echeance, numero_facture: numero_genere, details_json: detailsObj, statut: 'non_paye' }]); 
-      } 
-    }
-    const cData = clients.find(c => c.nom === selectedClient) || { nom: selectedClient, nif: '', stat: '' };
-    setVenteReussie({ numero: numero_genere, panier, totalNet, totalRemisesEnAr, fraisLivraison: frais_liv_val, methode: mode === 'caisse' ? methodePaiement : null, banque: banqueCheque, client_nom: cData.nom, client_tel: cData.telephone, client_nif: cData.nif, client_stat: cData.stat, date: today, echeance, printSize });
-  };
+     if (mode === 'admin_credit') { 
+        await supabase.from('credits').insert([{ nom_client: selectedClient, montant_du: totalNet, details_articles: strArticles, date_echeance: echeance, numero_facture: numero_genere, details_json: detailsObj, statut: 'non_paye' }]); 
+      } 
+    }
+
+    // 🔄 NOUVEAU : On force le rechargement immédiat des produits pour voir la baisse de stock
+    const { data: produitsAJour } = await supabase.from('produits').select('*').order('nom');
+    if (produitsAJour) setProduits(produitsAJour);
+
+    const cData = clients.find(c => c.nom === selectedClient) || { nom: selectedClient, nif: '', stat: '' };
+    setVenteReussie({ numero: numero_genere, panier, totalNet, totalRemisesEnAr, fraisLivraison: frais_liv_val, methode: mode === 'caisse' ? methodePaiement : null, banque: banqueCheque, client_nom: cData.nom, client_tel: cData.telephone, client_nif: cData.nif, client_stat: cData.stat, date: today, echeance, printSize });
+  };
 
   const produitsFiltres = produits.filter(p => (p.nom||'').toLowerCase().includes(search.toLowerCase()) && (selectedCat === "" || p.categorie === selectedCat));
 
