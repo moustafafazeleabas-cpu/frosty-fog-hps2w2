@@ -151,6 +151,94 @@ const lancerImpression = (type, data, params) => {
   }
   win.document.close(); setTimeout(() => { win.print(); }, 800);
 };
+// ======================================================================
+// 🔒 NOUVEL ÉCRAN DE CONNEXION SÉCURISÉ (SUPABASE AUTH)
+// ======================================================================
+const LoginScreen = ({ onLogin }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const handleSupabaseLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMsg('');
+
+    // Vraie connexion cryptée via Supabase Auth
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email,
+      password: password,
+    });
+
+    if (error) {
+      setErrorMsg("Identifiants incorrects.");
+      setLoading(false);
+      return;
+    }
+
+    if (data.user) {
+      // On connecte l'utilisateur avec le statut Super Admin
+      const appUser = {
+        id: data.user.id,
+        email: data.user.email,
+        identifiant: data.user.email.split('@')[0], 
+        role: 'superadmin' 
+      };
+      onLogin(appUser);
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 animate-in fade-in duration-500">
+      <div className="bg-white p-8 md:p-10 rounded-[2rem] shadow-2xl max-w-md w-full border-t-8 border-[#800020]">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-black italic tracking-tighter text-[#800020] mb-2">HAKIMI PLUS</h1>
+          <p className="text-gray-400 font-bold text-xs uppercase tracking-[0.2em]">Espace Direction</p>
+        </div>
+        
+        {errorMsg && (
+          <div className="bg-red-50 text-red-600 p-4 rounded-xl mb-6 text-center text-sm font-bold border border-red-100">
+            {errorMsg}
+          </div>
+        )}
+
+        <form onSubmit={handleSupabaseLogin} className="space-y-5">
+          <div>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Email Supabase</label>
+            <input 
+              type="email" 
+              className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl outline-none font-bold text-gray-800 focus:border-[#800020] transition-colors" 
+              placeholder="direction@hakimiplus.com" 
+              value={email} 
+              onChange={e => setEmail(e.target.value)} 
+              required 
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Mot de passe</label>
+            <input 
+              type="password" 
+              className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl outline-none font-bold text-gray-800 focus:border-[#800020] transition-colors" 
+              placeholder="••••••••" 
+              value={password} 
+              onChange={e => setPassword(e.target.value)} 
+              required 
+            />
+          </div>
+          <button 
+            type="submit" 
+            disabled={loading}
+            className="w-full bg-[#800020] text-white p-4 rounded-xl font-black uppercase tracking-[0.1em] shadow-lg hover:bg-black transition-colors mt-4 disabled:opacity-50 text-sm"
+          >
+            {loading ? 'Vérification...' : 'Déverrouiller 🔓'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
 export default function App() {
   const [user, setUser] = useState(() => { const savedUser = localStorage.getItem('hakimi_user'); return savedUser ? JSON.parse(savedUser) : null; });
   const [view, setView] = useState('dashboard');
