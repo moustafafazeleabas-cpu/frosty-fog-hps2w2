@@ -286,7 +286,11 @@ export default function App() {
   }, [user, view]);
 
   const handleLogin = (userData) => { localStorage.setItem('hakimi_user', JSON.stringify(userData)); setUser(userData); };
-  const handleLogout = () => { localStorage.removeItem('hakimi_user'); setUser(null); };
+  const handleLogout = async () => { 
+  await supabase.auth.signOut(); 
+  localStorage.removeItem('hakimi_user'); 
+  setUser(null); 
+};
   const handleOpenNotif = () => { setNotifOpen(!notifOpen); if (!notifOpen) { localStorage.setItem('notifClearedDate', new Date().toLocaleDateString('fr-FR')); setHasClearedNotifsToday(true); } };
 
   if (loading) return (<div className="min-h-screen bg-white flex flex-col items-center justify-center"><div className="w-16 h-16 border-4 border-[#800020] border-t-transparent rounded-full animate-spin mb-4"></div><img src={LOGO_URL} alt="Chargement..." className="h-12 animate-pulse" onError={(e) => e.target.style.display='none'} /></div>);
