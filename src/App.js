@@ -1475,10 +1475,10 @@ const changerStatut = async (id, nouveauStatut) => {
 };
 
 const ModuleGestionSite = () => {
-const [config, setConfig] = useState({ carousel_urls: ["", "", ""], texte_livraison: "", texte_conditions: "", quartiers_json: [], rubriques_json: [], maintenance_mode: false, maintenance_date: "", bandeau_promo_json: [] });
+const [config, setConfig] = useState({ carousel_urls: ["", "", ""], texte_livraison: "", texte_conditions: "", quartiers_json: [], rubriques_json: [], maintenance_mode: false, maintenance_date: "", bandeau_promo_json: [], min_commande_tana: 0, min_commande_province: 0 });
   const load = async () => {
     const { data } = await supabase.from('parametres_web').select('*').eq('id', 1).single();
-    if (data) setConfig({ ...data, quartiers_json: data.quartiers_json || [], categories_hierarchie_json: data.categories_hierarchie_json || [], maintenance_mode: data.maintenance_mode || false, maintenance_date: data.maintenance_date || "", bandeau_promo_json: data.bandeau_promo_json || [] });
+    if (data) setConfig({ ...data, quartiers_json: data.quartiers_json || [], categories_hierarchie_json: data.categories_hierarchie_json || [], maintenance_mode: data.maintenance_mode || false, maintenance_date: data.maintenance_date || "", bandeau_promo_json: data.bandeau_promo_json || [], min_commande_tana: data.min_commande_tana || 0, min_commande_province: data.min_commande_province || 0 });
   };
   useEffect(() => { load(); }, []);
 
@@ -1492,7 +1492,9 @@ const save = async () => {
         categories_hierarchie_json: config.categories_hierarchie_json,
         maintenance_mode: config.maintenance_mode,
         maintenance_date: config.maintenance_date,
-        bandeau_promo_json: config.bandeau_promo_json // 👈 L'AJOUT EST ICI
+        bandeau_promo_json: config.bandeau_promo_json,
+        min_commande_tana: Number(config.min_commande_tana),
+        min_commande_province: Number(config.min_commande_province)
     }).eq('id', 1);
     alert("🚀 Site Hakimi Plus mis à jour avec succès !");
   };
@@ -1597,7 +1599,21 @@ const save = async () => {
         </div>
         {/* ---------------------------------------------- */}
         {/* --------------------------------- */}
-
+{/* --- NOUVEAU BLOC : MINIMUM DE COMMANDE --- */}
+        <div className="bg-red-50 p-4 rounded-xl border border-red-100 shadow-sm mb-6">
+          <h3 className="font-black text-[#800020] uppercase text-sm mb-4">💰 Minimum de Commande</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Minimum d'achat Tana (Ar)</label>
+              <input type="number" className="w-full p-3 bg-white border border-gray-200 rounded-xl font-black text-[#800020] outline-none focus:border-[#800020]" value={config.min_commande_tana} onChange={e => setConfig({...config, min_commande_tana: e.target.value})} placeholder="Ex: 20000" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Minimum d'achat Province (Ar)</label>
+              <input type="number" className="w-full p-3 bg-white border border-gray-200 rounded-xl font-black text-blue-600 outline-none focus:border-blue-500" value={config.min_commande_province} onChange={e => setConfig({...config, min_commande_province: e.target.value})} placeholder="Ex: 50000" />
+            </div>
+          </div>
+          <p className="text-[10px] text-gray-400 mt-2 font-bold italic">Mettez "0" pour désactiver le minimum d'achat.</p>
+        </div>
         <div className="bg-red-50 p-4 rounded-xl border border-red-100">
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-black text-[#800020] uppercase text-sm">📍 Quartiers & Frais de Livraison</h3>
