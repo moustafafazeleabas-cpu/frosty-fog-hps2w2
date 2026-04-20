@@ -1475,14 +1475,14 @@ const changerStatut = async (id, nouveauStatut) => {
 };
 
 const ModuleGestionSite = () => {
-  const [config, setConfig] = useState({ carousel_urls: ["", "", ""], texte_livraison: "", texte_conditions: "", quartiers_json: [], rubriques_json: [], maintenance_mode: false, maintenance_date: "" });
-const load = async () => {
+const [config, setConfig] = useState({ carousel_urls: ["", "", ""], texte_livraison: "", texte_conditions: "", quartiers_json: [], rubriques_json: [], maintenance_mode: false, maintenance_date: "", bandeau_promo_json: [] });
+  const load = async () => {
     const { data } = await supabase.from('parametres_web').select('*').eq('id', 1).single();
-    if (data) setConfig({ ...data, quartiers_json: data.quartiers_json || [], categories_hierarchie_json: data.categories_hierarchie_json || [], maintenance_mode: data.maintenance_mode || false, maintenance_date: data.maintenance_date || "" });
+    if (data) setConfig({ ...data, quartiers_json: data.quartiers_json || [], categories_hierarchie_json: data.categories_hierarchie_json || [], maintenance_mode: data.maintenance_mode || false, maintenance_date: data.maintenance_date || "", bandeau_promo_json: data.bandeau_promo_json || [] });
   };
   useEffect(() => { load(); }, []);
 
- const save = async () => {
+const save = async () => {
     await supabase.from('parametres_web').update({
         carousel_urls: config.carousel_urls,
         texte_livraison: config.texte_livraison,
@@ -1491,7 +1491,8 @@ const load = async () => {
         rubriques_json: config.rubriques_json,
         categories_hierarchie_json: config.categories_hierarchie_json,
         maintenance_mode: config.maintenance_mode,
-        maintenance_date: config.maintenance_date
+        maintenance_date: config.maintenance_date,
+        bandeau_promo_json: config.bandeau_promo_json // 👈 L'AJOUT EST ICI
     }).eq('id', 1);
     alert("🚀 Site Hakimi Plus mis à jour avec succès !");
   };
@@ -1531,6 +1532,37 @@ const load = async () => {
           )}
         </div>
 {/* --- NOUVEAU BLOC TEXTES LÉGAUX & LIVRAISON --- */}
+{/* --- NOUVEAU BLOC : BANDEAU D'URGENCE --- */}
+        <div className="bg-purple-50 p-4 rounded-2xl border border-purple-100 shadow-sm">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h3 className="font-black text-purple-800 uppercase text-sm">📢 Textes du Bandeau (Défilant)</h3>
+              <p className="text-[10px] text-purple-600 font-bold mt-1">S'affiche tout en haut du site. Si vide, le bandeau disparaît.</p>
+            </div>
+            <button onClick={() => setConfig({...config, bandeau_promo_json: [...(config.bandeau_promo_json||[]), ""]})} className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg text-xs font-black transition shadow-sm">+ Ajouter Message</button>
+          </div>
+          <div className="space-y-2">
+            {(config.bandeau_promo_json||[]).map((msg, idx) => (
+              <div key={idx} className="flex gap-2 items-center animate-in fade-in zoom-in-95 duration-300">
+                 <span className="bg-purple-200 text-purple-800 font-black text-[10px] px-2 py-2 rounded-lg">{idx + 1}</span>
+                 <input 
+                    className="flex-1 p-3 bg-white border border-purple-200 rounded-xl text-xs outline-none focus:border-purple-500 font-bold text-purple-900 shadow-sm transition" 
+                    value={msg} 
+                    onChange={e => { const newB = [...config.bandeau_promo_json]; newB[idx] = e.target.value; setConfig({...config, bandeau_promo_json: newB}); }} 
+                    placeholder="Ex: 🔥 Promo flash sur l'huile aujourd'hui !" 
+                 />
+                 <button 
+                    onClick={() => { const newB = [...config.bandeau_promo_json]; newB.splice(idx, 1); setConfig({...config, bandeau_promo_json: newB}); }} 
+                    className="text-red-500 font-black px-3 py-3 bg-white rounded-xl border border-red-100 hover:bg-red-500 hover:text-white transition shadow-sm"
+                    title="Supprimer ce message"
+                 >X</button>
+              </div>
+            ))}
+            {(!config.bandeau_promo_json || config.bandeau_promo_json.length === 0) && (
+              <p className="text-xs text-gray-500 italic bg-white p-3 rounded-xl border border-gray-100 text-center">Aucun message actif.</p>
+            )}
+          </div>
+        </div>
         <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200">
           <div className="mb-6 bg-blue-50 p-4 rounded-xl border border-blue-100">
             <p className="text-xs font-black text-blue-900 uppercase mb-2">💡 Comment formater le texte ?</p>
