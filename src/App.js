@@ -459,23 +459,16 @@ const ModuleVente = ({ mode, params, categoriesDb }) => {
    if (mode === 'devis') { 
       await supabase.from('devis').insert([{ numero_devis: numero_genere, client_nom: selectedClient, articles_liste: strArticles, montant_total: totalNet, total_remise_ar: totalRemisesEnAr, details_json: detailsObj }]); 
     } else { 
-      // --- NOUVEAU SYSTÈME SÉCURISÉ DE DÉDUCTION DE STOCK ---
+    
+     // --- VRAI SYSTÈME SÉCURISÉ DE DÉDUCTION DE STOCK (ANTI-COLLISION) ---
       for (let item of panier) {
-        // 1. Déduction normale de l'article
-        const { data: currentItem } = await supabase.from('produits').select('stock_actuel').eq('id', item.id).single();
-        if (currentItem) {
-          const nouveauStock = Math.max(0, safeNum(currentItem.stock_actuel) - safeNum(item.qte));
-          await supabase.from('produits').update({ stock_actuel: nouveauStock }).eq('id', item.id);
-        }
+        // 1. Déduction directe dans la base de données
+        await supabase.rpc('decrement_stock_by_name', { p_nom: item.nom, amount: safeNum(item.qte) });
         
-        // 2. Gestion des packs
+        // 2. Gestion des packs (Déduit la matière première)
         if (item.est_pack && item.pack_produit_nom && safeNum(item.pack_qte) > 0) {
            const quantiteTotaleADeduire = safeNum(item.qte) * safeNum(item.pack_qte);
-           const { data: sourceItem } = await supabase.from('produits').select('id, stock_actuel').eq('nom', item.pack_produit_nom).single();
-           if (sourceItem) {
-             const nouveauStockSource = Math.max(0, safeNum(sourceItem.stock_actuel) - quantiteTotaleADeduire);
-             await supabase.from('produits').update({ stock_actuel: nouveauStockSource }).eq('id', sourceItem.id);
-           }
+           await supabase.rpc('decrement_stock_by_name', { p_nom: item.pack_produit_nom, amount: quantiteTotaleADeduire });
         }
       }
       // ------------------------------------------------------
@@ -714,13 +707,17 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
   const handleVente = (val) => { const pv = safeNum(val)||0; const pa = safeNum(form.prix_a)||0; let m = form.marge; if(pa>0 && pv>0) m = (((pv-pa)/pa)*100).toFixed(2); setForm(prev => ({...prev, prix_v: val, marge: m})); };
   const handleMarge = (val) => { const m = safeNum(val)||0; const pa = safeNum(form.prix_a)||0; let pv = form.prix_v; if(pa>0) pv = Math.round(pa*(1+(m/100))); setForm(prev => ({...prev, marge: val, prix_v: pv})); };
 
- const saveReappro = async (e) => { 
+const saveReappro = async (e) => { 
     e.preventDefault(); 
     
-    // 1. On sécurise l'addition (évite que 10 + 5 devienne 105)
-    const nouveauStock = safeNum(reapproProd.stock_actuel) + safeNum(reapproForm.qte);
+    // 1. OBTENIR LE STOCK ULTRA-FRAIS JUSTE AVANT L'ADDITION (Empêche la création de faux stock)
+    const { data: freshProd } = await supabase.from('produits').select('stock_actuel').eq('id', reapproProd.id).single();
+    if (!freshProd) return alert("Erreur de lecture du stock actuel.");
 
-    // 2. On envoie à Supabase et on écoute s'il y a une erreur RLS
+    // 2. On additionne sur le VRAI stock actuel
+    const nouveauStock = safeNum(freshProd.stock_actuel) + safeNum(reapproForm.qte);
+
+    // 3. On envoie à Supabase
     const { error } = await supabase.from('produits').update({ 
       stock_actuel: nouveauStock, 
       prix_achat: safeNum(reapproForm.prix_a), 
@@ -729,9 +726,8 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
       date_peremption: reapproForm.dlc || reapproProd.date_peremption 
     }).eq('id', reapproProd.id); 
 
-    // 3. S'il y a une erreur de sécurité, on l'affiche
     if (error) {
-      alert("🚨 Erreur Supabase (Bloqué par la sécurité RLS ?) : " + error.message);
+      alert("🚨 Erreur Supabase : " + error.message);
       return;
     }
 
@@ -746,6 +742,7 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
     load(); 
     alert("✅ Stock réapprovisionné avec succès !");
   };
+  
   const handleRAchat = (val) => { const pa = safeNum(val)||0; const pv = safeNum(reapproForm.prix_v)||0; let m = reapproForm.marge; if(pa>0 && pv>0) m = (((pv-pa)/pa)*100).toFixed(2); setReapproForm(prev => ({...prev, prix_a: val, marge: m})); };
   const handleRVente = (val) => { const pv = safeNum(val)||0; const pa = safeNum(reapproForm.prix_a)||0; let m = reapproForm.marge; if(pa>0 && pv>0) m = (((pv-pa)/pa)*100).toFixed(2); setReapproForm(prev => ({...prev, prix_v: val, marge: m})); };
   const handleRMarge = (val) => { const m = safeNum(val)||0; const pa = safeNum(reapproForm.prix_a)||0; let pv = reapproForm.prix_v; if(pa>0) pv = Math.round(pa*(1+(m/100))); setReapproForm(prev => ({...prev, marge: val, prix_v: pv})); };
