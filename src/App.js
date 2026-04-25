@@ -613,9 +613,6 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
   const [sortConfig, setSortConfig] = useState({ key: 'nom', direction: 'asc' });
 
   const [form, setForm] = useState({ nom: '', prix_a: '', prix_v: '', marge: '', stock: '', fournisseur: '', categorie: 'Divers', dlc: '', image_file: null, afficher_web: false, categorie_web: '', sous_categorie_web: '', texte_rupture: '', description: '', en_valeur: false, prix_promo: '', promo_debut: '', promo_fin: '', est_pack: false, pack_produit_nom: '', pack_qte: '', sur_commande: false, delai_commande: '' });
-  
-  const [reapproProd, setReapproProd] = useState(null); 
-  const [reapproForm, setReapproForm] = useState({ qte: '', prix_a: '', prix_v: '', marge: '', dlc: '' }); 
   const [reapproProd, setReapproProd] = useState(null); 
   const [reapproForm, setReapproForm] = useState({ qte: '', prix_a: '', prix_v: '', marge: '', dlc: '' }); 
   const [showHistoProd, setShowHistoProd] = useState(null); 
