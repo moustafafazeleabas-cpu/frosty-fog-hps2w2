@@ -616,7 +616,63 @@ const AdminStock = ({ categoriesDb, refreshCategories }) => {
   
   const [reapproProd, setReapproProd] = useState(null); 
   const [reapproForm, setReapproForm] = useState({ qte: '', prix_a: '', prix_v: '', marge: '', dlc: '' }); 
+  const [reapproProd, setReapproProd] = useState(null); 
+  const [reapproForm, setReapproForm] = useState({ qte: '', prix_a: '', prix_v: '', marge: '', dlc: '' }); 
   const [showHistoProd, setShowHistoProd] = useState(null); 
+
+  // --- 🔍 NOUVEAUX STATES POUR L'AUDIT DE STOCK ---
+  const [histoDates, setHistoDates] = useState({ 
+    debut: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0], 
+    fin: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0] 
+  });
+  const [auditData, setAuditData] = useState({ entrees: [], totalVendus: 0, totalEntrees: 0, loading: false });
+
+  // Moteur de calcul pour l'Audit en temps réel
+  useEffect(() => {
+    if (showHistoProd) {
+      const loadAudit = async () => {
+        setAuditData(prev => ({ ...prev, loading: true }));
+        
+        // 1. Entrées (Réapprovisionnements)
+        let qE = supabase.from('historique_stock').select('*').eq('produit_nom', showHistoProd.nom).order('date_ajout', { ascending: false });
+        if (histoDates.debut) qE = qE.gte('date_ajout', `${histoDates.debut}T00:00:00`);
+        if (histoDates.fin) qE = qE.lte('date_ajout', `${histoDates.fin}T23:59:59`);
+        const { data: entrees } = await qE;
+        const totalE = (entrees || []).reduce((acc, curr) => acc + safeNum(curr.quantite), 0);
+
+        // 2. Sorties (Ventes réelles validées)
+        let qV = supabase.from('historique_ventes').select('details_json');
+        if (histoDates.debut) qV = qV.gte('date_vente', `${histoDates.debut}T00:00:00`);
+        if (histoDates.fin) qV = qV.lte('date_vente', `${histoDates.fin}T23:59:59`);
+        const { data: ventes } = await qV;
+
+        // Identifier si ce produit est la matière première d'un ou plusieurs packs (Ex: Pack de 6)
+        const packsLies = produits.filter(p => p.est_pack && p.pack_produit_nom === showHistoProd.nom);
+
+        let totalV = 0;
+        (ventes || []).forEach(v => {
+          if (v.details_json && Array.isArray(v.details_json.articles)) {
+            v.details_json.articles.forEach(art => {
+              // Vente directe à l'unité
+              if (art.nom === showHistoProd.nom) {
+                totalV += safeNum(art.qte);
+              }
+              // Vente via un pack (On multiplie la quantité du pack par sa contenance)
+              packsLies.forEach(pack => {
+                if (art.nom === pack.nom) {
+                  totalV += (safeNum(art.qte) * safeNum(pack.pack_qte));
+                }
+              });
+            });
+          }
+        });
+
+        setAuditData({ entrees: entrees || [], totalVendus: totalV, totalEntrees: totalE, loading: false });
+      };
+      loadAudit();
+    }
+  }, [showHistoProd, histoDates.debut, histoDates.fin, produits]);
+  // ----------------------------------------------
   
   const [editProd, setEditProd] = useState(null); 
   const [editForm, setEditForm] = useState({ nom: '', prix_v: '', marge: '', pwd: '', image_file: null, afficher_web: false, categorie_web: '', texte_rupture: '', description: '', sur_commande: false, delai_commande: '' });
@@ -966,7 +1022,67 @@ const saveReappro = async (e) => {
       )}
 
       {reapproProd && (<div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50"><div className="bg-white p-6 rounded-3xl w-full max-w-md"><h2 className="text-lg font-black uppercase text-[#800020] mb-4">Réappro : {reapproProd.nom}</h2><form onSubmit={saveReappro} className="space-y-3"><input type="number" placeholder="Qté" className="w-full p-3 border rounded-xl" value={reapproForm.qte} onChange={e=>setReapproForm({...reapproForm, qte: e.target.value})} required /><input type="number" placeholder="Nouv. Prix Achat" className="w-full p-3 border rounded-xl" value={reapproForm.prix_a} onChange={e=>handleRAchat(e.target.value)} required /><div className="flex gap-2"><input type="number" className="w-full p-3 border rounded-xl text-red-600 font-bold" value={reapproForm.prix_v} onChange={e=>handleRVente(e.target.value)} required /><input type="number" className="w-full p-3 border rounded-xl text-[#800020] font-bold" value={reapproForm.marge} onChange={e=>handleRMarge(e.target.value)} /></div><div><label className="text-[10px] font-bold text-gray-400 uppercase">Nouvelle Date Péremption (Optionnel)</label><input type="date" className="w-full p-3 border rounded-xl" value={reapproForm.dlc} onChange={e=>setReapproForm({...reapproForm, dlc: e.target.value})} /></div><div className="flex gap-2 pt-2"><button type="button" onClick={()=>setReapproProd(null)} className="p-3 bg-gray-100 rounded-xl flex-1">Annuler</button><button type="submit" className="p-3 bg-[#800020] text-white rounded-xl font-bold flex-1">Valider</button></div></form></div></div>)}
-      {showHistoProd && (<div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50"><div className="bg-white p-6 rounded-3xl w-full max-w-md shadow-2xl"><div className="flex justify-between items-center mb-4 border-b pb-2"><h2 className="text-lg font-black uppercase text-[#800020]">Historique d'Achat</h2><button onClick={() => setShowHistoProd(null)} className="text-gray-400 font-black text-xl">×</button></div><p className="text-gray-800 font-black mb-4 text-sm">{showHistoProd.nom}</p><div className="space-y-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">{historique.filter(h => h.produit_nom === showHistoProd.nom).map(h => (<div key={h.id} className="bg-gray-50 p-3 rounded-xl border border-gray-200 flex justify-between items-center"><div><p className="font-bold text-gray-800 text-xs">+{h.quantite} pièces</p><p className="text-[10px] text-gray-500 uppercase">{formatDate(h.date_ajout)}</p></div><p className="font-black text-red-600 text-sm">{formatAr(h.prix_achat)} Ar</p></div>))}{historique.filter(h => h.produit_nom === showHistoProd.nom).length === 0 && <p className="text-center text-gray-400 italic text-xs">Aucun historique</p>}</div></div></div>)}
+      {/* --- FENÊTRE AUDIT DE STOCK AVANCÉ --- */}
+      {showHistoProd && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+          <div className="bg-white p-6 rounded-3xl w-full max-w-xl shadow-2xl flex flex-col max-h-[90vh] border-t-8 border-[#800020]">
+            <div className="flex justify-between items-center mb-4 border-b pb-3 shrink-0">
+              <h2 className="text-xl font-black uppercase text-[#800020] flex items-center gap-2">🔍 Audit de Stock</h2>
+              <button onClick={() => setShowHistoProd(null)} className="text-gray-400 hover:text-red-500 font-black text-2xl transition">×</button>
+            </div>
+            
+            <div className="shrink-0 mb-4">
+              <p className="text-2xl font-black text-gray-900 mb-5 leading-tight">{showHistoProd.nom}</p>
+              
+              {/* Filtres de Date */}
+              <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border border-gray-200 mb-6 shadow-inner">
+                <span className="text-[10px] font-bold text-gray-500 uppercase ml-2">Du:</span>
+                <input type="date" className="p-2.5 bg-white rounded-lg outline-none text-xs font-bold border border-gray-200 flex-1 focus:border-[#800020]" value={histoDates.debut} onChange={e => setHistoDates({...histoDates, debut: e.target.value})} />
+                <span className="text-[10px] font-bold text-gray-500 uppercase ml-2">Au:</span>
+                <input type="date" className="p-2.5 bg-white rounded-lg outline-none text-xs font-bold border border-gray-200 flex-1 focus:border-[#800020]" value={histoDates.fin} onChange={e => setHistoDates({...histoDates, fin: e.target.value})} />
+              </div>
+
+              {/* Résumé des Mouvements */}
+              {auditData.loading ? (
+                 <div className="flex justify-center p-8"><div className="w-8 h-8 border-4 border-[#800020] border-t-transparent rounded-full animate-spin"></div></div>
+              ) : (
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl text-center shadow-sm">
+                    <p className="text-[9px] font-black text-blue-800 uppercase tracking-widest mb-1">Entrées (Réapp.)</p>
+                    <p className="text-2xl font-black text-blue-600">+{auditData.totalEntrees}</p>
+                  </div>
+                  <div className="bg-red-50 border border-red-100 p-4 rounded-2xl text-center shadow-sm">
+                    <p className="text-[9px] font-black text-red-800 uppercase tracking-widest mb-1">Sorties (Ventes)</p>
+                    <p className="text-2xl font-black text-red-600">-{auditData.totalVendus}</p>
+                  </div>
+                  <div className="bg-gray-100 border border-gray-200 p-4 rounded-2xl text-center shadow-sm">
+                    <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest mb-1">Stock Actuel</p>
+                    <p className="text-3xl font-black text-gray-900">{showHistoProd.stock_actuel}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Détails des entrées */}
+            <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar border-t border-gray-100 pt-4 mt-2">
+              <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Détail des Entrées sur la période</h4>
+              {!auditData.loading && auditData.entrees.length === 0 && <p className="text-center text-gray-400 italic text-sm py-6 bg-gray-50 rounded-xl border border-dashed border-gray-200">Aucun réapprovisionnement sur cette période.</p>}
+              {!auditData.loading && auditData.entrees.map(h => (
+                <div key={h.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center mb-2 hover:border-blue-300 hover:shadow-md transition">
+                  <div>
+                    <p className="font-black text-blue-600 text-sm">+{h.quantite} pièces ajoutées</p>
+                    <p className="text-[10px] text-gray-500 uppercase font-bold mt-1">🗓️ {formatDateTime(h.date_ajout)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[9px] font-bold text-gray-400 uppercase mb-0.5">Coût unitaire</p>
+                    <p className="font-black text-gray-800 text-sm bg-gray-100 px-2 py-1 rounded">{formatAr(h.prix_achat)} Ar</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       {deleteProd && (<div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[90]"><div className="bg-white p-6 rounded-3xl w-full max-w-sm shadow-2xl border-t-8 border-red-600 text-center"><div className="text-4xl mb-4">⚠️</div><h3 className="font-black text-red-600 text-lg uppercase mb-2">Supprimer ce produit ?</h3><p className="text-xs text-gray-500 mb-6">Action définitive. <strong>{deleteProd.nom}</strong> disparaîtra du stock.</p><form onSubmit={executerSuppressionProd} className="space-y-4"><div><label className="text-[10px] font-bold text-gray-400 uppercase block text-left mb-1">Code Superadmin requis</label><input type="password" placeholder="Mot de passe direction" className="w-full p-3 bg-gray-50 border rounded-xl outline-none text-center font-bold" value={deletePwd} onChange={e=>setDeletePwd(e.target.value)} required /></div><div className="flex gap-2"><button type="button" onClick={() => {setDeleteProd(null); setDeletePwd("");}} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 p-3 rounded-xl font-bold text-xs transition">Annuler</button><button type="submit" className="flex-1 bg-red-600 hover:bg-red-700 text-white p-3 rounded-xl font-black uppercase text-xs shadow-md transition">Supprimer</button></div></form></div></div>)}
     </div>
   );
