@@ -69,11 +69,6 @@ const lancerImpression = (type, data, params) => {
           }
           .wrap { padding: 5px; }
           
-          /* EN-TÊTE INVERSÉ (NOIR) TAPE À L'OEIL */
-          .brand-header { background: #000; color: #fff; padding: 15px 5px; margin-bottom: 15px; border-radius: 8px; border: 2px solid #000; }
-          .brand-title { font-size: 26px; font-weight: 900; margin: 0; text-transform: uppercase; letter-spacing: 1px; line-height: 1; }
-          .brand-sub { font-size: 11px; margin-top: 5px; font-weight: bold; }
-          
           /* ENCADRÉ INFOS TICKET */
           .info-box { border: 3px solid #000; padding: 8px; margin-bottom: 15px; border-radius: 8px; font-size: 13px; text-align: left; }
           .info-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
@@ -89,7 +84,7 @@ const lancerImpression = (type, data, params) => {
           .item-meta { display: flex; justify-content: space-between; font-size: 14px; }
           .item-tag { display: inline-block; border: 2px solid #000; border-radius: 4px; padding: 2px 5px; font-size: 10px; margin-top: 5px; }
           
-          /* LE GROS TOTAL INVERSÉ (LE TRUC DE MALADE) */
+          /* LE GROS TOTAL INVERSÉ */
           .total-zone { border: 4px solid #000; padding: 15px 5px; margin: 20px 0; border-radius: 12px; }
           .total-label { font-size: 16px; letter-spacing: 2px; margin-bottom: 5px; text-transform: uppercase; }
           .total-amount { font-size: 34px; font-weight: 900; line-height: 1; margin: 0; }
@@ -98,17 +93,17 @@ const lancerImpression = (type, data, params) => {
           
           /* PIED DE PAGE */
           .footer-msg { font-size: 13px; border: 3px solid #000; padding: 12px; border-radius: 8px; margin-bottom: 10px; text-transform: uppercase; }
-          .barcode-fake { font-family: monospace; font-size: 26px; letter-spacing: -1px; margin-top: 15px; overflow: hidden; transform: scaleY(1.5); }
+          .website-promo { margin-top: 15px; font-size: 13px; font-weight: 900; border: 3px dashed #000; padding: 10px; border-radius: 8px; }
         </style>
       </head><body>
         <div class="wrap">
-          <!-- 1. EN-TÊTE NOIR AVEC NOM DU MAGASIN -->
-          <div class="brand-header inverted">
-            <h1 class="brand-title">${params.nom_entreprise || 'HAKIMI PLUS'}</h1>
-            <div class="brand-sub">${params.contact || ''}</div>
+          <!-- 1. LE VRAI LOGO EN HAUT -->
+          <div style="margin-bottom: 15px;">
+            <img src="${LOGO_URL}" style="max-width:85%; height:auto; margin-bottom:8px;" onerror="this.style.display='none'"/>
+            <div style="font-size: 13px; font-weight: 900;">${params.contact || ''}</div>
           </div>
           
-          ${params.adresse ? `<div style="font-size: 12px; margin-bottom: 15px; font-weight: bold; text-transform: uppercase;">📍 ${params.adresse}</div>` : ''}
+          ${params.adresse ? `<div style="font-size: 12px; margin-bottom: 15px; font-weight: 900; text-transform: uppercase;">📍 ${params.adresse}</div>` : ''}
 
           <!-- 2. INFOS CLIENT & DATE DANS UNE BOÎTE -->
           <div class="info-box bordered">
@@ -180,14 +175,16 @@ const lancerImpression = (type, data, params) => {
             </div>
           ` : ''}
 
-          <!-- 6. MESSAGE DE FIN ENCADRÉ & CODE BARRE DECORATIF -->
+          <!-- 6. MESSAGE DE FIN & SITE WEB -->
           <div class="footer-msg bordered">
             ${(params.message_ticket ? String(params.message_ticket) : 'MERCI DE VOTRE VISITE !').replace(/\n/g, '<br/>')}
           </div>
           
-          <div class="barcode-fake">
-            || | |||| || | || |||| | ||| ||
+          <div class="website-promo">
+            VISITEZ NOTRE SITE WEB :<br/>
+            <span style="font-size: 16px;">WWW.HAKIMIPLUS.COM</span>
           </div>
+          
           <p style="color:#fff; margin:0;">.</p>
         </div>
       </body></html>
