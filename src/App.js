@@ -44,62 +44,152 @@ const lancerImpression = (type, data, params) => {
     // Détection de l'acompte
     const hasAcompte = data.panier && Array.isArray(data.panier) && data.panier.some(a => a.sur_commande === true);
     const acompteValeur = hasAcompte ? Math.round(safeNum(data.totalNet) * 0.6) : 0;
-    if (hasAcompte && type !== 'devis') titreType = 'FACTURE PROVISOIRE (ACOMPTE)';
+    if (hasAcompte && type !== 'devis') titreType = 'FACTURE PROVISOIRE';
 
     win.document.write(`
       <html><head><title>${data.numero || 'Ticket'}</title>
         <style>
-          @media print { @page { margin: 0; } body { margin: 0; } .no-print { display: none !important; } }
-          /* POLICE PLUS GRANDE, PLUS NOIRE ET EXTRA-GRAS */
-          body { font-family: 'Courier New', Courier, monospace; width: ${data.printSize}; padding: 5px; font-size: 14px; margin: 0 auto; text-align: center; color: #000; font-weight: 900; }
-          .item-block { text-align: left; margin-bottom: 12px; border-bottom: 2px dashed #000; padding-bottom: 8px; }
-          .item-line1 { font-weight: 900; font-size: 14px; text-transform: uppercase; }
-          .item-line2 { display: flex; justify-content: space-between; margin-top: 4px; font-size: 14px; font-weight: 900; }
-          .item-line3 { font-size: 12px; color: #000; margin-top: 2px; font-weight: bold; }
+          @media print { 
+            @page { margin: 0; } 
+            body { margin: 0; } 
+            .no-print { display: none !important; } 
+            /* FORCE L'IMPRESSION DES BLOCS NOIRS SUR THERMIQUE */
+            .inverted { background-color: #000 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .bordered { border: 3px solid #000 !important; }
+          }
+          body { 
+            font-family: 'Courier New', Courier, monospace; 
+            width: ${data.printSize}; 
+            padding: 0; 
+            margin: 0 auto; 
+            text-align: center; 
+            color: #000; 
+            font-weight: 900; 
+            background: #fff;
+          }
+          .wrap { padding: 5px; }
+          
+          /* EN-TÊTE INVERSÉ (NOIR) TAPE À L'OEIL */
+          .brand-header { background: #000; color: #fff; padding: 15px 5px; margin-bottom: 15px; border-radius: 8px; border: 2px solid #000; }
+          .brand-title { font-size: 26px; font-weight: 900; margin: 0; text-transform: uppercase; letter-spacing: 1px; line-height: 1; }
+          .brand-sub { font-size: 11px; margin-top: 5px; font-weight: bold; }
+          
+          /* ENCADRÉ INFOS TICKET */
+          .info-box { border: 3px solid #000; padding: 8px; margin-bottom: 15px; border-radius: 8px; font-size: 13px; text-align: left; }
+          .info-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+          .info-val { font-size: 15px; font-weight: 900; text-transform: uppercase; }
+          
+          /* TITRE DOCUMENT */
+          .doc-title { font-size: 18px; border-bottom: 4px solid #000; border-top: 4px solid #000; padding: 8px 0; margin: 15px 0; text-transform: uppercase; letter-spacing: 2px; }
+          
+          /* LISTE DES ARTICLES */
+          .items { width: 100%; text-align: left; margin-bottom: 15px; }
+          .item { border-bottom: 2px dashed #000; padding: 10px 0; }
+          .item-name { font-size: 15px; font-weight: 900; text-transform: uppercase; display: block; margin-bottom: 4px; }
+          .item-meta { display: flex; justify-content: space-between; font-size: 14px; }
+          .item-tag { display: inline-block; border: 2px solid #000; border-radius: 4px; padding: 2px 5px; font-size: 10px; margin-top: 5px; }
+          
+          /* LE GROS TOTAL INVERSÉ (LE TRUC DE MALADE) */
+          .total-zone { border: 4px solid #000; padding: 15px 5px; margin: 20px 0; border-radius: 12px; }
+          .total-label { font-size: 16px; letter-spacing: 2px; margin-bottom: 5px; text-transform: uppercase; }
+          .total-amount { font-size: 34px; font-weight: 900; line-height: 1; margin: 0; }
+          
+          .sub-total { font-size: 14px; text-align: right; margin: 5px 0; font-weight: 900; }
+          
+          /* PIED DE PAGE */
+          .footer-msg { font-size: 13px; border: 3px solid #000; padding: 12px; border-radius: 8px; margin-bottom: 10px; text-transform: uppercase; }
+          .barcode-fake { font-family: monospace; font-size: 26px; letter-spacing: -1px; margin-top: 15px; overflow: hidden; transform: scaleY(1.5); }
         </style>
       </head><body>
-        <img src="${LOGO_URL}" style="max-width:85%; height:auto; margin-bottom:8px;" onerror="this.style.display='none'"/>
-        <h2 style="margin:5px 0; font-size:24px; font-weight:900; text-transform:uppercase;">${params.nom_entreprise || 'HAKIMI PLUS'}</h2>
-        <p style="margin:0; font-size:12px; line-height:1.4;">${params.adresse || ''}<br/>${params.contact || ''}</p>
-        ${params.message_entete ? `<p style="margin:5px 0; font-size:12px;">${String(params.message_entete).replace(/\n/g, '<br/>')}</p>` : ''}
-        <p style="margin:8px 0; font-size:14px; font-weight:900; border-top:2px solid #000; border-bottom:2px solid #000; padding:6px 0;">${dateDoc}</p>
-        
-        ${titreType ? `<div style="border: 2px solid #000; padding: 6px; margin: 8px 0; background: #000; color: #fff;"><h3 style="margin:0; font-size:14px; text-transform:uppercase;">${titreType}</h3></div>` : ''}
-        
-        ${data.client_nom && data.client_nom !== 'Vente à consommateur' ? `<p style="margin:6px 0; font-size:14px; font-weight:900; text-align:left;">Client: ${data.client_nom}</p>` : ''}
-        ${data.echeance ? `<p style="margin:4px 0; font-size:14px; font-weight:900; text-align:left;">Échéance : ${formatDate(data.echeance)}</p>` : ''}
-        
-        ${data.numero ? `<p style="margin:5px 0; font-weight:900; font-size:15px; border:2px solid #000; padding:4px; display:inline-block;">N° ${data.numero}</p>` : ''}
-        
-        ${data.methode && type !== 'admin_credit' && type !== 'devis' ? `<p style="margin:8px 0; font-weight:900; font-size:14px; text-align:left;">Payé par : ${data.methode}${data.banque ? ` (${data.banque})` : ''}</p>` : ''}
-        
-        <hr style="border-top:2px solid #000; margin:10px 0;"/>
-        
-        <div style="width:100%;">
-          ${panierList.length > 0 ? panierList.map(i => {
-            const { prixU, remiseU, qte, totalLigne } = getLineData(i);
-            return `<div class="item-block"><div class="item-line1">${qte}x${i.nom}</div><div class="item-line2"><span>${formatAr(prixU - remiseU)} Ar/u</span><span style="font-weight:900; font-size:16px;">${formatAr(totalLigne)} Ar</span></div><div class="item-line3">[${i.categorie || 'Divers'}]</div></div>`;
-          }).join('') : `<p style="font-size:13px; text-align:left; font-weight:900;">Ancien format : ${data.articles_liste || data.details_articles || 'Détails non disponibles'}</p>`}
+        <div class="wrap">
+          <!-- 1. EN-TÊTE NOIR AVEC NOM DU MAGASIN -->
+          <div class="brand-header inverted">
+            <h1 class="brand-title">${params.nom_entreprise || 'HAKIMI PLUS'}</h1>
+            <div class="brand-sub">${params.contact || ''}</div>
+          </div>
+          
+          ${params.adresse ? `<div style="font-size: 12px; margin-bottom: 15px; font-weight: bold; text-transform: uppercase;">📍 ${params.adresse}</div>` : ''}
+
+          <!-- 2. INFOS CLIENT & DATE DANS UNE BOÎTE -->
+          <div class="info-box bordered">
+            <div class="info-row">
+              <span>DATE:</span>
+              <span class="info-val">${formatDate(data.date || new Date())}</span>
+            </div>
+            <div class="info-row">
+              <span>HEURE:</span>
+              <span class="info-val">${new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}</span>
+            </div>
+            ${data.numero ? `
+            <div class="info-row" style="margin-top: 5px; padding-top: 5px; border-top: 2px solid #000;">
+              <span>N° SUIVI:</span>
+              <span class="info-val" style="font-size:18px;">${data.numero}</span>
+            </div>` : ''}
+          </div>
+
+          ${data.client_nom && data.client_nom !== 'Vente à consommateur' ? `
+            <div style="font-size: 18px; font-weight: 900; text-align: left; margin: 15px 0; border-left: 6px solid #000; padding-left: 10px; text-transform: uppercase;">
+              <span style="font-size:10px; display:block; color:#555;">CLIENT</span>
+              ${data.client_nom}
+            </div>
+          ` : ''}
+
+          ${titreType ? `<div class="doc-title">${titreType}</div>` : '<div style="border-top: 4px solid #000; margin: 15px 0;"></div>'}
+
+          <!-- 3. LISTE DES ARTICLES CLAIRE ET AÉRÉE -->
+          <div class="items">
+            ${panierList.length > 0 ? panierList.map(i => {
+              const { prixU, remiseU, qte, totalLigne } = getLineData(i);
+              return `
+                <div class="item">
+                  <span class="item-name">${qte}x${i.nom}</span>
+                  <div class="item-meta">
+                    <span>${formatAr(prixU - remiseU)} Ar</span>
+                    <span style="font-size: 18px;">${formatAr(totalLigne)} Ar</span>
+                  </div>
+                  <span class="item-tag">${i.categorie || 'DIVERS'}</span>
+                </div>
+              `;
+            }).join('') : `<p style="font-size:14px; text-align:center;">${data.articles_liste || data.details_articles || 'Détails indisponibles'}</p>`}
+          </div>
+
+          <!-- 4. SOUS-TOTAUX -->
+          <div class="sub-total">Articles: ${formatAr(data.totalNet)} Ar</div>
+          ${fraisLivraison > 0 ? `<div class="sub-total">Livraison: + ${formatAr(fraisLivraison)} Ar</div>` : ''}
+          ${data.totalRemisesEnAr > 0 ? `<div class="sub-total" style="font-size:12px;">(Remise: - ${formatAr(data.totalRemisesEnAr)} Ar)</div>` : ''}
+
+          <!-- 5. LE GROS BLOC TOTAL NOIR -->
+          ${hasAcompte ? `
+            <div class="total-zone bordered">
+              <div class="total-label">ACOMPTE (60%)</div>
+              <div class="total-amount">${formatAr(acompteValeur)} Ar</div>
+            </div>
+            <div class="sub-total" style="text-align:center; font-size: 18px; border: 3px solid #000; padding: 8px; border-radius: 8px;">
+              RESTE: ${formatAr((safeNum(data.totalNet) - acompteValeur) + fraisLivraison)} Ar
+            </div>
+          ` : `
+            <div class="total-zone inverted">
+              <div class="total-label">${type === 'devis' ? 'TOTAL ESTIMÉ' : 'TOTAL À PAYER'}</div>
+              <div class="total-amount">${formatAr(safeNum(data.totalNet) + fraisLivraison)} Ar</div>
+            </div>
+          `}
+
+          ${data.methode && type !== 'admin_credit' && type !== 'devis' ? `
+            <div style="font-size: 18px; margin: 15px 0; border: 3px dashed #000; padding: 8px; border-radius: 8px; text-transform: uppercase;">
+              PAYÉ EN : <strong style="font-size: 22px;">${data.methode}</strong>
+            </div>
+          ` : ''}
+
+          <!-- 6. MESSAGE DE FIN ENCADRÉ & CODE BARRE DECORATIF -->
+          <div class="footer-msg bordered">
+            ${(params.message_ticket ? String(params.message_ticket) : 'MERCI DE VOTRE VISITE !').replace(/\n/g, '<br/>')}
+          </div>
+          
+          <div class="barcode-fake">
+            || | |||| || | || |||| | ||| ||
+          </div>
+          <p style="color:#fff; margin:0;">.</p>
         </div>
-        
-        <div style="text-align:right; font-size:15px; font-weight:900; margin:6px 0;">Total Articles: ${formatAr(data.totalNet)} Ar</div>
-        ${fraisLivraison > 0 ? `<div style="text-align:right; font-size:15px; font-weight:900; margin:6px 0;">Livraison: ${formatAr(fraisLivraison)} Ar</div>` : ''}
-        
-        ${hasAcompte ? `
-          <div style="margin-top: 15px; padding-top: 10px; border-top: 3px dashed #000; text-align: right;">
-            <div style="font-size:16px; font-weight:900;">ACOMPTE (60%) : ${formatAr(acompteValeur)} Ar</div>
-            <div style="font-size:15px; font-weight:900; margin-top:6px;">RESTE À LIVRAISON : ${formatAr((safeNum(data.totalNet) - acompteValeur) + fraisLivraison)} Ar</div>
-          </div>
-        ` : `
-          <div style="text-align:right; margin:15px 0; padding:10px 0; border-top:3px solid #000; border-bottom:3px solid #000;">
-            <div style="font-size:16px; font-weight:900; margin-bottom:5px;">${type === 'devis' ? 'TOTAL ESTIMÉ' : 'À PAYER'} :</div>
-            <div style="font-size:26px; font-weight:900;">${formatAr(safeNum(data.totalNet) + fraisLivraison)} Ar</div>
-          </div>
-        `}
-        
-        ${data.totalRemisesEnAr > 0 ? `<p style="text-align:right; font-size:13px; font-weight:bold; margin:0;">(Dont remise : ${formatAr(data.totalRemisesEnAr)} Ar)</p>` : ''}
-        <p style="margin-top:15px; font-size:13px; font-weight:900;">${(params.message_ticket ? String(params.message_ticket) : 'Merci de votre visite !').replace(/\n/g, '<br/>')}</p>
-        <p style="color:#fff;">.</p>
       </body></html>
     `);
   } else {
