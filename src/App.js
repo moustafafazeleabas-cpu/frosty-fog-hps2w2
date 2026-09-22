@@ -35,7 +35,7 @@ const lancerImpression = (type, data, params) => {
     return { prixU, remiseU, qte, totalLigne };
   };
 
-  if (isTicket) {
+ if (isTicket) {
     let titreType = '';
     if (type === 'admin_credit') titreType = 'FACTURE À CRÉDIT';
     if (type === 'devis') titreType = 'DEVIS ESTIMATIF';
@@ -48,42 +48,61 @@ const lancerImpression = (type, data, params) => {
 
     win.document.write(`
       <html><head><title>${data.numero || 'Ticket'}</title>
-        <style>@media print { @page { margin: 0; } body { margin: 0; } .no-print { display: none !important; } } body { font-family: monospace; width: ${data.printSize}; padding: 10px; font-size: 12px; margin: 0 auto; text-align: center; } .item-block { text-align: left; margin-bottom: 8px; border-bottom: 1px dotted #ccc; padding-bottom: 4px; } .item-line1 { font-weight: bold; font-size: 12px; } .item-line2 { display: flex; justify-content: space-between; margin-top: 3px; font-size: 11px; } .item-line3 { font-size: 10px; color: #555; margin-top: 2px; }</style>
+        <style>
+          @media print { @page { margin: 0; } body { margin: 0; } .no-print { display: none !important; } }
+          /* POLICE PLUS GRANDE, PLUS NOIRE ET EXTRA-GRAS */
+          body { font-family: 'Courier New', Courier, monospace; width: ${data.printSize}; padding: 5px; font-size: 14px; margin: 0 auto; text-align: center; color: #000; font-weight: 900; }
+          .item-block { text-align: left; margin-bottom: 12px; border-bottom: 2px dashed #000; padding-bottom: 8px; }
+          .item-line1 { font-weight: 900; font-size: 14px; text-transform: uppercase; }
+          .item-line2 { display: flex; justify-content: space-between; margin-top: 4px; font-size: 14px; font-weight: 900; }
+          .item-line3 { font-size: 12px; color: #000; margin-top: 2px; font-weight: bold; }
+        </style>
       </head><body>
-        <img src="${LOGO_URL}" style="max-width:80%; height:auto; margin-bottom:5px;" onerror="this.style.display='none'"/>
-        <h2 style="margin:0;">${params.nom_entreprise || 'HAKIMI PLUS'}</h2>
-        <p style="margin:0; font-size:10px;">${params.adresse || ''}<br/>${params.contact || ''}</p>
-        ${params.message_entete ? `<p style="margin:3px 0; font-size:10px;">${String(params.message_entete).replace(/\n/g, '<br/>')}</p>` : ''}
-        <p style="margin:5px 0; font-size:10px;">${dateDoc}</p>
-        ${titreType ? `<div style="border: 2px solid #000; padding: 4px; margin: 5px 0;"><h3 style="margin:0; font-size:12px; text-transform:uppercase;">${titreType}</h3>${data.client_nom && data.client_nom !== 'Vente à consommateur' ? `<p style="margin:2px 0 0 0; font-size:10px; font-weight:bold;">Client: ${data.client_nom}</p>` : ''}${data.echeance ? `<p style="margin:2px 0 0 0; font-size:10px; color:red;">Échéance : ${formatDate(data.echeance)}</p>` : ''}</div>` : ''}
-        ${data.numero ? `<p style="margin:0; font-weight:bold; font-size:11px; border:1px solid #000; padding:2px; display:inline-block;">${data.numero}</p>` : ''}
-        ${data.methode && type !== 'admin_credit' && type !== 'devis' ? `<p style="margin:2px 0; font-weight:bold; font-size:10px;">Payé par : ${data.methode}${data.banque ? ` (${data.banque})` : ''}</p>` : ''}
-        <hr style="border-top:1px dashed #000;"/>
+        <img src="${LOGO_URL}" style="max-width:85%; height:auto; margin-bottom:8px;" onerror="this.style.display='none'"/>
+        <h2 style="margin:5px 0; font-size:24px; font-weight:900; text-transform:uppercase;">${params.nom_entreprise || 'HAKIMI PLUS'}</h2>
+        <p style="margin:0; font-size:12px; line-height:1.4;">${params.adresse || ''}<br/>${params.contact || ''}</p>
+        ${params.message_entete ? `<p style="margin:5px 0; font-size:12px;">${String(params.message_entete).replace(/\n/g, '<br/>')}</p>` : ''}
+        <p style="margin:8px 0; font-size:14px; font-weight:900; border-top:2px solid #000; border-bottom:2px solid #000; padding:6px 0;">${dateDoc}</p>
+        
+        ${titreType ? `<div style="border: 2px solid #000; padding: 6px; margin: 8px 0; background: #000; color: #fff;"><h3 style="margin:0; font-size:14px; text-transform:uppercase;">${titreType}</h3></div>` : ''}
+        
+        ${data.client_nom && data.client_nom !== 'Vente à consommateur' ? `<p style="margin:6px 0; font-size:14px; font-weight:900; text-align:left;">Client: ${data.client_nom}</p>` : ''}
+        ${data.echeance ? `<p style="margin:4px 0; font-size:14px; font-weight:900; text-align:left;">Échéance : ${formatDate(data.echeance)}</p>` : ''}
+        
+        ${data.numero ? `<p style="margin:5px 0; font-weight:900; font-size:15px; border:2px solid #000; padding:4px; display:inline-block;">N° ${data.numero}</p>` : ''}
+        
+        ${data.methode && type !== 'admin_credit' && type !== 'devis' ? `<p style="margin:8px 0; font-weight:900; font-size:14px; text-align:left;">Payé par : ${data.methode}${data.banque ? ` (${data.banque})` : ''}</p>` : ''}
+        
+        <hr style="border-top:2px solid #000; margin:10px 0;"/>
+        
         <div style="width:100%;">
-          ${panierList.length > 0 ? panierList.map(i => {
-            const { prixU, remiseU, qte, totalLigne } = getLineData(i);
-            return `<div class="item-block"><div class="item-line1">${qte}x ${i.nom}</div><div class="item-line2"><span>${formatAr(prixU - remiseU)} Ar/u</span><span style="font-weight:bold;">${formatAr(totalLigne)} Ar</span></div><div class="item-line3">[${i.categorie || 'Divers'}]</div></div>`;
-          }).join('') : `<p style="font-size:10px; text-align:left;">Ancien format : ${data.articles_liste || data.details_articles || 'Détails non disponibles'}</p>`}
-        </div>
-        <hr style="border-top:1px dashed #000;"/>
-        <div style="text-align:right; font-size:12px; margin:3px 0;">Total Articles: ${formatAr(data.totalNet)} Ar</div>
-        ${fraisLivraison > 0 ? `<div style="text-align:right; font-size:12px; margin:3px 0;">Livraison: ${formatAr(fraisLivraison)} Ar</div>` : ''}
-        
-        ${hasAcompte ? `
-          <div style="margin-top: 5px; padding-top: 5px; border-top: 1px dashed #ccc; text-align: right;">
-            <div style="font-size:12px; font-weight:bold; color:#d97706;">ACOMPTE (60%) : ${formatAr(acompteValeur)} Ar</div>
-            <div style="font-size:11px; font-weight:bold; color:#555; margin-top:2px;">RESTE À LA LIVRAISON : ${formatAr((safeNum(data.totalNet) - acompteValeur) + fraisLivraison)} Ar</div>
-          </div>
-        ` : `
-          <h3 style="text-align:right; margin:5px 0;">${type === 'devis' ? 'TOTAL ESTIMÉ' : 'À PAYER'}: ${formatAr(safeNum(data.totalNet) + fraisLivraison)} Ar</h3>
-        `}
-        
-        ${data.totalRemisesEnAr > 0 ? `<p style="text-align:right; font-size:10px; margin:0;">(Dont remise : ${formatAr(data.totalRemisesEnAr)} Ar)</p>` : ''}
-        <p style="margin-top:10px; font-size:11px;">${(params.message_ticket ? String(params.message_ticket) : 'Merci de votre visite !').replace(/\n/g, '<br/>')}</p>
-        <p style="color:#fff;">.</p>
-      </body></html>
-    `);
- } else {
+          ${panierList.length > 0 ? panierList.map(i => {
+            const { prixU, remiseU, qte, totalLigne } = getLineData(i);
+            return `<div class="item-block"><div class="item-line1">${qte}x${i.nom}</div><div class="item-line2"><span>${formatAr(prixU - remiseU)} Ar/u</span><span style="font-weight:900; font-size:16px;">${formatAr(totalLigne)} Ar</span></div><div class="item-line3">[${i.categorie || 'Divers'}]</div></div>`;
+          }).join('') : `<p style="font-size:13px; text-align:left; font-weight:900;">Ancien format : ${data.articles_liste || data.details_articles || 'Détails non disponibles'}</p>`}
+        </div>
+        
+        <div style="text-align:right; font-size:15px; font-weight:900; margin:6px 0;">Total Articles: ${formatAr(data.totalNet)} Ar</div>
+        ${fraisLivraison > 0 ? `<div style="text-align:right; font-size:15px; font-weight:900; margin:6px 0;">Livraison: ${formatAr(fraisLivraison)} Ar</div>` : ''}
+        
+        ${hasAcompte ? `
+          <div style="margin-top: 15px; padding-top: 10px; border-top: 3px dashed #000; text-align: right;">
+            <div style="font-size:16px; font-weight:900;">ACOMPTE (60%) : ${formatAr(acompteValeur)} Ar</div>
+            <div style="font-size:15px; font-weight:900; margin-top:6px;">RESTE À LIVRAISON : ${formatAr((safeNum(data.totalNet) - acompteValeur) + fraisLivraison)} Ar</div>
+          </div>
+        ` : `
+          <div style="text-align:right; margin:15px 0; padding:10px 0; border-top:3px solid #000; border-bottom:3px solid #000;">
+            <div style="font-size:16px; font-weight:900; margin-bottom:5px;">${type === 'devis' ? 'TOTAL ESTIMÉ' : 'À PAYER'} :</div>
+            <div style="font-size:26px; font-weight:900;">${formatAr(safeNum(data.totalNet) + fraisLivraison)} Ar</div>
+          </div>
+        `}
+        
+        ${data.totalRemisesEnAr > 0 ? `<p style="text-align:right; font-size:13px; font-weight:bold; margin:0;">(Dont remise : ${formatAr(data.totalRemisesEnAr)} Ar)</p>` : ''}
+        <p style="margin-top:15px; font-size:13px; font-weight:900;">${(params.message_ticket ? String(params.message_ticket) : 'Merci de votre visite !').replace(/\n/g, '<br/>')}</p>
+        <p style="color:#fff;">.</p>
+      </body></html>
+    `);
+  } else {
     let titre = 'FACTURE'; 
     if (type === 'devis') titre = 'PROFORMA / DEVIS'; 
     if (type === 'admin_credit') titre = 'FACTURE À CRÉDIT';
