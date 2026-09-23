@@ -35,7 +35,7 @@ const lancerImpression = (type, data, params) => {
     return { prixU, remiseU, qte, totalLigne };
   };
 
- if (isTicket) {
+if (isTicket) {
     let titreType = '';
     if (type === 'admin_credit') titreType = 'FACTURE À CRÉDIT';
     if (type === 'devis') titreType = 'DEVIS ESTIMATIF';
@@ -51,11 +51,17 @@ const lancerImpression = (type, data, params) => {
         <style>
           @media print { 
             @page { margin: 0; } 
-            body { margin: 0; } 
+            html, body { height: auto; margin: 0 !important; padding: 0 !important; }
             .no-print { display: none !important; } 
             /* FORCE L'IMPRESSION DES BLOCS NOIRS SUR THERMIQUE */
             .inverted { background-color: #000 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .bordered { border: 3px solid #000 !important; }
+            
+            /* L'ASTUCE ANTI-COUPURE */
+            .info-box, .item, .total-zone, .footer-msg, .website-promo, .logo-zone { 
+              page-break-inside: avoid !important; 
+              break-inside: avoid !important; 
+            }
           }
           body { 
             font-family: 'Courier New', Courier, monospace; 
@@ -69,6 +75,9 @@ const lancerImpression = (type, data, params) => {
           }
           .wrap { padding: 5px; }
           
+          /* STYLES SPÉCIFIQUES POUR L'ENTÊTE (PETITS TEXTES) */
+          .header-small-text { font-size: 11px; font-weight: 900; margin-bottom: 4px; line-height: 1.3; }
+
           /* ENCADRÉ INFOS TICKET */
           .info-box { border: 3px solid #000; padding: 8px; margin-bottom: 15px; border-radius: 8px; font-size: 13px; text-align: left; }
           .info-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
@@ -97,13 +106,16 @@ const lancerImpression = (type, data, params) => {
         </style>
       </head><body>
         <div class="wrap">
-          <!-- 1. LE VRAI LOGO EN HAUT -->
-          <div style="margin-bottom: 15px;">
+          <!-- 1. EN-TÊTE COMPLÈTE -->
+          <div class="logo-zone" style="margin-bottom: 15px;">
             <img src="${LOGO_URL}" style="max-width:85%; height:auto; margin-bottom:8px;" onerror="this.style.display='none'"/>
-            <div style="font-size: 13px; font-weight: 900;">${params.contact || ''}</div>
+            
+            ${params.adresse ? `<div style="font-size: 13px; font-weight: 900; text-transform: uppercase; margin-bottom: 4px;">📍 ${params.adresse}</div>` : ''}
+            <div style="font-size: 13px; font-weight: 900; margin-bottom: 8px;">📞 ${params.contact || ''}</div>
+            
+            ${params.message_entete ? `<div class="header-small-text">${String(params.message_entete).replace(/\n/g, '<br/>')}</div>` : ''}
+            ${params.nif_stat ? `<div class="header-small-text" style="margin-top: 6px;">${String(params.nif_stat).replace(/\n/g, '<br/>')}</div>` : ''}
           </div>
-          
-          ${params.adresse ? `<div style="font-size: 12px; margin-bottom: 15px; font-weight: 900; text-transform: uppercase;">📍 ${params.adresse}</div>` : ''}
 
           <!-- 2. INFOS CLIENT & DATE DANS UNE BOÎTE -->
           <div class="info-box bordered">
@@ -170,7 +182,7 @@ const lancerImpression = (type, data, params) => {
           `}
 
           ${data.methode && type !== 'admin_credit' && type !== 'devis' ? `
-            <div style="font-size: 18px; margin: 15px 0; border: 3px dashed #000; padding: 8px; border-radius: 8px; text-transform: uppercase;">
+            <div class="bordered" style="font-size: 18px; margin: 15px 0; border-style: dashed !important; padding: 8px; border-radius: 8px; text-transform: uppercase;">
               PAYÉ EN : <strong style="font-size: 22px;">${data.methode}</strong>
             </div>
           ` : ''}
