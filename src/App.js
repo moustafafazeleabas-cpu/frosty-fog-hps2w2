@@ -34,7 +34,109 @@ const lancerImpression = (type, data, params) => {
     const totalLigne = safeNum(i.total_ligne !== undefined ? i.total_ligne : (prixU - remiseU) * qte);
     return { prixU, remiseU, qte, totalLigne };
   };
+const telechargerFactureCreditPDF = (data, params) => {
+  const panierList = Array.isArray(data.panier) ? data.panier : [];
+  const fraisLivraison = safeNum(data.fraisLivraison);
+  const dateDoc = formatDateTime(data.date || new Date());
 
+  const getLineData = (i) => {
+    const prixU = safeNum(i.prix_unitaire !== undefined ? i.prix_unitaire : i.prix_vente);
+    const remiseU = safeNum(i.remise_unitaire_ar !== undefined ? i.remise_unitaire_ar : i.remise_montant);
+    const qte = safeNum(i.qte);
+    const totalLigne = safeNum(i.total_ligne !== undefined ? i.total_ligne : (prixU - remiseU) * qte);
+    return { prixU, remiseU, qte, totalLigne };
+  };
+
+  const articlesHTML = panierList.map(i => {
+    const { prixU, remiseU, qte, totalLigne } = getLineData(i);
+    return `<tr>
+      <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: 600;">${i.nom} <br/><span style="font-size:10px; color:#64748b;">${i.categorie || 'Divers'}</span></td>
+      <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center; font-weight: 800;">${qte}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: 600;">${formatAr(prixU - remiseU)}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align:right; font-weight: 900;">${formatAr(totalLigne)} Ar</td>
+    </tr>`;
+  }).join('');
+
+  const element = document.createElement("div");
+  element.innerHTML = `
+    <div style="width: 800px; padding: 50px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: #fff; box-sizing: border-box;">
+      
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #800020; padding-bottom: 20px; margin-bottom: 30px;">
+        <div>
+          <img src="${LOGO_URL}" crossorigin="anonymous" style="height:60px; margin-bottom:10px; object-fit: contain;" onerror="this.style.display='none'" />
+          <h3 style="margin:0; color:#0f172a; font-size:18px; font-weight: 900;">${params.nom_entreprise || 'HAKIMI PLUS'}</h3>
+          <p style="margin:5px 0 0 0; font-size:12px; color:#475569; line-height: 1.5;">${params.adresse || ''}<br/>${params.nif_stat || ''}<br/>Tél : ${params.contact || ''}</p>
+        </div>
+        <div style="text-align:right;">
+          <h1 style="margin:0; color:#800020; font-size: 32px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase;">Facture à crédit</h1>
+          <div style="display: inline-block; background: #f8fafc; padding: 10px 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-top: 15px; text-align: left;">
+            <div style="margin-bottom: 5px;"><span style="font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase;">N° Facture</span> <span style="float: right; font-weight: 900; margin-left: 15px;">${data.numero || '-'}</span></div>
+            <div><span style="font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase;">Date</span> <span style="float: right; font-weight: 900; margin-left: 15px;">${dateDoc}</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background-color: #f8fafc; border-left: 5px solid #800020; padding: 20px; width: 55%; margin-bottom: 30px; border-radius: 0 12px 12px 0;">
+        <p style="margin: 0 0 5px 0; font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Facturé à</p>
+        <p style="margin: 0 0 8px 0; font-size: 18px; font-weight: 900; color: #0f172a; text-transform: uppercase;">${data.client_nom}</p>
+        <p style="margin: 0 0 4px 0; font-size: 12px; color: #475569;"><strong style="color:#0f172a;">NIF :</strong> ${data.client_nif || '-'}</p>
+        <p style="margin: 0 0 4px 0; font-size: 12px; color: #475569;"><strong style="color:#0f172a;">STAT :</strong> ${data.client_stat || '-'}</p>
+        ${data.client_tel ? `<p style="margin: 0 0 4px 0; font-size: 12px; color: #475569;"><strong style="color:#0f172a;">Contact :</strong> ${data.client_tel}</p>` : ''}
+        ${data.echeance ? `<p style="margin: 10px 0 0 0; font-size: 13px; color: #b91c1c; font-weight: 900;">Échéance prévue : ${formatDate(data.echeance)}</p>` : ''}
+      </div>
+
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+        <thead>
+          <tr style="background-color: #800020; color: white;">
+            <th style="padding: 12px 10px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px;">Désignation</th>
+            <th style="padding: 12px 10px; text-align: center; font-size: 11px; text-transform: uppercase; letter-spacing: 1px;">Qté</th>
+            <th style="padding: 12px 10px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px;">Prix Unitaire</th>
+            <th style="padding: 12px 10px; text-align: right; font-size: 11px; text-transform: uppercase; letter-spacing: 1px;">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${articlesHTML || `<tr><td colspan="4" style="padding: 15px; text-align: center; color: #64748b; font-style: italic;">Aucun détail disponible</td></tr>`}
+        </tbody>
+      </table>
+
+      <div style="display: flex; justify-content: flex-end;">
+        <div style="width: 350px;">
+          <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-size: 14px; font-weight: 600; color: #475569;">
+            <span>Total Articles</span>
+            <span style="color: #0f172a; font-weight: 800;">${formatAr(data.totalNet)} Ar</span>
+          </div>
+          ${fraisLivraison > 0 ? `
+          <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-size: 14px; font-weight: 600; color: #475569;">
+            <span>Frais de livraison</span>
+            <span style="color: #0f172a; font-weight: 800;">+ ${formatAr(fraisLivraison)} Ar</span>
+          </div>
+          ` : ''}
+          
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 20px; background-color: #800020; color: white; border-radius: 12px; margin-top: 15px; box-shadow: 0 4px 6px -1px rgba(128, 0, 32, 0.2);">
+            <span style="font-size: 14px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px;">Net à payer</span>
+            <span style="font-size: 26px; font-weight: 900;">${formatAr(safeNum(data.totalNet) + fraisLivraison)} Ar</span>
+          </div>
+
+          ${data.totalRemisesEnAr > 0 ? `<p style="font-size:11px; color:#16a34a; font-weight: 700; text-align: right; margin-top: 10px;">(Remise globale appliquée : ${formatAr(data.totalRemisesEnAr)} Ar)</p>` : ''}
+        </div>
+      </div>
+      
+      <div style="margin-top: 60px; padding-top: 20px; border-top: 2px solid #f1f5f9; text-align: center; color: #64748b; font-size: 11px; line-height: 1.6;">
+        <p style="margin:0; font-weight: 800; color: #0f172a; font-size: 13px;">Merci de votre confiance.</p>
+        <p style="margin:5px 0 0 0;">Les articles vendus ne sont ni repris, ni échangés.</p>
+      </div>
+    </div>
+  `;
+
+  html2pdf().set({
+    margin: 0,
+    filename: `Facture_Credit_${data.numero || 'Client'}.pdf`,
+    image: { type: 'jpeg', quality: 1 },
+    html2canvas: { scale: 3, useCORS: true },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  }).from(element).save();
+};
+  
 if (isTicket) {
     let titreType = '';
     if (type === 'admin_credit') titreType = 'FACTURE À CRÉDIT';
@@ -604,9 +706,32 @@ const ModuleVente = ({ mode, params, categoriesDb }) => {
     const { data: produitsAJour } = await supabase.from('produits').select('*').order('nom');
     if (produitsAJour) setProduits(produitsAJour);
 
-    const cData = clients.find(c => c.nom === selectedClient) || { nom: selectedClient, nif: '', stat: '' };
-    setVenteReussie({ numero: numero_genere, panier, totalNet, totalRemisesEnAr, fraisLivraison: frais_liv_val, methode: mode === 'caisse' ? methodePaiement : null, banque: banqueCheque, client_nom: cData.nom, client_tel: cData.telephone, client_nif: cData.nif, client_stat: cData.stat, date: today, echeance, printSize });
-  };
+ const cData = clients.find(c => c.nom === selectedClient) || { nom: selectedClient, nif: '', stat: '', telephone: '', contact_whatsapp: '' };
+    setVenteReussie({ numero: numero_genere, panier, totalNet, totalRemisesEnAr, fraisLivraison: frais_liv_val, methode: mode === 'caisse' ? methodePaiement : null, banque: banqueCheque, client_nom: cData.nom, client_tel: cData.telephone, client_nif: cData.nif, client_stat: cData.stat, date: today, echeance, printSize });
+
+    // 🚀 NOUVEAU : Automatisation WhatsApp & PDF pour Vente à Crédit
+    if (mode === 'admin_credit') {
+      const dataPrint = { numero: numero_genere, client_nom: cData.nom, date: today, echeance: echeance, totalNet: totalNet, totalRemisesEnAr: totalRemisesEnAr, panier: panier, fraisLivraison: frais_liv_val, client_tel: cData.telephone, client_nif: cData.nif, client_stat: cData.stat };
+      
+      // 1. Télécharger la facture
+      alert("📥 Téléchargement de la facture PDF en cours...");
+      telechargerFactureCreditPDF(dataPrint, params);
+      
+      // 2. Ouvrir WhatsApp (si le numéro existe)
+      const numWa = cData.contact_whatsapp || cData.telephone;
+      if (numWa) {
+        const numFormatte = String(numWa).replace(/[^0-9]/g, '');
+        const msg = encodeURIComponent(`Bonjour ${cData.nom},\n\nNous vous prions de trouver ci-jointe la facture à crédit de votre achat d'aujourd'hui.`);
+        
+        // Petit délai pour laisser le PDF démarrer son téléchargement avant de changer d'onglet
+        setTimeout(() => {
+          window.open(`https://wa.me/${numFormatte}?text=${msg}`, '_blank');
+        }, 1500);
+      } else {
+        alert("⚠️ Ce client n'a pas de numéro enregistré. Impossible d'ouvrir WhatsApp.");
+      }
+    }
+  };
 
   const produitsFiltres = produits.filter(p => (p.nom||'').toLowerCase().includes(search.toLowerCase()) && (selectedCat === "" || p.categorie === selectedCat));
 
