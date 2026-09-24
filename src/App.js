@@ -539,6 +539,7 @@ export default function App() {
             <NavBtn active={view==='messagerie'} onClick={()=>changeView('messagerie')}><span className="flex items-center justify-between w-full"><span>✉️ Messagerie</span>{msgNonLus > 0 && <span className="bg-red-500 text-white px-2 py-0.5 rounded-full text-[10px] animate-pulse">{msgNonLus}</span>}</span></NavBtn>
             <p className="text-[10px] font-black text-white/40 uppercase tracking-widest px-4 mb-1 mt-4">Menu Principal</p>
             <NavBtn active={view==='caisse'} onClick={()=>changeView('caisse')}>🛒 Caisse Directe</NavBtn>
+  <NavBtn active={view==='texte_libre'} onClick={()=>changeView('texte_libre')}>✍️ Impression Texte</NavBtn>
             <NavBtn active={view==='facture_a4'} onClick={()=>changeView('facture_a4')}>📄 Nouvelle Facture</NavBtn>
             <NavBtn active={view==='devis'} onClick={()=>changeView('devis')}>📝 Créer un Devis</NavBtn>
             <NavBtn active={view==='admin_credit'} onClick={()=>changeView('admin_credit')}>🔴 Ventes à Crédit</NavBtn>
@@ -582,6 +583,7 @@ export default function App() {
       <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto relative">
         {view==='commandes_web' && <ModuleCommandesWeb params={parametres} />}
         {view==='gestion_site' && <ModuleGestionSite />}
+         {view==='texte_libre' && <ModuleImpressionTexte />}
         {(view==='caisse' || view==='facture_a4' || view==='admin_credit' || view==='devis') && <ModuleVente mode={view} params={parametres} categoriesDb={categoriesDb} />}
         {view==='admin_stock' && <AdminStock categoriesDb={categoriesDb} refreshCategories={loadCategories} />}
         {view==='admin_fournisseurs' && <AdminFournisseurs />}
@@ -2124,6 +2126,132 @@ const save = async () => {
           </div>
         </div>
         <button onClick={save} className="w-full bg-[#800020] text-white p-4 rounded-2xl font-black uppercase shadow-xl hover:bg-black transition">💾 Sauvegarder la configuration</button>
+      </div>
+    </div>
+  );
+};
+
+// ======================================================================
+// ✍️ MODULE : IMPRESSION TEXTE LIBRE (TICKET 58mm)
+// ======================================================================
+const ModuleImpressionTexte = () => {
+  const editorRef = useRef(null);
+
+  const execCmd = (cmd, arg = null) => {
+    document.execCommand(cmd, false, arg);
+    editorRef.current.focus();
+  };
+
+  const insertTitreNoir = () => {
+    const text = window.getSelection().toString() || "TITRE TAPE À L'OEIL";
+    const html = `<div style="background-color: #000; color: #fff; padding: 10px; text-align: center; font-weight: 900; margin: 10px 0; border: 3px solid #000; text-transform: uppercase; font-size: 18px;">${text}</div><div><br></div>`;
+    execCmd('insertHTML', html);
+  };
+
+  const insertLigne = () => {
+    execCmd('insertHTML', `<hr style="border-top: 3px dashed #000; margin: 15px 0;" /><div><br></div>`);
+  };
+
+  const handlePrint = () => {
+    if (!editorRef.current) return;
+    const content = editorRef.current.innerHTML;
+    
+    const win = window.open('', '', 'width=350,height=600');
+    if (!win) { alert("⚠️ Pop-up bloqué par le navigateur."); return; }
+
+    win.document.write(`
+      <html><head><title>Impression Libre</title>
+        <style>
+          @media print { 
+            @page { margin: 0; } 
+            html, body { height: auto; margin: 0 !important; padding: 0 !important; }
+          }
+          body { 
+            font-family: 'Courier New', Courier, monospace; 
+            width: 58mm; 
+            padding: 5px; 
+            margin: 0 auto; 
+            color: #000; 
+            font-size: 14px;
+            font-weight: 900;
+          }
+          /* Sécurités pour forcer le noir/blanc et l'épaisseur */
+          * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          b, strong { font-weight: 900 !important; font-size: 110%; }
+          i, em { font-style: italic; }
+          u { text-decoration: underline; border-bottom: 2px solid #000; }
+          div, p { margin-bottom: 5px; line-height: 1.3; }
+        </style>
+      </head><body>
+        <div style="padding-top: 5px;">
+          ${content}
+        </div>
+        <p style="color:#fff; margin:0;">.</p>
+      </body></html>
+    `);
+    win.document.close();
+    setTimeout(() => { win.print(); }, 500);
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      <h2 className="text-2xl font-black uppercase text-[#800020] border-b-2 border-[#800020] pb-2">
+        Impression Libre (Ticket 58mm)
+      </h2>
+      
+      <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-200">
+        
+        <div className="flex flex-wrap gap-2 mb-6 bg-gray-100 p-3 rounded-xl border border-gray-200 shadow-inner">
+          <button onClick={() => execCmd('bold')} className="w-10 h-10 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg shadow-sm font-black text-lg transition">B</button>
+          <button onClick={() => execCmd('italic')} className="w-10 h-10 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg shadow-sm italic text-lg transition">I</button>
+          <button onClick={() => execCmd('underline')} className="w-10 h-10 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg shadow-sm underline text-lg transition">U</button>
+          
+          <div className="w-px bg-gray-300 mx-2"></div>
+          
+          <button onClick={() => execCmd('justifyLeft')} className="w-10 h-10 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg shadow-sm transition">⬅️</button>
+          <button onClick={() => execCmd('justifyCenter')} className="w-10 h-10 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg shadow-sm transition">↔️</button>
+          <button onClick={() => execCmd('justifyRight')} className="w-10 h-10 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg shadow-sm transition">➡️</button>
+          
+          <div className="w-px bg-gray-300 mx-2"></div>
+          
+          <button onClick={() => execCmd('fontSize', '3')} className="px-3 h-10 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg shadow-sm font-bold text-xs transition">Normale</button>
+          <button onClick={() => execCmd('fontSize', '5')} className="px-3 h-10 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg shadow-sm font-black text-sm transition">Grand</button>
+          <button onClick={() => execCmd('fontSize', '7')} className="px-3 h-10 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg shadow-sm font-black text-lg transition uppercase text-[#800020]">Géant</button>
+          
+          <div className="w-full mt-2 flex gap-2">
+            <button onClick={insertTitreNoir} className="flex-1 bg-black text-white h-10 rounded-lg font-black uppercase text-xs hover:bg-gray-800 transition shadow-md">
+              ⬛ Inserer Bloc Noir
+            </button>
+            <button onClick={insertLigne} className="flex-1 bg-white border-2 border-dashed border-gray-400 text-gray-800 h-10 rounded-lg font-black uppercase text-xs hover:bg-gray-50 transition shadow-sm">
+              --- Insérer Ligne ---
+            </button>
+          </div>
+        </div>
+
+        <div className="flex justify-center bg-gray-800 p-8 rounded-2xl shadow-inner overflow-hidden">
+          <div 
+            ref={editorRef}
+            contentEditable 
+            suppressContentEditableWarning
+            className="bg-white p-4 shadow-2xl outline-none min-h-[400px] overflow-hidden"
+            style={{ 
+              width: '58mm', 
+              fontFamily: "'Courier New', Courier, monospace", 
+              fontSize: '14px', 
+              fontWeight: '900',
+              wordWrap: 'break-word' 
+            }}
+          >
+            <div style={{ textAlign: "center" }}>VOTRE TEXTE ICI</div>
+            <div><br/></div>
+          </div>
+        </div>
+
+        <button onClick={handlePrint} className="w-full mt-8 bg-[#800020] text-white p-4 rounded-xl font-black uppercase tracking-widest shadow-xl hover:bg-black transition text-lg flex justify-center items-center gap-3">
+          <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+          Lancer l'impression 58mm
+        </button>
+
       </div>
     </div>
   );
