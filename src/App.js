@@ -2151,6 +2151,22 @@ const ModuleImpressionTexte = () => {
   const insertLigne = () => {
     execCmd('insertHTML', `<hr style="border-top: 3px dashed #000; margin: 15px 0;" /><div><br></div>`);
   };
+  const applyFontSize = (e) => {
+    const size = e.target.value;
+    if (!size) return;
+    
+    // Astuce pour forcer l'éditeur à utiliser une taille précise en pixels
+    document.execCommand("fontSize", false, "7");
+    const fontElements = editorRef.current.getElementsByTagName("font");
+    for (let i = 0; i < fontElements.length; i++) {
+        if (fontElements[i].size === "7") {
+            fontElements[i].removeAttribute("size");
+            fontElements[i].style.fontSize = size + "px";
+        }
+    }
+    e.target.value = ""; // Remet le menu déroulant à 0
+    editorRef.current.focus();
+  };
 
   const handlePrint = () => {
     if (!editorRef.current) return;
@@ -2214,9 +2230,20 @@ const ModuleImpressionTexte = () => {
           
           <div className="w-px bg-gray-300 mx-2"></div>
           
-          <button onClick={() => execCmd('fontSize', '3')} className="px-3 h-10 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg shadow-sm font-bold text-xs transition">Normale</button>
-          <button onClick={() => execCmd('fontSize', '5')} className="px-3 h-10 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg shadow-sm font-black text-sm transition">Grand</button>
-          <button onClick={() => execCmd('fontSize', '7')} className="px-3 h-10 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg shadow-sm font-black text-lg transition uppercase text-[#800020]">Géant</button>
+         <select onChange={applyFontSize} className="px-3 h-10 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg shadow-sm font-bold text-xs transition outline-none cursor-pointer">
+            <option value="">Taille...</option>
+            <option value="10">10 px (Minuscule)</option>
+            <option value="12">12 px (Petit)</option>
+            <option value="14">14 px (Normal)</option>
+            <option value="16">16 px</option>
+            <option value="18">18 px</option>
+            <option value="20">20 px (Grand)</option>
+            <option value="24">24 px</option>
+            <option value="28">28 px</option>
+            <option value="32">32 px (Géant)</option>
+            <option value="40">40 px</option>
+            <option value="48">48 px (Énorme)</option>
+          </select>
           
           <div className="w-full mt-2 flex gap-2">
             <button onClick={insertTitreNoir} className="flex-1 bg-black text-white h-10 rounded-lg font-black uppercase text-xs hover:bg-gray-800 transition shadow-md">
